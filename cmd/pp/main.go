@@ -8,8 +8,10 @@ import (
 
 func main() {
 	cmd := mainline.Commands{
-		"find, fd, ls": &FindCommand{},
-		"view, vw": &ViewCommand{},
+		"find": FindCommand.Find,
+		"ls":   FindCommand.Find,
+		"view": ViewCommand.View,
+		"vw":   ViewCommand.View,
 	}
 	if err := cmd.Run(os.Args...); err != nil {
 		log.Fatalln(err)
