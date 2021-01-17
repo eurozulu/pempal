@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 type Template interface {
 	String() string
 	Location() string
@@ -42,7 +41,7 @@ func TemplateType(t Template) string {
 	case *CertificateTemplate:
 		return "CERTIFICATE"
 	case *CSRTemplate:
-		return  "CERTIFICATE REQUEST"
+		return "CERTIFICATE REQUEST"
 	case *SSHPublicKeyTemplate:
 		return "SSH PUBLIC KEY"
 	case *PublicKeyTemplate:
@@ -72,11 +71,16 @@ func TemplateString(t Template) string {
 	return buf.String()
 }
 
-func TemplateValues(t Template, flds []string) map[string] interface{} {
+func TemplateValues(t Template, flds []string) map[string]interface{} {
 	tv := reflect.ValueOf(t).Elem()
-	m := map[string] interface{}{}
-	for _, f := range flds {
-		m[f] = tv.FieldByName(f).Interface()
+	m := map[string]interface{}{}
+	for _, fn := range flds {
+		v := tv.FieldByName(fn)
+		// not a known field
+		if !v.IsValid() {
+			continue
+		}
+		m[fn] = fmt.Sprintf("%v", v)
 	}
 	return m
 }
@@ -89,7 +93,8 @@ func TemplateFields(t Template) []string {
 	}
 	for i := 0; i < tp.NumField(); i++ {
 		f := tp.Field(i)
-		if _, ok := f.Tag.Lookup("yaml"); !ok {
+		tag, ok := f.Tag.Lookup("yaml")
+		if !ok || tag == "-" {
 			continue
 		}
 		flds = append(flds, f.Name)
