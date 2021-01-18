@@ -6,7 +6,9 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -313,16 +315,53 @@ func RevokedCertificatesReslice(rcl []RevokedCertificate) []pkix.RevokedCertific
 }
 
 type Extension struct {
-	Id       asn1.ObjectIdentifier `yaml:"id"`
-	Critical bool                  `yaml:"optional"`
-	Value    []byte                `yaml:"value"`
+	Id       ObjectIdentifier `yaml:"id"`
+	Critical bool             `yaml:"optional"`
+	Value    []byte           `yaml:"value"`
+}
+
+func (o *Extension) UnmarshalYAML(value *yaml.Node) error {
+	s := &struct {
+		Id       ObjectIdentifier `yaml:"id"`
+		Critical bool             `yaml:"optional"`
+		Value    string           `yaml:"value"`
+	}{}
+	if err := yaml.Unmarshal([]byte(value.Value), s); err != nil {
+		return err
+	}
+	o.Id = s.Id
+	o.Critical = s.Critical
+
+	vs := strings.Split(s.Value, " ")
+	o.Value = make([]byte, len(vs))
+	for i, bs := range vs {
+		v, err := strconv.Atoi(bs)
+		if err != nil {
+			return err
+		}
+		o.Value[i] = byte(v)
+	}
+	return nil
+}
+
+func (o Extension) MarshalYAML() (interface{}, error) {
+	s := &struct {
+		Id       ObjectIdentifier `yaml:"Id"`
+		Critical bool             `yaml:"Critical"`
+		Value    string           `yaml:"Value"`
+	}{
+		Id:       o.Id,
+		Critical: o.Critical,
+		Value:    fmt.Sprintf("%X", o.Value),
+	}
+	return s, nil
 }
 
 func ExtensionSlice(e []pkix.Extension) []Extension {
 	exts := make([]Extension, len(e))
 	for i, ex := range e {
 		exts[i] = Extension{
-			Id:       ex.Id,
+			Id:       ObjectIdentifier(ex.Id),
 			Critical: ex.Critical,
 			Value:    ex.Value,
 		}
@@ -333,10 +372,58 @@ func ExtensionReslice(e []Extension) []pkix.Extension {
 	exts := make([]pkix.Extension, len(e))
 	for i, ex := range e {
 		exts[i] = pkix.Extension{
-			Id:       ex.Id,
+			Id:       asn1.ObjectIdentifier(ex.Id),
 			Critical: ex.Critical,
 			Value:    ex.Value,
 		}
 	}
 	return exts
+}
+
+type ObjectIdentifier asn1.ObjectIdentifier
+
+func (o *ObjectIdentifier) UnmarshalYAML(value *yaml.Node) error {
+	sbs := strings.Split(value.Value, " ")
+	for _, sb := range sbs {
+		if sb == "" {
+			continue
+		}
+		i, err := strconv.ParseInt(sb, 10, 32)
+		if err != nil {
+			return err
+		}
+		*o = append(*o, int(i))
+	}
+	return nil
+}
+
+func (o ObjectIdentifier) MarshalYAML() (interface{}, error) {
+	return fmt.Sprintf("%x", o), nil
+}
+
+type AttributeTypeAndValue struct {
+	Type  ObjectIdentifier `yaml:"ObjectIdentifier,omitempty"`
+	Value string           `yaml:"Value,omitempty"`
+}
+
+func AttributeTypeAndValueSlice(e []pkix.AttributeTypeAndValue) []AttributeTypeAndValue {
+	attrs := make([]AttributeTypeAndValue, len(e))
+	for i, atv := range e {
+		attrs[i] = AttributeTypeAndValue{
+			Type:  ObjectIdentifier(atv.Type),
+			Value: fmt.Sprintf("%v", atv.Value),
+		}
+	}
+	return attrs
+}
+
+func AttributeTypeAndValueReslice(e []AttributeTypeAndValue) []pkix.AttributeTypeAndValue {
+	atvs := make([]pkix.AttributeTypeAndValue, len(e))
+	for i, atv := range e {
+		atvs[i] = pkix.AttributeTypeAndValue{
+			Type:  asn1.ObjectIdentifier(atv.Type),
+			Value: atv.Value,
+		}
+	}
+	return atvs
 }

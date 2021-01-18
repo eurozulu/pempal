@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/eurozulu/pempal/encoding"
 	"github.com/eurozulu/pempal/filescan"
 	"log"
@@ -9,8 +10,11 @@ import (
 )
 
 type ViewCommand struct {
-	Verbose bool   `flag:"verbose,v"`
-	Encode  string `flag:"encode,e"`
+	Verbose     bool `flag:"verbose,v"`
+	VeryVerbose bool `flag:"vv"`
+	Recursive   bool `flag:"recursive,r"`
+
+	Encode string `flag:"encode,e"`
 
 	OutPath string `flag:"outpath,out"`
 }
@@ -45,7 +49,10 @@ func (sc ViewCommand) View(args ...string) error {
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
 
-	ds := filescan.DirectoryScanner{}
+	ds := filescan.DirectoryScanner{
+		Recursive:   sc.Recursive,
+		PrintErrors: sc.VeryVerbose,
+	}
 	ch := ds.ScanDirectories(ctx, args)
 	for {
 		select {
@@ -58,7 +65,7 @@ func (sc ViewCommand) View(args ...string) error {
 			if err := ec.Encode(out, tps); err != nil {
 				return err
 			}
+			fmt.Printf("encoded %d\n", len(tps))
 		}
 	}
-	return nil
 }

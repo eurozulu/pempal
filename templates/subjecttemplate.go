@@ -17,12 +17,12 @@ type SubjectTemplate struct {
 	// this can be used to extract non-standard attributes that are not parsed
 	// by this package. When marshaling to RDNSequences, the Names field is
 	// ignored, see ExtraNames.
-	Names []pkix.AttributeTypeAndValue `yaml:"Names,omitempty"`
+	Names []AttributeTypeAndValue `yaml:"Names,omitempty"`
 
 	// ExtraNames contains attributes to be copied, raw, into any marshaled
 	// distinguished names. Values override any attributes with the same OID.
 	// The ExtraNames field is not populated when parsing, see Names.
-	ExtraNames []pkix.AttributeTypeAndValue `yaml:"ExtraNames,omitempty"`
+	ExtraNames []AttributeTypeAndValue `yaml:"ExtraNames,omitempty"`
 }
 
 func (st SubjectTemplate) String() string {
@@ -58,50 +58,19 @@ func (st SubjectTemplate) Apply(n *pkix.Name) {
 		n.PostalCode = append(n.PostalCode, st.PostalCode...)
 	}
 	if len(st.Names) > 0 {
-		n.Names = append(n.Names, st.Names...)
+		n.Names = append(n.Names, AttributeTypeAndValueReslice(st.Names)...)
 	}
 	if len(st.ExtraNames) > 0 {
-		n.ExtraNames = append(n.ExtraNames, st.ExtraNames...)
+		n.ExtraNames = append(n.ExtraNames, AttributeTypeAndValueReslice(st.ExtraNames)...)
 	}
 	if st.SerialNumber != "" {
 		n.SerialNumber = st.SerialNumber
 	}
 }
 
-func (st SubjectTemplate) Match(n *pkix.Name) bool {
-	if len(st.Organization) > 0 && !containsAll(n.Organization, st.Organization) {
-		return false
-	}
-	if len(st.OrganizationalUnit) > 0 && !containsAll(n.OrganizationalUnit, st.OrganizationalUnit) {
-		return false
-	}
-	if len(st.PostalCode) > 0 && !containsAll(n.PostalCode, st.PostalCode) {
-		return false
-	}
-	if len(st.StreetAddress) > 0 && !containsAll(n.StreetAddress, st.StreetAddress) {
-		return false
-	}
-	if len(st.Locality) > 0 && !containsAll(n.Locality, st.Locality) {
-		return false
-	}
-	if len(st.Province) > 0 && !containsAll(n.Province, st.Province) {
-		return false
-	}
-	if len(st.Country) > 0 && !containsAll(n.Country, st.Country) {
-		return false
-	}
-	if len(st.Names) > 0 && !containsAllAttr(n.Names, st.Names) {
-		return false
-	}
-	if len(st.ExtraNames) > 0 && !containsAllAttr(n.ExtraNames, st.ExtraNames) {
-		return false
-	}
-	return true
-}
-
 func NewSubjectTemplate(subject pkix.Name) SubjectTemplate {
 	return SubjectTemplate{
-		CommonName:         "",
+		CommonName:         subject.CommonName,
 		SerialNumber:       subject.SerialNumber,
 		Organization:       subject.Organization,
 		OrganizationalUnit: subject.OrganizationalUnit,
@@ -110,41 +79,7 @@ func NewSubjectTemplate(subject pkix.Name) SubjectTemplate {
 		Province:           subject.Province,
 		Country:            subject.Country,
 		PostalCode:         subject.PostalCode,
-		Names:              subject.Names,
-		ExtraNames:         subject.ExtraNames,
+		Names:              AttributeTypeAndValueSlice(subject.Names),
+		ExtraNames:         AttributeTypeAndValueSlice(subject.ExtraNames),
 	}
-}
-
-func containsAll(s []string, has []string) bool {
-	for _, ic := range has {
-		if !contains(s, ic) {
-			return false
-		}
-	}
-	return true
-}
-func contains(s []string, has string) bool {
-	for _, is := range s {
-		if is == has {
-			return true
-		}
-	}
-	return false
-}
-
-func containsAllAttr(a []pkix.AttributeTypeAndValue, has []pkix.AttributeTypeAndValue) bool {
-	for _, ic := range has {
-		if !containsAttr(a, ic) {
-			return false
-		}
-	}
-	return true
-}
-func containsAttr(a []pkix.AttributeTypeAndValue, has pkix.AttributeTypeAndValue) bool {
-	for _, ia := range a {
-		if ia.Type.Equal(has.Type) {
-			return true
-		}
-	}
-	return false
 }

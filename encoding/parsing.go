@@ -14,7 +14,7 @@ var ErrorUnknownFormat = fmt.Errorf("unknown format")
 func ParseTemplates(p string, by []byte) ([]templates.Template, error) {
 	if strings.HasSuffix(p, ".yaml") {
 		if readYamlName(by) != "" {
-			parseYaml(p, by)
+			return parseYaml(p, by)
 		}
 		return nil, ErrorUnknownFormat
 	}
@@ -79,7 +79,11 @@ func parseBinary(p string, by []byte) ([]templates.Template, error) {
 		}
 		return tpls, nil
 	}
-	sspubK := &templates.SSHPublicKeyTemplate{FilePath: p}
+	sspubK := &templates.SSHPublicKeyTemplate{
+		PublicKeyTemplate: templates.PublicKeyTemplate{
+			FilePath: p,
+		},
+	}
 	err = sspubK.UnmarshalBinary(by)
 	if err == nil {
 		return []templates.Template{sspubK}, nil
@@ -130,11 +134,7 @@ func readYamlName(by []byte) string {
 		return ""
 	}
 	st := strings.TrimSpace(s[0])
-	if strings.HasPrefix(st, "\"") {
-		st = st[1:]
-	}
-	if strings.HasSuffix(st, "\"") {
-		st = st[0 : len(st)-1]
-	}
+	st = strings.TrimPrefix(st, "\"")
+	st = strings.TrimSuffix(st, "\"")
 	return st
 }

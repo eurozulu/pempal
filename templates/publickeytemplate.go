@@ -65,37 +65,27 @@ func (t *PublicKeyTemplate) MarshalPEM() (*pem.Block, error) {
 }
 
 type SSHPublicKeyTemplate struct {
-	KeyType              string `yaml:"KeyType,omitempty"`
-	PublicKeyFingerprint string `yaml:"PublicKeyFingerprint,omitempty"`
-	Comment              string `yaml:"Comment,omitempty"`
-	FilePath             string `yaml:"-"`
-
-	key ssh.PublicKey
-}
-
-func (t *SSHPublicKeyTemplate) String() string {
-	return TemplateString(t)
-}
-
-func (t SSHPublicKeyTemplate) Location() string {
-	return t.FilePath
+	Comment string `yaml:"Comment,omitempty"`
+	PublicKeyTemplate
 }
 
 func (t *SSHPublicKeyTemplate) UnmarshalBinary(data []byte) error {
-	k, c, _, _, err := ssh.ParseAuthorizedKey(data)
+	c, k, err := pempal.ParseSSHPublicKey(data)
 	if err != nil {
 		return err
 	}
 	t.key = k
-	t.KeyType = k.Type()
-	t.PublicKeyFingerprint = ssh.FingerprintSHA256(k)
 	t.Comment = c
-	return nil
+	by, err := x509.MarshalPKIXPublicKey(k)
+	if err != nil {
+		return err
+	}
+	return t.PublicKeyTemplate.UnmarshalBinary(by)
 }
 
 func (t *SSHPublicKeyTemplate) MarshalBinary() (data []byte, err error) {
 	if t.key == nil {
 		return nil, fmt.Errorf("no binary private key data available")
 	}
-	return ssh.MarshalAuthorizedKey(t.key), nil
+	return pempal.MarshalPublicKeyToSSH(t.key, t.Comment)
 }

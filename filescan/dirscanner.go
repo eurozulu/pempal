@@ -10,7 +10,7 @@ import (
 )
 
 type DirectoryScanner struct {
-	Recursive bool
+	Recursive   bool
 	PrintErrors bool
 }
 
@@ -30,7 +30,9 @@ func (ds DirectoryScanner) ScanDirectories(ctx context.Context, args []string) <
 }
 
 func (ds DirectoryScanner) ScanDirectory(ctx context.Context, p string, ch chan<- []templates.Template, wg *sync.WaitGroup) {
-	defer wg.Done()
+	defer func() {
+		wg.Done()
+	}()
 	fs, err := NewFileScanner(p)
 	if err != nil {
 		ds.showError(err)
@@ -50,6 +52,9 @@ func (ds DirectoryScanner) ScanDirectory(ctx context.Context, p string, ch chan<
 		tpls, err := encoding.ParseTemplates(fs.FileName(), by)
 		if err != nil {
 			ds.showError(fmt.Errorf("%s  %v", fs.FileName(), err))
+			continue
+		}
+		if len(tpls) == 0 {
 			continue
 		}
 		select {

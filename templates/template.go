@@ -24,7 +24,8 @@ func NewTemplate(p string, tt string) (Template, error) {
 	case "PUBLIC KEY":
 		return &PublicKeyTemplate{FilePath: p}, nil
 	case "SSH PUBLIC KEY":
-		return &SSHPublicKeyTemplate{FilePath: p}, nil
+		pkt := PublicKeyTemplate{FilePath: p}
+		return &SSHPublicKeyTemplate{PublicKeyTemplate: pkt}, nil
 	case "PRIVATE KEY":
 		return &PrivateKeyTemplate{FilePath: p}, nil
 	case "OPENSSH PRIVATE KEY":

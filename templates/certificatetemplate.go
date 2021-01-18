@@ -2,7 +2,6 @@ package templates
 
 import (
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -10,16 +9,14 @@ import (
 )
 
 type CertificateTemplate struct {
-	Template string          `yaml:"Template"`
-	Version  int             `yaml:"Version,omitempty"`
-	Subject  SubjectTemplate `yaml:"Subject,omitempty"`
-	Issuer   SubjectTemplate `yaml:"Issuer,omitempty"`
+	Version int             `yaml:"Version,omitempty"`
+	Subject SubjectTemplate `yaml:"Subject,omitempty"`
+	Issuer  SubjectTemplate `yaml:"Issuer,omitempty"`
 
 	SignatureAlgorithm SignatureAlgorithm `yaml:"SignatureAlgorithm,omitempty"`
 	PublicKeyAlgorithm PublicKeyAlgorithm `yaml:"PublicKeyAlgorithm,omitempty"`
-
-	Extensions      []pkix.Extension `yaml:"Extensions,omitempty"`
-	ExtraExtensions []pkix.Extension `yaml:"ExtraExtensions,omitempty"`
+	Extensions         []Extension        `yaml:"Extensions,omitempty"`
+	ExtraExtensions    []Extension        `yaml:"ExtraExtensions,omitempty"`
 
 	// Alternate Name values.
 	DNSNames       []string   `yaml:"DNSNames,omitempty"`
@@ -37,8 +34,8 @@ type CertificateTemplate struct {
 	IssuingCertificateURL []string      `yaml:"IssuingCertificateURL,omitempty"`
 	CRLDistributionPoints []string      `yaml:"CRLDistributionPoints,omitempty"`
 
-	FilePath              string        `yaml:"-"`
-	cert                  *x509.Certificate
+	FilePath string `yaml:"-"`
+	cert     *x509.Certificate
 }
 
 func (t CertificateTemplate) Location() string {
@@ -63,8 +60,8 @@ func (t *CertificateTemplate) MarshalBinary() (data []byte, err error) {
 	c.SignatureAlgorithm = x509.SignatureAlgorithm(t.SignatureAlgorithm)
 	c.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(t.PublicKeyAlgorithm)
 
-	c.Extensions = t.Extensions
-	c.ExtraExtensions = t.ExtraExtensions
+	c.Extensions = ExtensionReslice(t.Extensions)
+	c.ExtraExtensions = ExtensionReslice(t.ExtraExtensions)
 	c.DNSNames = t.DNSNames
 	c.EmailAddresses = t.EmailAddresses
 	c.IPAddresses = t.IPAddresses
@@ -88,7 +85,6 @@ func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	t.cert = c
-	t.Template = "CERTIFICATE"
 
 	t.Version = c.Version
 	t.Subject = NewSubjectTemplate(c.Subject)
@@ -97,8 +93,8 @@ func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
 	t.SignatureAlgorithm = SignatureAlgorithm(c.SignatureAlgorithm)
 	t.PublicKeyAlgorithm = PublicKeyAlgorithm(c.PublicKeyAlgorithm)
 
-	t.Extensions = c.Extensions
-	t.ExtraExtensions = c.ExtraExtensions
+	t.Extensions = ExtensionSlice(c.Extensions)
+	t.ExtraExtensions = ExtensionSlice(c.ExtraExtensions)
 
 	t.DNSNames = c.DNSNames
 	t.EmailAddresses = c.EmailAddresses
@@ -113,23 +109,6 @@ func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
 	t.MaxPathLenZero = c.MaxPathLenZero
 	t.IssuingCertificateURL = c.IssuingCertificateURL
 	t.CRLDistributionPoints = c.CRLDistributionPoints
-	return nil
-}
-
-func (t *CertificateTemplate) MarshalYAML() (interface{}, error) {
-	t.Template = "CERTIFICATE"
-	return t, nil
-}
-
-func (t *CertificateTemplate) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var ct CertificateTemplate
-	if err := unmarshal(&ct); err != nil {
-		return err
-	}
-	if ct.Template != "CERTIFICATE" {
-		return fmt.Errorf("expected CERTIFICATE template, found '%s'", ct.Template)
-	}
-	t = &ct
 	return nil
 }
 

@@ -10,7 +10,11 @@ import (
 func NewFileScanner(dirname string) (*FileScanner, error) {
 	files, err := directoryFiles(dirname)
 	if err != nil {
-		return nil, err
+		if !strings.HasSuffix(err.Error(), "not a directory") {
+			return nil, err
+		}
+		// If filename (not dir) given, use just this in the files.
+		files = []string{dirname}
 	}
 	return &FileScanner{
 		files: files,

@@ -1,7 +1,6 @@
 package pempal
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -55,7 +54,6 @@ func PublicKeyLength(pk crypto.PublicKey) string {
 	}
 }
 
-
 func PublicKeyFromPrivate(pk crypto.PrivateKey) crypto.PublicKey {
 	switch v := pk.(type) {
 	case *rsa.PrivateKey:
@@ -78,17 +76,15 @@ func EncryptPEMKey(by []byte, passphrase string, pemCipher x509.PEMCipher) ([]by
 	return pem.EncodeToMemory(ebl), nil
 }
 
-func PublicKeyToSSH(pk crypto.PublicKey, comment string) ([]byte, error) {
+func MarshalPublicKeyToSSH(pk crypto.PublicKey, comment string) ([]byte, error) {
 	spk, err := ssh.NewPublicKey(pk)
 	if err != nil {
 		return nil, err
 	}
 	by := ssh.MarshalAuthorizedKey(spk)
 	if comment != "" {
-		b := bytes.NewBuffer(by)
-		b.WriteRune(' ')
-		b.WriteString(comment)
-		by = b.Bytes()
+		by = append(by, ' ')
+		by = append(by, []byte(comment)...)
 	}
 	return by, nil
 }
