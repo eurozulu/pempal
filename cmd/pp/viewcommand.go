@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"github.com/eurozulu/pempal/encoding"
 	"github.com/eurozulu/pempal/filescan"
 	"log"
 	"os"
+	"strings"
 )
 
 type ViewCommand struct {
@@ -53,6 +55,11 @@ func (sc ViewCommand) View(args ...string) error {
 		Recursive:   sc.Recursive,
 		PrintErrors: sc.VeryVerbose,
 	}
+
+	if args[0] == "-" {
+		args = append(args[1:], scanInput()...)
+	}
+
 	ch := ds.ScanDirectories(ctx, args)
 	for {
 		select {
@@ -68,4 +75,17 @@ func (sc ViewCommand) View(args ...string) error {
 			fmt.Printf("encoded %d\n", len(tps))
 		}
 	}
+}
+
+func scanInput() []string {
+	var lines []string
+	scn := bufio.NewScanner(os.Stdin)
+	for scn.Scan() {
+		l := strings.Split(scn.Text(), " ")
+		if len(l) == 0 || l[0] == "" {
+			continue
+		}
+		lines = append(lines, l[0])
+	}
+	return lines
 }
