@@ -19,6 +19,8 @@ type ViewCommand struct {
 	Encode string `flag:"encode,e"`
 
 	OutPath string `flag:"outpath,out"`
+
+	Password string `flag:"pass,p"`
 }
 
 // View displays the given pathname(s)
@@ -54,6 +56,7 @@ func (sc ViewCommand) View(args ...string) error {
 	ds := filescan.DirectoryScanner{
 		Recursive:   sc.Recursive,
 		PrintErrors: sc.VeryVerbose,
+		Password:    sc.Password,
 	}
 
 	if args[0] == "-" {

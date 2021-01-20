@@ -5,18 +5,23 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/eurozulu/pempal/templates"
+	"golang.org/x/crypto/pkcs12"
 	"gopkg.in/yaml.v3"
 	"strings"
 )
 
 var ErrorUnknownFormat = fmt.Errorf("unknown format")
 
-func ParseTemplates(p string, by []byte) ([]templates.Template, error) {
+func ParseTemplates(p string, by []byte, pwd string) ([]templates.Template, error) {
 	if strings.HasSuffix(p, ".yaml") {
 		if readYamlName(by) != "" {
 			return parseYaml(p, by)
 		}
 		return nil, ErrorUnknownFormat
+	}
+
+	if strings.HasSuffix(p, ".p12") || strings.HasSuffix(p, ".pfx") {
+		return parsePKCS12(p, by, pwd)
 	}
 
 	s := string(by)
@@ -137,4 +142,24 @@ func readYamlName(by []byte) string {
 	st = strings.TrimPrefix(st, "\"")
 	st = strings.TrimSuffix(st, "\"")
 	return st
+}
+
+func parsePKCS12(p string, by []byte, pwd string) ([]templates.Template, error) {
+	pems, err := pkcs12.ToPEM(by, pwd)
+	if err != nil {
+		if !strings.Contains(err.Error(), "decryption password incorrect") {
+			return nil, err
+		}
+		return []templates.Template{&templates.PKCS12Template{
+			FilePath:    p,
+			IsEncrypted: true,
+		},
+		}, nil
+	}
+
+	var pemBytes []byte
+	for _, b := range pems {
+		pemBytes = append(pemBytes, pem.EncodeToMemory(b)...)
+	}
+	return parsePEMs(p, pemBytes)
 }

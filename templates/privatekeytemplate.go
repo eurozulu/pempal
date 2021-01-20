@@ -43,7 +43,11 @@ func (t *PrivateKeyTemplate) UnmarshalBinary(data []byte) error {
 		if t.IsEncrypted {
 			return nil
 		}
-		return err
+		// Try to parse as an rsa key
+		k, err = x509.ParsePKCS1PrivateKey(data)
+		if err != nil {
+			return err
+		}
 	}
 	pk, err := ssh.NewPublicKey(pempal.PublicKeyFromPrivate(k))
 	if err != nil {

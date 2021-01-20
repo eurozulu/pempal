@@ -63,6 +63,8 @@ func TemplateType(t Template) string {
 		return "PRIVATE KEY"
 	case *CRLTemplate:
 		return "X509 CRL"
+	case *PKCS12Template:
+		return "PKCS12 Container"
 	default:
 		return ""
 	}

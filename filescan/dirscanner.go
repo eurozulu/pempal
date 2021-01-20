@@ -12,6 +12,7 @@ import (
 type DirectoryScanner struct {
 	Recursive   bool
 	PrintErrors bool
+	Password    string
 }
 
 func (ds DirectoryScanner) ScanDirectories(ctx context.Context, args []string) <-chan []templates.Template {
@@ -49,7 +50,7 @@ func (ds DirectoryScanner) ScanDirectory(ctx context.Context, p string, ch chan<
 			continue
 		}
 
-		tpls, err := encoding.ParseTemplates(fs.FileName(), by)
+		tpls, err := encoding.ParseTemplates(fs.FileName(), by, ds.Password)
 		if err != nil {
 			ds.showError(fmt.Errorf("%s  %v", fs.FileName(), err))
 			continue

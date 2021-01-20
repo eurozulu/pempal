@@ -53,6 +53,8 @@ type FindCommand struct {
 	// 			prk		Finds only private keys
 	// When not specified, finds All types.
 	Type []string `flag:"type,t"`
+
+	Password string `flag:"pass,p"`
 }
 
 // Find locates files (Certificates, CSRs, CRLs, Private & Public keys) based on query criteria.
@@ -82,6 +84,7 @@ func (fc FindCommand) Find(args ...string) error {
 	ds := filescan.DirectoryScanner{
 		Recursive:   fc.Recursive,
 		PrintErrors: fc.VeryVerbose,
+		Password:    fc.Password,
 	}
 	ch := ds.ScanDirectories(ctx, args)
 	for {
