@@ -45,7 +45,7 @@ func (sc ViewCommand) View(args ...string) error {
 		}()
 		out = f
 	}
-	ec, err := encoding.NewEncoder(sc.Encode)
+	ec, err := encoding.NewEncoder(sc.Encode, out)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (sc ViewCommand) View(args ...string) error {
 			if !ok {
 				return nil
 			}
-			if err := ec.Encode(out, tps); err != nil {
+			if err := ec.Encode(tps); err != nil {
 				return err
 			}
 			fmt.Printf("encoded %d\n", len(tps))
