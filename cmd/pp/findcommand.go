@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"github.com/eurozulu/pempal/filescan"
 	"github.com/eurozulu/pempal/templates"
-	"io"
+	"gopkg.in/yaml.v3"
 	"log"
 	"os"
-	"reflect"
 	"strings"
 	"text/tabwriter"
 )
@@ -21,34 +20,11 @@ type FindCommand struct {
 	// When true, searches sub containers such as sub-directories
 	Recursive bool `flag:"recursive,r"`
 
-	// NoHeaders surpresses the output of column header names
-	NoHeaders bool `flag:"noheaders,nohead,n"`
-
 	// Verbose adds additional fields about the resource to the output.
 	// When true, implies -table to format the output in columns
 	Verbose bool `flag:"verbose,v"`
 	// VeryVerbose adds to verbose output by listing each file visited
 	VeryVerbose bool `flag:"vv"`
-
-	// Certificate flag, when present, will find certificate resources matching the given properties
-	// specify query properties in curly crackets:  {"issuedby": "My CA certificate"}
-	Certificate FilterCriteria `flag:"certificate,cer,optionalvalue"`
-
-	// Request flag, when present, will find certificate Request resources matching the given properties
-	// specify query properties in curly crackets:  {"commonname": "My requested certificate"}
-	Request FilterCriteria `flag:"request,csr,optionalvalue"`
-
-	// Revocation flag, when present, will find Revocation list resources matching the given properties
-	Revocation FilterCriteria `flag:"revocation,crl,optionalvalue"`
-
-	// PublicKey flag, when present, will find PublicKey resources matching the given properties
-	PublicKey FilterCriteria `flag:"publickey,puk,optionalvalue"`
-
-	// PrivateKey flag, when present, will find PrivateKey resources matching the given properties
-	PrivateKey FilterCriteria `flag:"privatekey,prk,optionalvalue"`
-
-	// Any flag, when present, will find any resource containung the given properties
-	Any FilterCriteria `flag:"any,optionalvalue"`
 
 	// Chain attempts to locate the full certificate chain of each certificate found.
 	// Any certificate not self signed will invoke a secondary find for its issuer.
@@ -59,85 +35,45 @@ type FindCommand struct {
 	// Any signed resource (cert, csr, crl) starts a find for its public key file.
 	Keys bool `flag:"keys,k"`
 
-	tFilters   map[string]FilterCriteria
-	fieldNames []string
+	// Query is a free text search of a resource.
+	// If the given string appears in the resource (As it would appear on screen)
+	// It will be included in the results, otherwise it will be omitted.
+	// e.g. -t cer -q "Root CA"  Will find any certificate with "Root CA" in any of its fields.
+	// Query is case sensitive unless -insensitive is set
+	Query string `flag:"query,q"`
+
+	// Insensative effects the -query flag result, making it case insensitive when specified.
+	Insensitive bool `flag:"insensitive,i"`
+
+	// Type specifies the type of resource to find.  Can be a comma delimited list of one or more of th efollowing:
+	// 			cer		finds only certificates
+	// 			csr		Finds only certiifcate requests
+	// 			crl		Finds only certiifcate revokation lists
+	// 			puk		Finds only public keys
+	// 			prk		Finds only private keys
+	// When not specified, finds All types.
+	Type []string `flag:"type,t"`
 }
 
-// Find locates filescan (Certificates, CSRs, CRLs, Private & Public keys) based on query criteria.
+// Find locates files (Certificates, CSRs, CRLs, Private & Public keys) based on query criteria.
 // With no flags, it simply lists the resource location, depending on its container:
 // A file in a directory has the full path listed if it contains a single item.
 // files containing more than one item are listed with a sub index:
 // ./thisdir/certs/servertcerts.p12#3 Indicating it is the 3rd resource in this file.
-// Arguments must include at least one location to search.  Any number of space delimited locations can be given,
-// each will be searched.
-// The argument may be the path to a specific file or a container such as a directory or pkcs container file.
-// Optional Flags:
-// -recursive  Search the named locations and any sub location found within them. default false
-// -chain search for an issuer chain of certificates for any certificate found.
-// -keys search for the related private and public keys for any signed resource found.
-//
-// Resources can be 'filtered' by their types and properties.
-// Filter flags are:
-// -cer		finds only certificates
-// -csr		Finds only certiifcate requests
-// -crl		Finds only certiifcate revokation lists
-// -puk		Finds only public keys
-// -prk		Finds only private keys
-// -any 	Finds any and all resources.
-// These flags have an optional value which can list one or more properties within the resource and a value
-// of that property to match against.  Properties are expresed as {<key name>: <key value>,...}
-// e.g. To find all certificates issued by a certain CA:
-// Find -cer {issuedby: "my root ca certificate"}
-// Certificate dates can be expressed as yyyy/mm/dd hh/MM/ss format or [+|-] duration.
-// e.g. to find certificates that will expire in the next month:
-// find -cer{notafter: "+1month"}
+// The path arguments may be a path to a specific file or a container such as a directory or pkcs container file.
 func (fc FindCommand) Find(args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("Find: must provide at least one path")
 	}
 
-	// Collect any template filters
-	fc.tFilters = map[string]FilterCriteria{}
-	if fc.Certificate != nil {
-		fc.tFilters["CERTIFICATE"] = fc.Certificate
-	}
-	if fc.Request != nil {
-		fc.tFilters["CERTIFICATE REQUEST"] = fc.Request
-	}
-	if fc.Revocation != nil {
-		fc.tFilters["X509 CRL"] = fc.Revocation
-	}
-	if fc.PublicKey != nil {
-		fc.tFilters["PUBLIC KEY"] = fc.PublicKey
-		fc.tFilters["SSH PUBLIC KEY"] = fc.PublicKey
-	}
-	if fc.PrivateKey != nil {
-		fc.tFilters["PRIVATE KEY"] = fc.PrivateKey
-		fc.tFilters["OPENSSH PRIVATE KEY"] = fc.PrivateKey
-	}
-	if len(fc.Any) > 0 {
-		fc.tFilters["ANY"] = fc.Any
+	var err error
+	fc.Type, err = formatTypeNames(fc.Type)
+	if err != nil {
+		return err
 	}
 
-	// If no filters set, add an empty Any
-	if len(fc.tFilters) == 0 {
-		fc.tFilters["ANY"] = FilterCriteria{}
-	}
-
-	out := tabwriter.NewWriter(os.Stdout, 8, 4, 1, ' ', 0)
-	defer func() {
-		if err := out.Flush(); err != nil {
-			log.Println(err)
-		}
-	}()
-
-	// Build a list of the field names to display
-	fc.fieldNames = fc.titleNames()
-	if !fc.NoHeaders {
-		_, err := fmt.Fprintln(out, strings.Join(fc.fieldNames, "\t"))
-		if err != nil {
-			return err
-		}
+	if fc.VeryVerbose {
+		fc.Verbose = true
 	}
 
 	ctx, cnl := context.WithCancel(context.Background())
@@ -156,9 +92,9 @@ func (fc FindCommand) Find(args ...string) error {
 			if !ok {
 				return nil
 			}
-			tpls = fc.filterTemplates(tpls)
-			if len(tpls) > 0 {
-				if err := fc.listTemplates(tpls, out); err != nil {
+			pts := fc.filterTemplates(tpls)
+			if len(pts) > 0 {
+				if err := fc.listTemplates(pts); err != nil {
 					return err
 				}
 			}
@@ -167,118 +103,81 @@ func (fc FindCommand) Find(args ...string) error {
 }
 
 // listTemplates prints out the given list of templates
-func (fc FindCommand) listTemplates(tps []templates.Template, out io.Writer) error {
-	tVals := map[string]interface{}{}
-	for _, t := range tps {
-		if fc.Verbose || fc.VeryVerbose {
-			// Get template values if verbose output
-			tVals = templates.TemplateValues(t, fc.fieldNames)
+func (fc FindCommand) listTemplates(tps []*printedTemplate) error {
+	out := tabwriter.NewWriter(os.Stdout, 24, 8, 4, ' ', 0)
+	defer func() {
+		if err := out.Flush(); err != nil {
+			log.Println(err)
 		}
-		tVals["Location"] = t.Location()
+	}()
 
-		// line up values according to titles
-		dVals := make([]string, len(fc.fieldNames))
-		for f, v := range tVals {
-			pos := indexOf(f, fc.fieldNames)
-			if pos < 0 {
-				continue
-			}
-			dVals[pos] = reflect.ValueOf(v).String()
+	for _, pt := range tps {
+		t := pt.Template
+		tt := templates.TemplateType(t)
+		_, _ = fmt.Fprintf(out, "%s\t", tt)
+
+		if fc.Verbose {
+			_, _ = fmt.Fprintf(out, "%s\t", t.String())
 		}
-		_, err := fmt.Fprintln(out, strings.Join(dVals, "\t"))
-		if err != nil {
-			return err
+		if pt.QueryResult != "" {
+			_, _ = fmt.Fprintf(out, "%s\t", pt.QueryResult)
 		}
+		_, _ = fmt.Fprintf(out, "%s\t", t.Location())
+		_, _ = fmt.Fprintln(out)
 	}
 	return nil
 }
 
-func (fc FindCommand) filterTemplates(tps []templates.Template) []templates.Template {
-	var ntps []templates.Template
+// filterTemplates filters the list of templates, first by type, then by and query string.
+// returns a subset of the given templates, which qualify by type and query
+func (fc FindCommand) filterTemplates(tps []templates.Template) []*printedTemplate {
+	var ntps []*printedTemplate
 	for _, t := range tps {
-		flts := fc.findTemplateFilters(t)
-		// no filters for this template type, ignore template
-		if len(flts) == 0 {
+		// filter by template type
+		tt := templates.TemplateType(t)
+		if len(fc.Type) > 0 && indexOf(tt, fc.Type) < 0 {
 			continue
 		}
-		// check template matches the filters found
-		for _, f := range flts {
-			if f.Match(t) {
-				ntps = append(ntps, t)
-			}
+		qr, ok := fc.queryTemplate(t)
+		if !ok {
+			continue
 		}
+		ntps = append(ntps, &printedTemplate{
+			Template:    t,
+			QueryResult: qr,
+		})
 	}
 	return ntps
 }
 
-func (fc FindCommand) findTemplateFilters(t templates.Template) []FilterCriteria {
-	var cr []FilterCriteria
-	tp, ok := fc.tFilters["ANY"]
-	if ok {
-		cr = append(cr, tp)
+// queryTemplate queries the given template against the command Query string.
+// when present the temaplte is searched for that string, returning true if its found.
+func (fc FindCommand) queryTemplate(t templates.Template) (string, bool) {
+	if fc.Query == "" {
+		return "", true
 	}
-	tp, ok = fc.tFilters[templates.TemplateType(t)]
-	if ok {
-		cr = append(cr, tp)
+	by, err := yaml.Marshal(t)
+	if err != nil {
+		log.Println(err)
+		return err.Error(), false
 	}
-	return cr
+	s := string(by)
+	q := fc.Query
+	if fc.Insensitive {
+		s = strings.ToLower(s)
+		q = strings.ToLower(q)
+	}
+	return findLine(s, q)
 }
 
-func (fc FindCommand) titleNames() []string {
-	var fields []string
-	if fc.Verbose || fc.VeryVerbose {
-		for tt, f := range fc.tFilters {
-			// Empty filters = All items, display first 3 fields
-			flds := f.FieldNames()
-			if len(flds) == 0 && tt != "ANY" {
-				flds = firstTemplateFields(tt, 5)
-			}
-			fields = appendUnique(fields, flds...)
+func findLine(s string, q string) (string, bool) {
+	ss := strings.Split(s, "\n")
+	for _, l := range ss {
+		if strings.Contains(l, q) {
+			return l, true
 		}
 	}
-	fields = appendUnique(fields, "Location")
-	return fields
-}
-
-// FilterCriteria is a map of property name keys with the values to match against the resource value.
-type FilterCriteria map[string]interface{}
-
-// Gets the field names this criteria will filter on.
-func (fc FilterCriteria) FieldNames() []string {
-	var n []string
-	for k := range fc {
-		n = append(n, k)
-	}
-	return n
-}
-
-// Match the given template with the criteria.
-// All properties in the criteria must be present in the template and
-// the value of the template property must be equal to the criteria value.
-// If critiera has no named properties, it will match all templates.
-func (fc FilterCriteria) Match(t templates.Template) bool {
-	// Empty filter allows all templates
-	if len(fc) == 0 {
-		return true
-	}
-
-	vals := templates.TemplateValues(t, fc.FieldNames())
-	// If template doesn't have all the filter names, not a match
-	if len(vals) < len(fc) {
-		return false
-	}
-
-	// compare each value with filter value
-	for k, cv := range fc {
-		vv, ok := vals[k]
-		if !ok {
-			return false
-		}
-		if cv != vv {
-			return false
-		}
-	}
-	return true
+	return "", false
 }
 
 func indexOf(s string, ss []string) int {
@@ -300,16 +199,45 @@ func appendUnique(ss []string, s ...string) []string {
 	return ss
 }
 
-// Gets the first 'n' field names of a Template from the given type
-func firstTemplateFields(tType string, count int) []string {
-	t, err := templates.NewTemplate("", tType)
-	if err != nil {
-		log.Println(err)
-		return nil
+// formatTypeNames takes the abbreviated names from the -type flag and converts them into template type names.
+func formatTypeNames(types []string) ([]string, error) {
+	var ts []string
+
+	for _, tt := range types {
+		if tt == "" {
+			continue
+		}
+		switch strings.ToLower(tt) {
+		case "*", "any":
+			return nil, nil
+
+		case "cer", "certificate", "certificates":
+			ts = appendUnique(ts, "CERTIFICATE")
+
+		case "csr", "req", "request", "certificaterequest":
+			ts = appendUnique(ts, "CERTIFICATE REQUEST")
+
+		case "puk", "public", "publickey", "publickeys":
+			ts = appendUnique(ts, "PUBLIC KEY", "SSH PUBLIC KEY")
+
+		case "prk", "private", "privatekey", "privatekeys":
+			ts = appendUnique(ts, "PRIVATE KEY", "OPENSSH PRIVATE KEY")
+
+		case "keys":
+			ts = appendUnique(ts, "PUBLIC KEY", "SSH PUBLIC KEY",
+				"PRIVATE KEY", "OPENSSH PRIVATE KEY")
+
+		case "crl", "rev", "revocation", "revocationlist":
+			ts = appendUnique(ts, "X509 CRL")
+
+		default:
+			return nil, fmt.Errorf("'%s' is not a known resource type.  Use 'cer', 'csr', 'crl', 'prk', 'puk' or 'any'", tt)
+		}
 	}
-	flds := templates.TemplateFields(t)
-	if count > len(flds) {
-		count = len(flds)
-	}
-	return flds[0:count]
+	return ts, nil
+}
+
+type printedTemplate struct {
+	Template    templates.Template
+	QueryResult string
 }

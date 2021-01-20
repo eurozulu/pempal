@@ -28,7 +28,7 @@ func (t CRLTemplate) Location() string {
 }
 
 func (t *CRLTemplate) String() string {
-	return TemplateString(t)
+	return fmt.Sprintf("%v\t%v\t", t.ThisUpdate, t.Number)
 }
 
 func (t CRLTemplate) MarshalBinary() (data []byte, err error) {

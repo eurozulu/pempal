@@ -12,6 +12,7 @@ func main() {
 		"ls":   FindCommand.Find,
 		"view": ViewCommand.View,
 		"vw":   ViewCommand.View,
+		"help": mainline.HelpCommand.Help,
 	}
 	if err := cmd.Run(os.Args...); err != nil {
 		log.Fatalln(err)

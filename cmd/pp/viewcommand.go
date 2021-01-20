@@ -25,7 +25,7 @@ type ViewCommand struct {
 // path can point to certificate, key, csr, crl or a container, a directory, pkcs#7, pkcs#12.
 func (sc ViewCommand) View(args ...string) error {
 	if len(args) == 0 {
-		log.Fatalln("must provide at least one path")
+		log.Fatalln("must provide at least one path to view")
 	}
 	if sc.Encode == "" {
 		sc.Encode = "yaml"
@@ -58,6 +58,7 @@ func (sc ViewCommand) View(args ...string) error {
 
 	if args[0] == "-" {
 		args = append(args[1:], scanInput()...)
+		fmt.Printf("scanned lines: %d", len(args))
 	}
 
 	ch := ds.ScanDirectories(ctx, args)
@@ -81,11 +82,11 @@ func scanInput() []string {
 	var lines []string
 	scn := bufio.NewScanner(os.Stdin)
 	for scn.Scan() {
-		l := strings.Split(scn.Text(), " ")
-		if len(l) == 0 || l[0] == "" {
+		l := strings.Fields(scn.Text())
+		if len(l) == 0 || l[len(l)-1] == "" {
 			continue
 		}
-		lines = append(lines, l[0])
+		lines = append(lines, l[len(l)-1])
 	}
 	return lines
 }

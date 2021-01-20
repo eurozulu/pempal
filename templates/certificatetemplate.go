@@ -1,22 +1,32 @@
 package templates
 
 import (
+	"crypto"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net"
 	"net/url"
+	"time"
 )
 
 type CertificateTemplate struct {
-	Version int             `yaml:"Version,omitempty"`
-	Subject SubjectTemplate `yaml:"Subject,omitempty"`
-	Issuer  SubjectTemplate `yaml:"Issuer,omitempty"`
+	Version      int             `yaml:"Version,omitempty"`
+	Subject      SubjectTemplate `yaml:"Subject,omitempty"`
+	Issuer       SubjectTemplate `yaml:"Issuer,omitempty"`
+	SerialNumber *big.Int        `yaml:"SerialNumber,omitempty"`
+	NotBefore    time.Time       `yaml:"NotBefore,omitempty"`
+	NotAfter     time.Time       `yaml:"NotAfter,omitempty"`
+	Fingerprint  string          `yaml:"Fingerprint,omitempty"`
 
-	SignatureAlgorithm SignatureAlgorithm `yaml:"SignatureAlgorithm,omitempty"`
+	PublicKey          crypto.PublicKey   `yaml:"PublicKey,omitempty"`
 	PublicKeyAlgorithm PublicKeyAlgorithm `yaml:"PublicKeyAlgorithm,omitempty"`
-	Extensions         []Extension        `yaml:"Extensions,omitempty"`
-	ExtraExtensions    []Extension        `yaml:"ExtraExtensions,omitempty"`
+	Signature          []byte             `yaml:"Signature,omitempty"`
+	SignatureAlgorithm SignatureAlgorithm `yaml:"SignatureAlgorithm,omitempty"`
+
+	Extensions      []Extension `yaml:"Extensions,omitempty"`
+	ExtraExtensions []Extension `yaml:"ExtraExtensions,omitempty"`
 
 	// Alternate Name values.
 	DNSNames       []string   `yaml:"DNSNames,omitempty"`
@@ -43,7 +53,8 @@ func (t CertificateTemplate) Location() string {
 }
 
 func (t *CertificateTemplate) String() string {
-	return TemplateString(t)
+	return fmt.Sprintf("%s\t%s\t%v\t", t.Subject.CommonName, t.Issuer.CommonName,
+		t.NotAfter)
 }
 
 // MarshalBinary will marshal the template into an ASN1/der encoded byte block
@@ -55,9 +66,15 @@ func (t *CertificateTemplate) MarshalBinary() (data []byte, err error) {
 		c = &x509.Certificate{}
 	}
 	c.Version = t.Version
+	c.SerialNumber = t.SerialNumber
 	c.Subject = t.Subject.Subject()
 	c.Issuer = t.Issuer.Subject()
+	c.NotBefore = t.NotBefore
+	c.NotAfter = t.NotAfter
+
+	c.Signature = t.Signature
 	c.SignatureAlgorithm = x509.SignatureAlgorithm(t.SignatureAlgorithm)
+	c.PublicKey = t.PublicKey
 	c.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(t.PublicKeyAlgorithm)
 
 	c.Extensions = ExtensionReslice(t.Extensions)
@@ -87,11 +104,18 @@ func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
 	t.cert = c
 
 	t.Version = c.Version
+	t.SerialNumber = c.SerialNumber
 	t.Subject = NewSubjectTemplate(c.Subject)
 	t.Issuer = NewSubjectTemplate(c.Issuer)
+	t.NotBefore = c.NotBefore
+	t.NotAfter = c.NotAfter
+	t.Fingerprint = fingerprint(c.Raw)
+
+	t.PublicKeyAlgorithm = PublicKeyAlgorithm(c.PublicKeyAlgorithm)
+	t.PublicKey = c.PublicKey
 
 	t.SignatureAlgorithm = SignatureAlgorithm(c.SignatureAlgorithm)
-	t.PublicKeyAlgorithm = PublicKeyAlgorithm(c.PublicKeyAlgorithm)
+	t.Signature = c.Signature
 
 	t.Extensions = ExtensionSlice(c.Extensions)
 	t.ExtraExtensions = ExtensionSlice(c.ExtraExtensions)

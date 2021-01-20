@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// PrivateKeyTemplate is for private keys encoded in pkcs8 or rsa 
+// PrivateKeyTemplate is for private keys encoded in pkcs8 or rsa
 type PrivateKeyTemplate struct {
 	IsEncrypted          bool   `yaml:"IsEncrypted,omitempty"`
 	PublicKeyFingerprint string `yaml:"PublicKeyFingerprint,omitempty"`
@@ -26,7 +26,15 @@ func (t PrivateKeyTemplate) Location() string {
 }
 
 func (t *PrivateKeyTemplate) String() string {
-	return TemplateString(t)
+	e := "encrypted"
+	if !t.IsEncrypted {
+		e = "unencrypted"
+	}
+	pkp := t.PublicKeyFingerprint
+	if pkp == "" {
+		pkp = "???"
+	}
+	return fmt.Sprintf("%s\t%s\t", pkp, e)
 }
 
 func (t *PrivateKeyTemplate) UnmarshalBinary(data []byte) error {
@@ -48,12 +56,16 @@ func (t *PrivateKeyTemplate) UnmarshalBinary(data []byte) error {
 
 func (t *PrivateKeyTemplate) MarshalBinary() (data []byte, err error) {
 	if t.key == nil {
-		return nil, fmt.Errorf("template has no binary key data")
+		if t.IsEncrypted {
+			return nil, fmt.Errorf("template %s is encrypted and cannot be marshalled without passphrase", t.FilePath)
+		}
+		return nil, fmt.Errorf("template %s has no binary key data", t.FilePath)
 	}
 	return x509.MarshalPKCS8PrivateKey(t.key)
 }
 
 func (t *PrivateKeyTemplate) UnmarshalPEM(bl *pem.Block) error {
+	t.pemKey = bl
 	t.IsEncrypted = x509.IsEncryptedPEMBlock(bl)
 	if t.IsEncrypted && t.Passphrase != "" {
 		by, err := x509.DecryptPEMBlock(bl, []byte(t.Passphrase))
@@ -66,6 +78,13 @@ func (t *PrivateKeyTemplate) UnmarshalPEM(bl *pem.Block) error {
 }
 
 func (t *PrivateKeyTemplate) MarshalPEM() (*pem.Block, error) {
+	if t.key == nil {
+		if t.pemKey == nil {
+			return nil, fmt.Errorf("template %s has no pem key data", t.FilePath)
+		}
+		return t.pemKey, nil
+	}
+
 	by, err := t.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -81,20 +100,7 @@ func (t *PrivateKeyTemplate) MarshalPEM() (*pem.Block, error) {
 }
 
 type SSHPrivateKeyTemplate struct {
-	IsEncrypted          bool   `yaml:"IsEncrypted,omitempty"`
-	PublicKeyFingerprint string `yaml:"PublicKeyFingerprint,omitempty"`
-	FilePath             string `yaml:"-"`
-	Passphrase           string `yaml:"-"`
-
-	key crypto.PrivateKey
-}
-
-func (t SSHPrivateKeyTemplate) Location() string {
-	return t.FilePath
-}
-
-func (t *SSHPrivateKeyTemplate) String() string {
-	return TemplateString(t)
+	PrivateKeyTemplate
 }
 
 func (t SSHPrivateKeyTemplate) UnmarshalPEM(bl *pem.Block) error {
@@ -146,7 +152,7 @@ func (t SSHPrivateKeyTemplate) MarshalPEM() (*pem.Block, error) {
 
 func (t SSHPrivateKeyTemplate) MarshalBinary() (data []byte, err error) {
 	if t.key == nil {
-		return nil, fmt.Errorf("template has no binary key data")
+		return nil, fmt.Errorf("template %s has no binary key data", t.FilePath)
 	}
 	return x509.MarshalPKCS8PrivateKey(t.key)
 }

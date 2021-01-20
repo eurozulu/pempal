@@ -1,8 +1,10 @@
 package templates
 
 import (
+	"crypto"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"net"
 	"net/url"
 )
@@ -11,7 +13,10 @@ type CSRTemplate struct {
 	Subject SubjectTemplate `yaml:"Subject,omitempty"`
 	Version int             `yaml:"Version,omitempty"`
 
+	PublicKey          crypto.PublicKey   `yaml:"PublicKey,omitempty"`
 	PublicKeyAlgorithm PublicKeyAlgorithm `yaml:"PublicKeyAlgorithm,omitempty"`
+
+	Signature          []byte             `yaml:"Signature,omitempty"`
 	SignatureAlgorithm SignatureAlgorithm `yaml:"SignatureAlgorithm,omitempty"`
 
 	Extensions      []pkix.Extension `yaml:"Extensions,omitempty"`
@@ -32,7 +37,7 @@ func (t CSRTemplate) Location() string {
 }
 
 func (t *CSRTemplate) String() string {
-	return TemplateString(t)
+	return fmt.Sprintf("%s\t%v\t", t.Subject.CommonName, t.PublicKey)
 }
 
 func (t CSRTemplate) MarshalBinary() (data []byte, err error) {
@@ -43,7 +48,9 @@ func (t CSRTemplate) MarshalBinary() (data []byte, err error) {
 
 	r.Version = t.Version
 	r.Subject = t.Subject.Subject()
+	r.PublicKey = t.PublicKey
 	r.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(t.PublicKeyAlgorithm)
+	r.Signature = t.Signature
 	r.SignatureAlgorithm = x509.SignatureAlgorithm(t.SignatureAlgorithm)
 	r.Extensions = t.Extensions
 	r.ExtraExtensions = t.ExtraExtensions

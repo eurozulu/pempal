@@ -1,12 +1,22 @@
 package templates
 
 import (
-	"bytes"
+	"crypto/sha256"
 	"encoding"
 	"fmt"
 	"reflect"
 	"strings"
 )
+
+var AllTemplatTypes = []string{
+	"CERTIFICATE",
+	"CERTIFICATE REQUEST",
+	"X509 CRL",
+	"SSH PUBLIC KEY",
+	"PUBLIC KEY",
+	"OPENSSH PRIVATE KEY",
+	"PRIVATE KEY",
+}
 
 type Template interface {
 	String() string
@@ -29,7 +39,7 @@ func NewTemplate(p string, tt string) (Template, error) {
 	case "PRIVATE KEY":
 		return &PrivateKeyTemplate{FilePath: p}, nil
 	case "OPENSSH PRIVATE KEY":
-		return &SSHPrivateKeyTemplate{FilePath: p}, nil
+		return &SSHPrivateKeyTemplate{PrivateKeyTemplate{FilePath: p}}, nil
 	case "X509 CRL":
 		return &CRLTemplate{FilePath: p}, nil
 	default:
@@ -58,20 +68,6 @@ func TemplateType(t Template) string {
 	}
 }
 
-func TemplateString(t Template) string {
-	flds := TemplateFields(t)
-	vals := TemplateValues(t, flds)
-	buf := bytes.NewBuffer(nil)
-	for i, f := range flds {
-		if i > 0 {
-			buf.WriteString(",")
-		}
-		buf.WriteString(f)
-		buf.WriteString(fmt.Sprintf("=%v", vals[f]))
-	}
-	return buf.String()
-}
-
 func TemplateValues(t Template, flds []string) map[string]interface{} {
 	tv := reflect.ValueOf(t).Elem()
 	m := map[string]interface{}{}
@@ -87,8 +83,11 @@ func TemplateValues(t Template, flds []string) map[string]interface{} {
 }
 
 func TemplateFields(t Template) []string {
+	return readTypeFields(reflect.TypeOf(t), "")
+}
+
+func readTypeFields(tp reflect.Type, p string) []string {
 	var flds []string
-	tp := reflect.TypeOf(t)
 	if tp.Kind() == reflect.Ptr {
 		tp = tp.Elem()
 	}
@@ -98,7 +97,24 @@ func TemplateFields(t Template) []string {
 		if !ok || tag == "-" {
 			continue
 		}
-		flds = append(flds, f.Name)
+		n := f.Name
+		if p != "" {
+			n = strings.Join([]string{p, n}, ".")
+		}
+		flds = append(flds, n)
+
+		/*
+			// If field type is a structure, recurse into that
+			if f.Type.Kind() == reflect.Struct ||
+				(f.Type.Kind() == reflect.Ptr && f.Type.Elem().Kind() == reflect.Struct){
+				flds = append(flds, readTypeFields(f.Type, n)...)
+			}*/
 	}
 	return flds
+}
+
+func fingerprint(by []byte) string {
+	h := sha256.New()
+	_, _ = h.Write(by)
+	return string(h.Sum(nil))
 }

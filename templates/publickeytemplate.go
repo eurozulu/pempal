@@ -18,7 +18,7 @@ type PublicKeyTemplate struct {
 }
 
 func (t *PublicKeyTemplate) String() string {
-	return TemplateString(t)
+	return fmt.Sprintf("%s\t%v\t", t.PublicKeyAlgorithm, t.PublicKeyFingerprint)
 }
 
 func (t *PublicKeyTemplate) Location() string {

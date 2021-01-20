@@ -1,6 +1,8 @@
 package templates
 
-import "crypto/x509/pkix"
+import (
+	"crypto/x509/pkix"
+)
 
 type SubjectTemplate struct {
 	CommonName         string   `yaml:"CommonName,omitempty"`
@@ -26,7 +28,7 @@ type SubjectTemplate struct {
 }
 
 func (st SubjectTemplate) String() string {
-	return st.Subject().String()
+	return st.CommonName
 }
 
 func (st SubjectTemplate) Subject() pkix.Name {
