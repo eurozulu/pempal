@@ -13,6 +13,7 @@ func main() {
 		"view":    ViewCommand.View,
 		"vw":      ViewCommand.View,
 		"makekey": MakeKeyCommand.MakeKey,
+		"mk":      MakeKeyCommand.MakeKey,
 		"help":    mainline.HelpCommand.Help,
 	}
 	if err := cmd.Run(os.Args...); err != nil {

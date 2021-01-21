@@ -108,7 +108,24 @@ func (kc MakeKeyCommand) MakeKey(args ...string) error {
 		prName = args[0]
 		puName = args[1]
 	}
-	prT, err := privateKeyTemplate(prName, key)
+
+	pwd := kc.Password
+	// If password provided, assume key is encrypted
+	if pwd != "" {
+		kc.Encrypt = true
+	}
+	// If encrypt request but no password, ask for one (unless scripting, then error)
+	if kc.Encrypt && pwd == "" {
+		if kc.Script {
+			return fmt.Errorf("new key encryption failed as no password provided")
+		}
+		pwd, err = PromptCreatePassword("Enter a new password for the key.  (Hit enter for unencrypted key)", 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	prT, err := privateKeyTemplate(prName, pwd, key)
 	if err != nil {
 		return err
 	}
@@ -118,8 +135,8 @@ func (kc MakeKeyCommand) MakeKey(args ...string) error {
 		return err
 	}
 
-	keys := []templates.Template{puT}
-	if !kc.confirmKeys(keys) {
+	keys := []templates.Template{prT, puT}
+	if !kc.confirmKeys(prT) {
 		return fmt.Errorf("aborted")
 	}
 
@@ -158,12 +175,16 @@ func (kc MakeKeyCommand) encoder(out io.Writer) (encoding.TemplateEncoder, error
 	return encoding.NewEncoder(ec, out)
 }
 
-func privateKeyTemplate(p string, prk crypto.PrivateKey) (*templates.PrivateKeyTemplate, error) {
+func privateKeyTemplate(p, password string, prk crypto.PrivateKey) (*templates.PrivateKeyTemplate, error) {
 	by, err := x509.MarshalPKCS8PrivateKey(prk)
 	if err != nil {
 		return nil, err
 	}
-	prkT := &templates.PrivateKeyTemplate{FilePath: p}
+	prkT := &templates.PrivateKeyTemplate{
+		FilePath:    p,
+		Passphrase:  password,
+		IsEncrypted: password != "",
+	}
 	if err := prkT.UnmarshalBinary(by); err != nil {
 		return nil, err
 	}
@@ -237,7 +258,7 @@ func (kc MakeKeyCommand) keyLengthRsa() (int, error) {
 	return l, nil
 }
 
-func (kc MakeKeyCommand) confirmKeys(keys []templates.Template) bool {
+func (kc MakeKeyCommand) confirmKeys(key templates.Template) bool {
 	if kc.Script {
 		return true
 	}
@@ -246,7 +267,7 @@ func (kc MakeKeyCommand) confirmKeys(keys []templates.Template) bool {
 		log.Println(err)
 		return false
 	}
-	err = enc.Encode(keys)
+	err = enc.Encode([]templates.Template{key})
 	if err != nil {
 		log.Println(err)
 		return false
