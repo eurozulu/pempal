@@ -16,6 +16,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -44,38 +45,41 @@ type MakeKeyCommand struct {
 // When only the first is specified, the public key is written to the same name, with a '.pub' extension.
 // When neither are specified, output is to stdout in encoding set with 'encode' flag (default pem)
 func (kc MakeKeyCommand) MakeKey(args ...string) error {
+	var prName string
+	var puName string
 	prOut := os.Stdout
 	puOut := os.Stdout
 
-	hasFileNames := len(args) > 0
-
-	// private key path given
-	if hasFileNames {
-		f, err := os.OpenFile(args[0], os.O_APPEND|os.O_WRONLY|os.O_TRUNC, 0600)
-		if err != nil {
-			return err
-		}
-		defer func(fl *os.File) {
-			if err := fl.Close(); err != nil {
-				log.Println(err)
-			}
-		}(f)
+	if len(args) > 0 {
+		prName = args[0]
 		// If no public key path given, make one up
 		if len(args) == 1 {
 			args = append(args, strings.Join([]string{args[0], "pub"}, "."))
 		}
-	}
-	// public key given (or made up)
-	if len(args) > 1 {
-		f, err := os.OpenFile(args[1], os.O_APPEND|os.O_WRONLY|os.O_TRUNC, 0600)
+		f, err := openKeyfile(prName)
 		if err != nil {
 			return err
 		}
-		defer func(fl *os.File) {
-			if err := fl.Close(); err != nil {
+		defer func(f io.WriteCloser) {
+			if err := f.Close(); err != nil {
 				log.Println(err)
 			}
 		}(f)
+		prOut = f
+	}
+	// public key given (or made up)
+	if len(args) > 1 {
+		puName = args[1]
+		f, err := openKeyfile(puName)
+		if err != nil {
+			return err
+		}
+		defer func(f io.WriteCloser) {
+			if err := f.Close(); err != nil {
+				log.Println(err)
+			}
+		}(f)
+		puOut = f
 	}
 	if len(args) > 2 {
 		return fmt.Errorf("unexpected argument.  Expecting only 2 arguments max. found %d", len(args))
@@ -99,14 +103,6 @@ func (kc MakeKeyCommand) MakeKey(args ...string) error {
 	}
 	if err != nil {
 		return err
-	}
-
-	// Template new keys
-	var prName string
-	var puName string
-	if hasFileNames {
-		prName = args[0]
-		puName = args[1]
 	}
 
 	pwd := kc.Password
@@ -135,7 +131,6 @@ func (kc MakeKeyCommand) MakeKey(args ...string) error {
 		return err
 	}
 
-	keys := []templates.Template{prT, puT}
 	if !kc.confirmKeys(prT) {
 		return fmt.Errorf("aborted")
 	}
@@ -149,7 +144,7 @@ func (kc MakeKeyCommand) MakeKey(args ...string) error {
 		return err
 	}
 	puEnc, _ := kc.encoder(puOut) // ignore error as would have triggered on private key
-	return puEnc.Encode(keys)
+	return puEnc.Encode([]templates.Template{puT})
 }
 
 func (kc MakeKeyCommand) keyAlgorithm() (x509.PublicKeyAlgorithm, error) {
@@ -273,4 +268,12 @@ func (kc MakeKeyCommand) confirmKeys(key templates.Template) bool {
 		return false
 	}
 	return PromptConfirm("Create new these keys?", false)
+}
+
+func openKeyfile(name string) (*os.File, error) {
+	p, err := filepath.Abs(name)
+	if err != nil {
+		return nil, err
+	}
+	return os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_TRUNC, 0600)
 }

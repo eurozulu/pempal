@@ -40,7 +40,7 @@ func (t *PrivateKeyTemplate) String() string {
 	return strings.Join([]string{TemplateType(t), pka, e, pkf, t.Location()}, "\t")
 }
 
-func (t *PrivateKeyTemplate) OpenKey(passphrase string) error {
+func (t *PrivateKeyTemplate) Decrypt(passphrase string) error {
 	if t.pemBlock == nil {
 		return fmt.Errorf("template %s has no binary pem data", t.FilePath)
 	}
@@ -131,6 +131,7 @@ func (t *SSHPrivateKeyTemplate) String() string {
 }
 
 func (t *SSHPrivateKeyTemplate) UnmarshalPEM(bl *pem.Block) error {
+	t.pemBlock = bl
 	by := pem.EncodeToMemory(bl)
 	k, err := ssh.ParseRawPrivateKey(by)
 	if err != nil {
@@ -197,4 +198,11 @@ func (t SSHPrivateKeyTemplate) UnmarshalBinary(data []byte) error {
 	t.PublicKeyFingerprint = ssh.FingerprintSHA256(pk)
 	t.key = k
 	return nil
+}
+func (t *SSHPrivateKeyTemplate) Decrypt(passphrase string) error {
+	if t.pemBlock == nil {
+		return fmt.Errorf("template %s has no binary pem data", t.FilePath)
+	}
+	t.Passphrase = passphrase
+	return t.UnmarshalPEM(t.pemBlock)
 }

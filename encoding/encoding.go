@@ -95,3 +95,7 @@ type PEMMarshaler interface {
 type PEMUnmarshaler interface {
 	UnmarshalPEM(bl *pem.Block) error
 }
+
+type EncryptedPEM interface {
+	Decrypt(passphrase string) error
+}

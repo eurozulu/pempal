@@ -7,6 +7,7 @@ import (
 	"github.com/eurozulu/pempal/templates"
 	"golang.org/x/crypto/pkcs12"
 	"gopkg.in/yaml.v3"
+	"log"
 	"strings"
 )
 
@@ -27,12 +28,12 @@ func ParseTemplates(p string, by []byte, pwd string) ([]templates.Template, erro
 	s := string(by)
 	if strings.Contains(s, "----BEGIN ") &&
 		strings.Contains(s, "-----END") {
-		return parsePEMs(p, by)
+		return parsePEMs(p, by, pwd)
 	}
 	return parseBinary(p, by)
 }
 
-func parsePEMs(p string, by []byte) ([]templates.Template, error) {
+func parsePEMs(p string, by []byte, pwd string) ([]templates.Template, error) {
 	var tpls []templates.Template
 	var index int
 	data := by
@@ -58,6 +59,15 @@ func parsePEMs(p string, by []byte) ([]templates.Template, error) {
 		}
 		if err := tpPem.UnmarshalPEM(bl); err != nil {
 			return nil, err
+		}
+		if pwd != "" {
+			ecPem, ok := tp.(EncryptedPEM)
+			if ok {
+				err = ecPem.Decrypt(pwd)
+				if err != nil {
+					log.Println(err)
+				}
+			}
 		}
 		tpls = append(tpls, tp)
 		data = r
@@ -161,5 +171,5 @@ func parsePKCS12(p string, by []byte, pwd string) ([]templates.Template, error) 
 	for _, b := range pems {
 		pemBytes = append(pemBytes, pem.EncodeToMemory(b)...)
 	}
-	return parsePEMs(p, pemBytes)
+	return parsePEMs(p, pemBytes, pwd)
 }

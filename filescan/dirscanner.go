@@ -17,16 +17,15 @@ type DirectoryScanner struct {
 
 func (ds DirectoryScanner) ScanDirectories(ctx context.Context, args []string) <-chan []templates.Template {
 	ch := make(chan []templates.Template)
-	var wg sync.WaitGroup
-	wg.Add(len(args))
-	go func(wg *sync.WaitGroup) {
+	go func(ch chan<- []templates.Template) {
 		defer close(ch)
+		var wg sync.WaitGroup
+		for _, p := range args {
+			wg.Add(len(args))
+			go ds.ScanDirectory(ctx, p, ch, &wg)
+		}
 		wg.Wait()
-	}(&wg)
-	// Scan each argument for files to be parsed as templates
-	for _, p := range args {
-		go ds.ScanDirectory(ctx, p, ch, &wg)
-	}
+	}(ch)
 	return ch
 }
 
