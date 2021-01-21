@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"golang.org/x/crypto/ssh"
-	"reflect"
 	"strconv"
 )
 
@@ -30,11 +29,11 @@ func ComparePublicKeys(pk1 crypto.PublicKey, pk2 crypto.PublicKey) bool {
 
 func PublicKeyAlgorithm(pk crypto.PublicKey) x509.PublicKeyAlgorithm {
 	switch pk.(type) {
-	case *rsa.PrivateKey:
+	case *rsa.PublicKey:
 		return x509.RSA
-	case *ecdsa.PrivateKey:
+	case *ecdsa.PublicKey:
 		return x509.ECDSA
-	case *ed25519.PrivateKey:
+	case *ed25519.PublicKey:
 		return x509.Ed25519
 	default:
 		return x509.UnknownPublicKeyAlgorithm
@@ -44,9 +43,9 @@ func PublicKeyAlgorithm(pk crypto.PublicKey) x509.PublicKeyAlgorithm {
 func PublicKeyLength(pk crypto.PublicKey) string {
 	switch v := pk.(type) {
 	case *rsa.PublicKey:
-		return strconv.Itoa(v.Size())
+		return strconv.Itoa(v.N.BitLen())
 	case *ecdsa.PublicKey:
-		return reflect.TypeOf(v.Curve).String()
+		return strconv.Itoa(v.Curve.Params().BitSize)
 	case *ed25519.PublicKey:
 		return ""
 	default:

@@ -64,7 +64,7 @@ func TemplateType(t Template) string {
 	case *CRLTemplate:
 		return "X509 CRL"
 	case *PKCS12Template:
-		return "PKCS12 Container"
+		return "PKCS12"
 	default:
 		return ""
 	}

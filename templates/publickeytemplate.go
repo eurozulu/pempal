@@ -7,18 +7,27 @@ import (
 	"fmt"
 	"github.com/eurozulu/pempal"
 	"golang.org/x/crypto/ssh"
+	"strings"
 )
 
 type PublicKeyTemplate struct {
 	PublicKeyAlgorithm   PublicKeyAlgorithm `yaml:"PublicKeyAlgorithm,omitempty"`
 	PublicKeyFingerprint string             `yaml:"PublicKeyFingerprint,omitempty"`
 	KeyLength            string             `yaml:"KeyLength,omitempty"`
-	FilePath             string             `yaml:"-"`
+	FilePath             string             `yaml:"Location,omitempty"`
 	key                  crypto.PublicKey
 }
 
 func (t *PublicKeyTemplate) String() string {
-	return fmt.Sprintf("%s\t%v\t", t.PublicKeyAlgorithm, t.PublicKeyFingerprint)
+	pka := t.PublicKeyAlgorithm.String()
+	if pka == "" {
+		pka = "???"
+	}
+	pkf := t.PublicKeyFingerprint
+	if pkf == "" {
+		pkf = "???"
+	}
+	return strings.Join([]string{TemplateType(t), pka, t.KeyLength, pkf, t.Location()}, "\t")
 }
 
 func (t *PublicKeyTemplate) Location() string {
@@ -67,6 +76,16 @@ func (t *PublicKeyTemplate) MarshalPEM() (*pem.Block, error) {
 type SSHPublicKeyTemplate struct {
 	Comment string `yaml:"Comment,omitempty"`
 	PublicKeyTemplate
+}
+
+func (t *SSHPublicKeyTemplate) String() string {
+	s := strings.Split(t.PublicKeyTemplate.String(), "\t")
+	if len(s) > 0 {
+		s[0] = TemplateType(t)
+		s[len(s)-1] = t.Comment
+		s = append(s, t.Location())
+	}
+	return strings.Join(s, "\t")
 }
 
 func (t *SSHPublicKeyTemplate) UnmarshalBinary(data []byte) error {

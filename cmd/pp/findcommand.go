@@ -113,19 +113,21 @@ func (fc FindCommand) listTemplates(tps []*printedTemplate) error {
 			log.Println(err)
 		}
 	}()
-
 	for _, pt := range tps {
 		t := pt.Template
-		tt := templates.TemplateType(t)
-		_, _ = fmt.Fprintf(out, "%s\t", tt)
-
-		if fc.Verbose {
-			_, _ = fmt.Fprintf(out, "%s\t", t.String())
+		s := t.String()
+		if !fc.Verbose {
+			ss := strings.Split(s, "\t")
+			s = ss[len(ss)-1]
+			if len(ss) > 1 {
+				s = strings.Join([]string{ss[0], s}, "\t")
+			}
 		}
 		if pt.QueryResult != "" {
-			_, _ = fmt.Fprintf(out, "%s\t", pt.QueryResult)
+			_, _ = fmt.Fprintf(out, "(%s)\t", pt.QueryResult)
 		}
-		_, _ = fmt.Fprintf(out, "%s\t", t.Location())
+		_, _ = fmt.Fprint(out, s)
+
 		_, _ = fmt.Fprintln(out)
 	}
 	return nil
@@ -164,23 +166,29 @@ func (fc FindCommand) queryTemplate(t templates.Template) (string, bool) {
 		log.Println(err)
 		return err.Error(), false
 	}
-	s := string(by)
-	q := fc.Query
-	if fc.Insensitive {
+	i := findLineIndex(string(by), fc.Query, !fc.Insensitive)
+	if i < 0 {
+		return "", false
+	}
+	s := strings.Split(string(by), "\n")
+	return strings.TrimSpace(s[i]), true
+}
+
+func findLineIndex(s string, q string, cs bool) int {
+	if !cs {
 		s = strings.ToLower(s)
 		q = strings.ToLower(q)
 	}
-	return findLine(s, q)
-}
-
-func findLine(s string, q string) (string, bool) {
 	ss := strings.Split(s, "\n")
-	for _, l := range ss {
+	for i, l := range ss {
 		if strings.Contains(l, q) {
-			return l, true
+			if strings.Contains(l, "ocation:") {
+				continue
+			}
+			return i
 		}
 	}
-	return "", false
+	return -1
 }
 
 func indexOf(s string, ss []string) int {

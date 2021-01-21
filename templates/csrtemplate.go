@@ -4,9 +4,11 @@ import (
 	"crypto"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"fmt"
+	"golang.org/x/crypto/ssh"
+	"log"
 	"net"
 	"net/url"
+	"strings"
 )
 
 type CSRTemplate struct {
@@ -15,6 +17,7 @@ type CSRTemplate struct {
 
 	PublicKey          crypto.PublicKey   `yaml:"PublicKey,omitempty"`
 	PublicKeyAlgorithm PublicKeyAlgorithm `yaml:"PublicKeyAlgorithm,omitempty"`
+	PublicFingerprint  string             `yaml:"PublicFingerprint,omitempty"`
 
 	Signature          []byte             `yaml:"Signature,omitempty"`
 	SignatureAlgorithm SignatureAlgorithm `yaml:"SignatureAlgorithm,omitempty"`
@@ -37,7 +40,8 @@ func (t CSRTemplate) Location() string {
 }
 
 func (t *CSRTemplate) String() string {
-	return fmt.Sprintf("%s\t%v\t", t.Subject.CommonName, t.PublicKey)
+	return strings.Join([]string{TemplateType(t), t.Subject.CommonName, t.PublicFingerprint,
+		t.Location()}, "\t")
 }
 
 func (t CSRTemplate) MarshalBinary() (data []byte, err error) {
@@ -70,6 +74,13 @@ func (t *CSRTemplate) UnmarshalBinary(by []byte) error {
 
 	t.Subject = NewSubjectTemplate(csr.Subject)
 	t.Version = csr.Version
+
+	spk, err := ssh.NewPublicKey(csr.PublicKey)
+	if err != nil {
+		log.Println(err)
+	} else {
+		t.PublicFingerprint = ssh.FingerprintSHA256(spk)
+	}
 
 	t.PublicKeyAlgorithm = PublicKeyAlgorithm(csr.PublicKeyAlgorithm)
 	t.SignatureAlgorithm = SignatureAlgorithm(csr.SignatureAlgorithm)

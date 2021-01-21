@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"github.com/eurozulu/pempal/encoding"
 	"github.com/eurozulu/pempal/filescan"
 	"log"
@@ -61,7 +60,6 @@ func (sc ViewCommand) View(args ...string) error {
 
 	if args[0] == "-" {
 		args = append(args[1:], scanInput()...)
-		fmt.Printf("scanned lines: %d", len(args))
 	}
 
 	ch := ds.ScanDirectories(ctx, args)
@@ -76,7 +74,6 @@ func (sc ViewCommand) View(args ...string) error {
 			if err := ec.Encode(tps); err != nil {
 				return err
 			}
-			fmt.Printf("encoded %d\n", len(tps))
 		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 )
 
@@ -28,7 +29,12 @@ func (t CRLTemplate) Location() string {
 }
 
 func (t *CRLTemplate) String() string {
-	return fmt.Sprintf("%v\t%v\t", t.ThisUpdate, t.Number)
+	num := " "
+	if t.Number != nil {
+		num = t.Number.String()
+	}
+	return strings.Join([]string{TemplateType(t), t.ThisUpdate.String(), num,
+		t.Location()}, "\t")
 }
 
 func (t CRLTemplate) MarshalBinary() (data []byte, err error) {

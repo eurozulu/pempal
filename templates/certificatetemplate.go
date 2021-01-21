@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -53,8 +54,12 @@ func (t CertificateTemplate) Location() string {
 }
 
 func (t *CertificateTemplate) String() string {
-	return fmt.Sprintf("%s\t%s\t%v\t", t.Subject.CommonName, t.Issuer.CommonName,
-		t.NotAfter)
+	ca := " "
+	if t.IsCA {
+		ca = "CA"
+	}
+	return strings.Join([]string{TemplateType(t), t.Subject.CommonName, ca,
+		t.NotAfter.String(), t.Location()}, "\t")
 }
 
 // MarshalBinary will marshal the template into an ASN1/der encoded byte block
