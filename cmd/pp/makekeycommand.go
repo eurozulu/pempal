@@ -167,6 +167,11 @@ func (kc MakeKeyCommand) encoder(out io.Writer) (encoding.TemplateEncoder, error
 	if kc.Encode != "" {
 		ec = kc.Encode
 	}
+	/*
+		if strings.EqualFold(kc.Encode, "ssh") {
+
+			return &sshEncoder{out: out}, nil
+		}*/
 	return encoding.NewEncoder(ec, out)
 }
 
@@ -276,4 +281,45 @@ func openKeyfile(name string) (*os.File, error) {
 		return nil, err
 	}
 	return os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_TRUNC, 0600)
+}
+
+// sshEncoder is a psudo encoder to encode key templates to their respective encoding as ssh keys.
+// ssh keys store private key as pem and public key as text/binary format.
+type sshEncoder struct {
+	out io.Writer
+}
+
+func (s sshEncoder) Encode(tps []templates.Template) error {
+	pemEc, _ := encoding.NewEncoder("pem", s.out)
+	binEc, _ := encoding.NewEncoder("der", s.out)
+	for _, t := range tps {
+		tt := templates.TemplateType(t)
+		switch v := t.(type) {
+		case *templates.SSHPrivateKeyTemplate:
+			if err := pemEc.Encode([]templates.Template{v}); err != nil {
+				return err
+			}
+
+		case *templates.PrivateKeyTemplate:
+			// Wrap it in an ssh template
+			st := &templates.SSHPrivateKeyTemplate{PrivateKeyTemplate: *v}
+			if err := pemEc.Encode([]templates.Template{st}); err != nil {
+				return err
+			}
+
+		case *templates.SSHPublicKeyTemplate:
+			if err := binEc.Encode([]templates.Template{v}); err != nil {
+				return err
+			}
+
+		case *templates.PublicKeyTemplate:
+			pt := &templates.SSHPublicKeyTemplate{PublicKeyTemplate: *v}
+			if err := binEc.Encode([]templates.Template{pt}); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("%s is an unsupported template type", tt)
+		}
+	}
+	return nil
 }
