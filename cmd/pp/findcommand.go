@@ -26,15 +26,6 @@ type FindCommand struct {
 	// VeryVerbose adds to verbose output by listing each file visited
 	VeryVerbose bool `flag:"vv"`
 
-	// Chain attempts to locate the full certificate chain of each certificate found.
-	// Any certificate not self signed will invoke a secondary find for its issuer.
-	// These continue until the self signed root is found.
-	Chain bool `flag:"chain,c"`
-
-	// Keys attempts to locate the related keys to any found resource.
-	// Any signed resource (cert, csr, crl) starts a find for its public key file.
-	Keys bool `flag:"keys,k"`
-
 	// Query is a free text search of a resource.
 	// If the given string appears in the resource (As it would appear on screen)
 	// It will be included in the results, otherwise it will be omitted.
@@ -80,7 +71,15 @@ func (fc FindCommand) Find(args ...string) error {
 
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
+	return fc.FindTemplates(ctx, fc.listTemplates, args...)
+}
 
+// FoundResultFunc is the receiver of the templates found during a search.
+// Each block of templates represents the contents of a single file.
+// returning an error will stop the search.
+type FoundResultFunc func(tps []*FoundTemplate) error
+
+func (fc FindCommand) FindTemplates(ctx context.Context, found FoundResultFunc, args ...string) error {
 	ds := filescan.DirectoryScanner{
 		Recursive:   fc.Recursive,
 		PrintErrors: fc.VeryVerbose,
@@ -95,9 +94,9 @@ func (fc FindCommand) Find(args ...string) error {
 			if !ok {
 				return nil
 			}
-			pts := fc.filterTemplates(tpls)
-			if len(pts) > 0 {
-				if err := fc.listTemplates(pts); err != nil {
+			fts := fc.filterTemplates(tpls)
+			if len(fts) > 0 {
+				if err := found(fts); err != nil {
 					return err
 				}
 			}
@@ -106,7 +105,7 @@ func (fc FindCommand) Find(args ...string) error {
 }
 
 // listTemplates prints out the given list of templates
-func (fc FindCommand) listTemplates(tps []*printedTemplate) error {
+func (fc FindCommand) listTemplates(tps []*FoundTemplate) error {
 	out := tabwriter.NewWriter(os.Stdout, 24, 8, 4, ' ', 0)
 	defer func() {
 		if err := out.Flush(); err != nil {
@@ -135,8 +134,9 @@ func (fc FindCommand) listTemplates(tps []*printedTemplate) error {
 
 // filterTemplates filters the list of templates, first by type, then by and query string.
 // returns a subset of the given templates, which qualify by type and query
-func (fc FindCommand) filterTemplates(tps []templates.Template) []*printedTemplate {
-	var ntps []*printedTemplate
+// If the query set, the result of the hit is returned as the second argument.
+func (fc FindCommand) filterTemplates(tps []templates.Template) []*FoundTemplate {
+	var ftps []*FoundTemplate
 	for _, t := range tps {
 		// filter by template type
 		tt := templates.TemplateType(t)
@@ -147,12 +147,12 @@ func (fc FindCommand) filterTemplates(tps []templates.Template) []*printedTempla
 		if !ok {
 			continue
 		}
-		ntps = append(ntps, &printedTemplate{
+		ftps = append(ftps, &FoundTemplate{
 			Template:    t,
 			QueryResult: qr,
 		})
 	}
-	return ntps
+	return ftps
 }
 
 // queryTemplate queries the given template against the command Query string.
@@ -248,7 +248,7 @@ func formatTypeNames(types []string) ([]string, error) {
 	return ts, nil
 }
 
-type printedTemplate struct {
+type FoundTemplate struct {
 	Template    templates.Template
 	QueryResult string
 }
