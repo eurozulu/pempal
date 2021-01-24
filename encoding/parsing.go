@@ -8,28 +8,36 @@ import (
 	"golang.org/x/crypto/pkcs12"
 	"gopkg.in/yaml.v3"
 	"log"
+	"path"
 	"strings"
 )
 
 var ErrorUnknownFormat = fmt.Errorf("unknown format")
+var ErrorNotATemplate = fmt.Errorf("not a template")
 
+// ParseTemplates attempts to parse the given bytes into one or more Templates, representing x509 resources.
 func ParseTemplates(p string, by []byte, pwd string) ([]templates.Template, error) {
-	if strings.HasSuffix(p, ".yaml") {
-		if readYamlName(by) != "" {
-			return parseYaml(p, by)
-		}
-		return nil, ErrorUnknownFormat
-	}
+	switch path.Ext(p) {
+	case ".yaml":
+		return parseYaml(p, by)
 
-	if strings.HasSuffix(p, ".p12") || strings.HasSuffix(p, ".pfx") {
+	case ".pem":
+		return parsePEMs(p, by, pwd)
+
+	case ".p12", ".pfx":
 		return parsePKCS12(p, by, pwd)
+
+	case ".der", ".crt", "cer":
+		return parseBinary(p, by)
 	}
 
+	// Unknown file extension, check if contents look like a PEM
 	s := string(by)
 	if strings.Contains(s, "----BEGIN ") &&
 		strings.Contains(s, "-----END") {
 		return parsePEMs(p, by, pwd)
 	}
+	// Unknown file type and not a pem.  Attempt to parse as a binary der
 	return parseBinary(p, by)
 }
 
@@ -53,12 +61,14 @@ func parsePEMs(p string, by []byte, pwd string) ([]templates.Template, error) {
 			return nil, err
 		}
 
-		tpPem, ok := tp.(PEMUnmarshaler)
-		if !ok {
-			return nil, fmt.Errorf("template %s does not support PEM encoded files", bl.Type)
-		}
-		if err := tpPem.UnmarshalPEM(bl); err != nil {
-			return nil, err
+		if strings.Contains(string(by), "ENCRYPTED") {
+			if err := tp.UnmarshalBinary(by); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := tp.UnmarshalBinary(bl.Bytes); err != nil {
+				return nil, err
+			}
 		}
 		if pwd != "" {
 			ecPem, ok := tp.(EncryptedPEM)
@@ -78,8 +88,9 @@ func parsePEMs(p string, by []byte, pwd string) ([]templates.Template, error) {
 // Parse the given byte block as Binary.
 // attempts to parse as each type until one is successful
 func parseBinary(p string, by []byte) ([]templates.Template, error) {
-	certs, err := x509.ParseCertificates(by)
-	if err == nil {
+
+	// Try to parse as certificates
+	if certs, err := x509.ParseCertificates(by); err == nil {
 		var tpls []templates.Template
 		for i, c := range certs {
 			fp := p
@@ -94,41 +105,50 @@ func parseBinary(p string, by []byte) ([]templates.Template, error) {
 		}
 		return tpls, nil
 	}
-	sspubK := &templates.SSHPublicKeyTemplate{
-		PublicKeyTemplate: templates.PublicKeyTemplate{
-			FilePath: p,
-		},
-	}
-	err = sspubK.UnmarshalBinary(by)
-	if err == nil {
-		return []templates.Template{sspubK}, nil
-	}
-	pubK := &templates.PublicKeyTemplate{FilePath: p}
-	err = pubK.UnmarshalBinary(by)
-	if err == nil {
-		return []templates.Template{pubK}, nil
-	}
 
+	// trey CSR
 	csr := &templates.CSRTemplate{FilePath: p}
-	err = csr.UnmarshalBinary(by)
-	if err == nil {
+	if err := csr.UnmarshalBinary(by); err == nil {
 		return []templates.Template{csr}, nil
 	}
 
-	priK := &templates.PrivateKeyTemplate{FilePath: p}
-	err = priK.UnmarshalBinary(by)
-	if err == nil {
-		return []templates.Template{priK}, nil
+	// Try to parse as a public key
+	pubK := &templates.PublicKeyTemplate{FilePath: p}
+	if err := pubK.UnmarshalBinary(by); err == nil {
+		return []templates.Template{pubK}, nil
 	}
+
+	// try as ssh public key
+	sspubK := &templates.SSHPublicKeyTemplate{PublicKeyTemplate: *pubK}
+	if err := sspubK.UnmarshalBinary(by); err == nil {
+		return []templates.Template{sspubK}, nil
+	}
+
+	// Try as private key
+	prk := &templates.PrivateKeyTemplate{FilePath: p}
+	if err := prk.UnmarshalBinary(by); err == nil {
+		return []templates.Template{prk}, nil
+	}
+	// ssh private key
+	sshPrk := templates.SSHPrivateKeyTemplate{PrivateKeyTemplate: *prk}
+	if err := sshPrk.UnmarshalBinary(by); err == nil {
+		return []templates.Template{sspubK}, nil
+	}
+
+	// Try as CRL
 	crl := &templates.CRLTemplate{FilePath: p}
-	err = crl.UnmarshalBinary(by)
-	if err == nil {
+	if err := crl.UnmarshalBinary(by); err == nil {
 		return []templates.Template{crl}, nil
 	}
+
 	return nil, ErrorUnknownFormat
 }
 
 func parseYaml(p string, by []byte) ([]templates.Template, error) {
+	n := readYamlName(by)
+	if n == "" {
+		return nil, ErrorNotATemplate
+	}
 	t, err := templates.NewTemplate(p, readYamlName(by))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read template from '%s'  %v", p, err)

@@ -3,7 +3,6 @@ package templates
 import (
 	"crypto"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"github.com/eurozulu/pempal"
 	"golang.org/x/crypto/ssh"
@@ -58,21 +57,6 @@ func (t *PublicKeyTemplate) MarshalBinary() (data []byte, err error) {
 	return x509.MarshalPKIXPublicKey(t.key)
 }
 
-func (t *PublicKeyTemplate) UnmarshalPEM(bl *pem.Block) error {
-	return t.UnmarshalBinary(bl.Bytes)
-}
-
-func (t *PublicKeyTemplate) MarshalPEM() (*pem.Block, error) {
-	by, err := t.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: by,
-	}, nil
-}
-
 type SSHPublicKeyTemplate struct {
 	Comment string `yaml:"Comment,omitempty"`
 	PublicKeyTemplate
@@ -106,5 +90,14 @@ func (t *SSHPublicKeyTemplate) MarshalBinary() (data []byte, err error) {
 	if t.key == nil {
 		return nil, fmt.Errorf("no binary private key data available")
 	}
-	return pempal.MarshalPublicKeyToSSH(t.key, t.Comment)
+	spk, err := ssh.NewPublicKey(t.key)
+	if err != nil {
+		return nil, err
+	}
+	by := ssh.MarshalAuthorizedKey(spk)
+	if t.Comment != "" {
+		by = append(by, ' ')
+		by = append(by, []byte(t.Comment)...)
+	}
+	return by, nil
 }

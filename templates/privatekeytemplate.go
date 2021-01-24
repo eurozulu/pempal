@@ -20,7 +20,7 @@ type PrivateKeyTemplate struct {
 	Passphrase           string             `yaml:"-"`
 
 	key      crypto.PrivateKey
-	pemBlock *pem.Block
+	pemBlock *pem.Block // Keeps pem block for when key is encrypted
 }
 
 func (t *PrivateKeyTemplate) String() string {
@@ -45,7 +45,7 @@ func (t *PrivateKeyTemplate) Decrypt(passphrase string) error {
 		return fmt.Errorf("template %s has no binary pem data", t.FilePath)
 	}
 	t.Passphrase = passphrase
-	return t.UnmarshalPEM(t.pemBlock)
+	return t.unmarshalPEM(t.pemBlock)
 }
 
 func (t PrivateKeyTemplate) Location() string {
@@ -53,6 +53,11 @@ func (t PrivateKeyTemplate) Location() string {
 }
 
 func (t *PrivateKeyTemplate) UnmarshalBinary(data []byte) error {
+	bl, _ := pem.Decode(data)
+	if bl != nil {
+		return t.unmarshalPEM(bl)
+	}
+
 	k, err := x509.ParsePKCS8PrivateKey(data)
 	if err != nil {
 		if t.IsEncrypted {
@@ -85,7 +90,7 @@ func (t *PrivateKeyTemplate) MarshalBinary() (data []byte, err error) {
 	return x509.MarshalPKCS8PrivateKey(t.key)
 }
 
-func (t *PrivateKeyTemplate) UnmarshalPEM(bl *pem.Block) error {
+func (t *PrivateKeyTemplate) unmarshalPEM(bl *pem.Block) error {
 	t.IsEncrypted = x509.IsEncryptedPEMBlock(bl)
 	if t.IsEncrypted && t.Passphrase != "" {
 		by, err := x509.DecryptPEMBlock(bl, []byte(t.Passphrase))
@@ -96,28 +101,6 @@ func (t *PrivateKeyTemplate) UnmarshalPEM(bl *pem.Block) error {
 	}
 	t.pemBlock = bl
 	return t.UnmarshalBinary(bl.Bytes)
-}
-
-func (t *PrivateKeyTemplate) MarshalPEM() (*pem.Block, error) {
-	if t.key == nil {
-		if t.pemBlock == nil {
-			return nil, fmt.Errorf("template %s has no pem key data", t.FilePath)
-		}
-		return t.pemBlock, nil
-	}
-
-	by, err := t.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	if t.IsEncrypted {
-		return x509.EncryptPEMBlock(rand.Reader, "PRIVATE KEY", by, []byte(t.Passphrase), x509.PEMCipherAES256)
-	} else {
-		return &pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: by,
-		}, nil
-	}
 }
 
 type SSHPrivateKeyTemplate struct {

@@ -64,36 +64,17 @@ type pemEncoder struct {
 
 func (pe pemEncoder) Encode(tps []templates.Template) error {
 	for _, t := range tps {
-		var bl *pem.Block
-		if tpPem, ok := t.(PEMMarshaler); ok {
-			b, err := tpPem.MarshalPEM()
-			if err != nil {
-				return err
-			}
-			bl = b
-		} else {
-			tp := templates.TemplateType(t)
-			by, err := t.MarshalBinary()
-			if err != nil {
-				return err
-			}
-			bl = &pem.Block{Type: tp, Bytes: by}
+		by, err := t.MarshalBinary()
+		if err != nil {
+			return err
 		}
-		if err := pem.Encode(pe.out, bl); err != nil {
+		tp := templates.TemplateType(t)
+
+		if err := pem.Encode(pe.out, &pem.Block{Type: tp, Bytes: by}); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// PEMMarshaler marshals itself into a PEM block
-type PEMMarshaler interface {
-	MarshalPEM() (*pem.Block, error)
-}
-
-// PEMUnmarshaler unmarshals a PEM block into itself
-type PEMUnmarshaler interface {
-	UnmarshalPEM(bl *pem.Block) error
 }
 
 type EncryptedPEM interface {

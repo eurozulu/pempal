@@ -3,7 +3,6 @@ package templates
 import (
 	"crypto"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"golang.org/x/crypto/ssh"
 	"log"
 	"net"
@@ -22,8 +21,8 @@ type CSRTemplate struct {
 	Signature          []byte             `yaml:"Signature,omitempty"`
 	SignatureAlgorithm SignatureAlgorithm `yaml:"SignatureAlgorithm,omitempty"`
 
-	Extensions      []pkix.Extension `yaml:"Extensions,omitempty"`
-	ExtraExtensions []pkix.Extension `yaml:"ExtraExtensions,omitempty"`
+	Extensions      []Extension `yaml:"Extensions,omitempty"`
+	ExtraExtensions []Extension `yaml:"ExtraExtensions,omitempty"`
 
 	// Alternate Name values.
 	DNSNames       []string   `yaml:"DNSNames,omitempty"`
@@ -32,7 +31,7 @@ type CSRTemplate struct {
 	URIs           []*url.URL `yaml:"URIs,omitempty"`
 
 	FilePath string `yaml:"-"`
-	request  *x509.CertificateRequest
+	csr      x509.CertificateRequest
 }
 
 func (t CSRTemplate) Location() string {
@@ -45,24 +44,19 @@ func (t *CSRTemplate) String() string {
 }
 
 func (t CSRTemplate) MarshalBinary() (data []byte, err error) {
-	r := t.request
-	if r == nil {
-		r = &x509.CertificateRequest{}
-	}
-
-	r.Version = t.Version
-	r.Subject = t.Subject.Subject()
-	r.PublicKey = t.PublicKey
-	r.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(t.PublicKeyAlgorithm)
-	r.Signature = t.Signature
-	r.SignatureAlgorithm = x509.SignatureAlgorithm(t.SignatureAlgorithm)
-	r.Extensions = t.Extensions
-	r.ExtraExtensions = t.ExtraExtensions
-	r.DNSNames = t.DNSNames
-	r.EmailAddresses = t.EmailAddresses
-	r.IPAddresses = t.IPAddresses
-	r.URIs = t.URIs
-	return r.Raw, nil
+	t.csr.Version = t.Version
+	t.csr.Subject = t.Subject.Subject()
+	t.csr.PublicKey = t.PublicKey
+	t.csr.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(t.PublicKeyAlgorithm)
+	t.csr.Signature = t.Signature
+	t.csr.SignatureAlgorithm = x509.SignatureAlgorithm(t.SignatureAlgorithm)
+	t.csr.Extensions = ExtensionReslice(t.Extensions)
+	t.csr.ExtraExtensions = ExtensionReslice(t.ExtraExtensions)
+	t.csr.DNSNames = t.DNSNames
+	t.csr.EmailAddresses = t.EmailAddresses
+	t.csr.IPAddresses = t.IPAddresses
+	t.csr.URIs = t.URIs
+	return t.csr.Raw, nil
 }
 
 func (t *CSRTemplate) UnmarshalBinary(by []byte) error {
@@ -70,7 +64,7 @@ func (t *CSRTemplate) UnmarshalBinary(by []byte) error {
 	if err != nil {
 		return err
 	}
-	t.request = csr
+	t.csr = *csr
 
 	t.Subject = NewSubjectTemplate(csr.Subject)
 	t.Version = csr.Version
@@ -85,8 +79,8 @@ func (t *CSRTemplate) UnmarshalBinary(by []byte) error {
 	t.PublicKeyAlgorithm = PublicKeyAlgorithm(csr.PublicKeyAlgorithm)
 	t.SignatureAlgorithm = SignatureAlgorithm(csr.SignatureAlgorithm)
 
-	t.Extensions = csr.Extensions
-	t.ExtraExtensions = csr.ExtraExtensions
+	t.Extensions = ExtensionSlice(csr.Extensions)
+	t.ExtraExtensions = ExtensionSlice(csr.ExtraExtensions)
 
 	t.DNSNames = csr.DNSNames
 	t.EmailAddresses = csr.EmailAddresses

@@ -75,19 +75,6 @@ func EncryptPEMKey(by []byte, passphrase string, pemCipher x509.PEMCipher) ([]by
 	return pem.EncodeToMemory(ebl), nil
 }
 
-func MarshalPublicKeyToSSH(pk crypto.PublicKey, comment string) ([]byte, error) {
-	spk, err := ssh.NewPublicKey(pk)
-	if err != nil {
-		return nil, err
-	}
-	by := ssh.MarshalAuthorizedKey(spk)
-	if comment != "" {
-		by = append(by, ' ')
-		by = append(by, []byte(comment)...)
-	}
-	return by, nil
-}
-
 // ParseSSHPublicKey parses the file bytes from a SSH public key into a key and any comments.
 func ParseSSHPublicKey(by []byte) (string, crypto.PublicKey, error) {
 	spk, cmt, _, _, err := ssh.ParseAuthorizedKey(by)

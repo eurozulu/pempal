@@ -3,8 +3,6 @@ package templates
 import (
 	"crypto"
 	"crypto/x509"
-	"encoding/pem"
-	"fmt"
 	"math/big"
 	"net"
 	"net/url"
@@ -46,7 +44,7 @@ type CertificateTemplate struct {
 	CRLDistributionPoints []string      `yaml:"CRLDistributionPoints,omitempty"`
 
 	FilePath string `yaml:"-"`
-	cert     *x509.Certificate
+	cert     x509.Certificate
 }
 
 func (t CertificateTemplate) Location() string {
@@ -62,43 +60,54 @@ func (t *CertificateTemplate) String() string {
 		t.NotAfter.String(), t.Location()}, "\t")
 }
 
+func (t CertificateTemplate) CopyCSR(csr *CSRTemplate) {
+	t.Subject = csr.Subject
+	t.Version = csr.Version
+	t.PublicKey = csr.PublicKey
+	t.PublicKeyAlgorithm = csr.PublicKeyAlgorithm
+
+	t.Signature = csr.Signature
+	t.SignatureAlgorithm = csr.SignatureAlgorithm
+	t.Extensions = csr.Extensions
+	t.ExtraExtensions = csr.ExtraExtensions
+
+	t.DNSNames = csr.DNSNames
+	t.EmailAddresses = csr.EmailAddresses
+	t.IPAddresses = csr.IPAddresses
+	t.URIs = csr.URIs
+	t.FilePath = csr.FilePath
+}
+
 // MarshalBinary will marshal the template into an ASN1/der encoded byte block
 func (t *CertificateTemplate) MarshalBinary() (data []byte, err error) {
-	//use the unmarshalled cert if available, as the base.
-	// otherwise start with an empty cert.
-	c := t.cert
-	if c == nil {
-		c = &x509.Certificate{}
-	}
-	c.Version = t.Version
-	c.SerialNumber = t.SerialNumber
-	c.Subject = t.Subject.Subject()
-	c.Issuer = t.Issuer.Subject()
-	c.NotBefore = t.NotBefore
-	c.NotAfter = t.NotAfter
+	t.cert.Version = t.Version
+	t.cert.SerialNumber = t.SerialNumber
+	t.cert.Subject = t.Subject.Subject()
+	t.cert.Issuer = t.Issuer.Subject()
+	t.cert.NotBefore = t.NotBefore
+	t.cert.NotAfter = t.NotAfter
 
-	c.Signature = t.Signature
-	c.SignatureAlgorithm = x509.SignatureAlgorithm(t.SignatureAlgorithm)
-	c.PublicKey = t.PublicKey
-	c.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(t.PublicKeyAlgorithm)
+	t.cert.Signature = t.Signature
+	t.cert.SignatureAlgorithm = x509.SignatureAlgorithm(t.SignatureAlgorithm)
+	t.cert.PublicKey = t.PublicKey
+	t.cert.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(t.PublicKeyAlgorithm)
 
-	c.Extensions = ExtensionReslice(t.Extensions)
-	c.ExtraExtensions = ExtensionReslice(t.ExtraExtensions)
-	c.DNSNames = t.DNSNames
-	c.EmailAddresses = t.EmailAddresses
-	c.IPAddresses = t.IPAddresses
-	c.URIs = t.URIs
+	t.cert.Extensions = ExtensionReslice(t.Extensions)
+	t.cert.ExtraExtensions = ExtensionReslice(t.ExtraExtensions)
+	t.cert.DNSNames = t.DNSNames
+	t.cert.EmailAddresses = t.EmailAddresses
+	t.cert.IPAddresses = t.IPAddresses
+	t.cert.URIs = t.URIs
 
-	c.KeyUsage = x509.KeyUsage(t.KeyUsage)
-	c.ExtKeyUsage = ExtKeyUsagesReslice(t.ExtKeyUsage)
-	c.BasicConstraintsValid = t.BasicConstraintsValid
-	c.IsCA = t.IsCA
-	c.MaxPathLen = t.MaxPathLen
-	c.MaxPathLenZero = t.MaxPathLenZero
-	c.IssuingCertificateURL = t.IssuingCertificateURL
-	c.CRLDistributionPoints = nil
-
-	return c.Raw, nil
+	t.cert.KeyUsage = x509.KeyUsage(t.KeyUsage)
+	t.cert.ExtKeyUsage = ExtKeyUsagesReslice(t.ExtKeyUsage)
+	t.cert.BasicConstraintsValid = t.BasicConstraintsValid
+	t.cert.IsCA = t.IsCA
+	t.cert.MaxPathLen = t.MaxPathLen
+	t.cert.MaxPathLenZero = t.MaxPathLenZero
+	t.cert.IssuingCertificateURL = t.IssuingCertificateURL
+	t.cert.CRLDistributionPoints = nil
+	return t.cert.Raw, nil
 }
 
 func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
@@ -106,7 +115,7 @@ func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	t.cert = c
+	t.cert = *c
 
 	t.Version = c.Version
 	t.SerialNumber = c.SerialNumber
@@ -139,22 +148,4 @@ func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
 	t.IssuingCertificateURL = c.IssuingCertificateURL
 	t.CRLDistributionPoints = c.CRLDistributionPoints
 	return nil
-}
-
-func (t *CertificateTemplate) MarshalPEM() (*pem.Block, error) {
-	by, err := t.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: by,
-	}, nil
-}
-
-func (t *CertificateTemplate) UnmarshalPEM(bl *pem.Block) error {
-	if bl.Type != "CERTIFICATE" {
-		return fmt.Errorf("'%s' is not a certificate pem block", bl.Type)
-	}
-	return t.UnmarshalBinary(bl.Bytes)
 }
