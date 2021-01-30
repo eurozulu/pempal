@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/eurozulu/pempal"
-	"golang.org/x/crypto/ssh"
 	"strings"
 )
 
@@ -15,6 +14,16 @@ type PublicKeyTemplate struct {
 	KeyLength            string             `yaml:"KeyLength,omitempty"`
 	FilePath             string             `yaml:"Location,omitempty"`
 	key                  crypto.PublicKey
+}
+
+func NewPublicKeyTemplate(key crypto.PublicKey) *PublicKeyTemplate {
+	kt := &PublicKeyTemplate{key: key}
+	kt.syncToKey()
+	return kt
+}
+
+func (t PublicKeyTemplate) Key() crypto.PublicKey {
+	return t.key
 }
 
 func (t *PublicKeyTemplate) String() string {
@@ -39,14 +48,7 @@ func (t *PublicKeyTemplate) UnmarshalBinary(by []byte) error {
 		return err
 	}
 	t.key = k
-	t.PublicKeyAlgorithm = PublicKeyAlgorithm(pempal.PublicKeyAlgorithm(k))
-	sk, err := ssh.NewPublicKey(k)
-	if err != nil {
-		return err
-	}
-	t.PublicKeyFingerprint = ssh.FingerprintSHA256(sk)
-	t.KeyLength = pempal.PublicKeyLength(k)
-
+	t.syncToKey()
 	return nil
 }
 
@@ -57,47 +59,17 @@ func (t *PublicKeyTemplate) MarshalBinary() (data []byte, err error) {
 	return x509.MarshalPKIXPublicKey(t.key)
 }
 
-type SSHPublicKeyTemplate struct {
-	Comment string `yaml:"Comment,omitempty"`
-	PublicKeyTemplate
-}
-
-func (t *SSHPublicKeyTemplate) String() string {
-	s := strings.Split(t.PublicKeyTemplate.String(), "\t")
-	if len(s) > 0 {
-		s[0] = TemplateType(t)
-		s[len(s)-1] = t.Comment
-		s = append(s, t.Location())
-	}
-	return strings.Join(s, "\t")
-}
-
-func (t *SSHPublicKeyTemplate) UnmarshalBinary(data []byte) error {
-	c, k, err := pempal.ParseSSHPublicKey(data)
-	if err != nil {
-		return err
-	}
-	t.key = k
-	t.Comment = c
-	by, err := x509.MarshalPKIXPublicKey(k)
-	if err != nil {
-		return err
-	}
-	return t.PublicKeyTemplate.UnmarshalBinary(by)
-}
-
-func (t *SSHPublicKeyTemplate) MarshalBinary() (data []byte, err error) {
+func (t *PublicKeyTemplate) syncToKey() error {
 	if t.key == nil {
-		return nil, fmt.Errorf("no binary private key data available")
+		return fmt.Errorf("public key is not set on template")
 	}
-	spk, err := ssh.NewPublicKey(t.key)
+	t.PublicKeyAlgorithm = PublicKeyAlgorithm(pempal.PublicKeyAlgorithm(t.key))
+	t.KeyLength = pempal.PublicKeyLength(t.key)
+
+	by, err := x509.MarshalPKIXPublicKey(t.key)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	by := ssh.MarshalAuthorizedKey(spk)
-	if t.Comment != "" {
-		by = append(by, ' ')
-		by = append(by, []byte(t.Comment)...)
-	}
-	return by, nil
+	t.PublicKeyFingerprint = fingerprint(by)
+	return nil
 }

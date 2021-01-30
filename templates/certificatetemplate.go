@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+func NewCertificateTemplate(c *x509.Certificate) *CertificateTemplate {
+	ct := &CertificateTemplate{cert: *c}
+	ct.syncToCert()
+	return ct
+}
+
 type CertificateTemplate struct {
 	Version      int             `yaml:"Version,omitempty"`
 	Subject      SubjectTemplate `yaml:"Subject,omitempty"`
@@ -45,6 +51,10 @@ type CertificateTemplate struct {
 
 	FilePath string `yaml:"-"`
 	cert     x509.Certificate
+}
+
+func (t CertificateTemplate) Certificate() *x509.Certificate {
+	return &t.cert
 }
 
 func (t CertificateTemplate) Location() string {
@@ -116,36 +126,39 @@ func (t *CertificateTemplate) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	t.cert = *c
-
-	t.Version = c.Version
-	t.SerialNumber = c.SerialNumber
-	t.Subject = NewSubjectTemplate(c.Subject)
-	t.Issuer = NewSubjectTemplate(c.Issuer)
-	t.NotBefore = c.NotBefore
-	t.NotAfter = c.NotAfter
-	t.Fingerprint = fingerprint(c.Raw)
-
-	t.PublicKeyAlgorithm = PublicKeyAlgorithm(c.PublicKeyAlgorithm)
-	t.PublicKey = c.PublicKey
-
-	t.SignatureAlgorithm = SignatureAlgorithm(c.SignatureAlgorithm)
-	t.Signature = c.Signature
-
-	t.Extensions = ExtensionSlice(c.Extensions)
-	t.ExtraExtensions = ExtensionSlice(c.ExtraExtensions)
-
-	t.DNSNames = c.DNSNames
-	t.EmailAddresses = c.EmailAddresses
-	t.IPAddresses = c.IPAddresses
-	t.URIs = c.URIs
-
-	t.KeyUsage = KeyUsage(c.KeyUsage)
-	t.ExtKeyUsage = ExtKeyUsagesSlice(c.ExtKeyUsage)
-	t.BasicConstraintsValid = c.BasicConstraintsValid
-	t.IsCA = c.IsCA
-	t.MaxPathLen = c.MaxPathLen
-	t.MaxPathLenZero = c.MaxPathLenZero
-	t.IssuingCertificateURL = c.IssuingCertificateURL
-	t.CRLDistributionPoints = c.CRLDistributionPoints
+	t.syncToCert()
 	return nil
+}
+
+func (t *CertificateTemplate) syncToCert() {
+	t.Version = t.cert.Version
+	t.SerialNumber = t.cert.SerialNumber
+	t.Subject = NewSubjectTemplate(t.cert.Subject)
+	t.Issuer = NewSubjectTemplate(t.cert.Issuer)
+	t.NotBefore = t.cert.NotBefore
+	t.NotAfter = t.cert.NotAfter
+	t.Fingerprint = fingerprint(t.cert.Raw)
+
+	t.PublicKeyAlgorithm = PublicKeyAlgorithm(t.cert.PublicKeyAlgorithm)
+	t.PublicKey = t.cert.PublicKey
+
+	t.SignatureAlgorithm = SignatureAlgorithm(t.cert.SignatureAlgorithm)
+	t.Signature = t.cert.Signature
+
+	t.Extensions = ExtensionSlice(t.cert.Extensions)
+	t.ExtraExtensions = ExtensionSlice(t.cert.ExtraExtensions)
+
+	t.DNSNames = t.cert.DNSNames
+	t.EmailAddresses = t.cert.EmailAddresses
+	t.IPAddresses = t.cert.IPAddresses
+	t.URIs = t.cert.URIs
+
+	t.KeyUsage = KeyUsage(t.cert.KeyUsage)
+	t.ExtKeyUsage = ExtKeyUsagesSlice(t.cert.ExtKeyUsage)
+	t.BasicConstraintsValid = t.cert.BasicConstraintsValid
+	t.IsCA = t.cert.IsCA
+	t.MaxPathLen = t.cert.MaxPathLen
+	t.MaxPathLenZero = t.cert.MaxPathLenZero
+	t.IssuingCertificateURL = t.cert.IssuingCertificateURL
+	t.CRLDistributionPoints = t.cert.CRLDistributionPoints
 }

@@ -6,6 +6,7 @@ import (
 	"golang.org/x/term"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -71,5 +72,46 @@ func PromptConfirm(msg string, def bool) bool {
 			return true
 		}
 		fmt.Printf("\nenter just 'y' or 'n'\n")
+	}
+}
+
+func PromptInput(msg string, def string) string {
+	in := bufio.NewReader(os.Stdin)
+	if msg != "" {
+		fmt.Print(msg)
+		if def != "" {
+			fmt.Printf(" [%s] ", def)
+		}
+	}
+	s, _ := in.ReadString('\n')
+	if strings.TrimSpace(s) == "" {
+		return def
+	}
+	return s
+}
+
+func PromptChoice(msg string, choices []string) int {
+	in := bufio.NewReader(os.Stdin)
+	if msg != "" {
+		fmt.Println(msg)
+	}
+	for i, ch := range choices {
+		fmt.Printf("%02d) %s\n", i + 1, ch)
+	}
+	fmt.Printf("%02d) %s\n", 0, "cancel")
+	for {
+		fmt.Printf("Select 1 - %02d or 0 to abort: ", len(choices))
+		s, err := in.ReadString('\n')
+		if err != nil {
+			log.Println(err)
+			return -1
+		}
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			fmt.Printf("Not a number  %v\n", err)
+		}
+		if i >= 0 && i <= len(choices) {
+			return i - 1
+		}
 	}
 }

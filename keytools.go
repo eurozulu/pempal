@@ -10,7 +10,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"strconv"
 )
 
@@ -73,16 +72,6 @@ func EncryptPEMKey(by []byte, passphrase string, pemCipher x509.PEMCipher) ([]by
 		return nil, err
 	}
 	return pem.EncodeToMemory(ebl), nil
-}
-
-// ParseSSHPublicKey parses the file bytes from a SSH public key into a key and any comments.
-func ParseSSHPublicKey(by []byte) (string, crypto.PublicKey, error) {
-	spk, cmt, _, _, err := ssh.ParseAuthorizedKey(by)
-	if err != nil {
-		return "", nil, err
-	}
-	pk := (spk.(ssh.CryptoPublicKey)).CryptoPublicKey()
-	return cmt, pk, nil
 }
 
 func GenerateKey(ka x509.PublicKeyAlgorithm, keyLength int) (crypto.PrivateKey, error) {

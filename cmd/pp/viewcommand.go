@@ -17,7 +17,7 @@ type ViewCommand struct {
 
 	Encode string `flag:"encode,e"`
 
-	OutPath string `flag:"outpath,out"`
+	OutPath string `flag:"outpath,out,o"`
 
 	Password string `flag:"pass,p"`
 }

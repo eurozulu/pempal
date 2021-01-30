@@ -49,6 +49,7 @@ type FindCommand struct {
 }
 
 // Find locates files (Certificates, CSRs, CRLs, Private & Public keys) based on query criteria.
+//
 // With no flags, it simply lists the resource location, depending on its container:
 // A file in a directory has the full path listed if it contains a single item.
 // files containing more than one item are listed with a sub index:
@@ -57,12 +58,6 @@ type FindCommand struct {
 func (fc FindCommand) Find(args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("Find: must provide at least one path")
-	}
-
-	var err error
-	fc.Type, err = formatTypeNames(fc.Type)
-	if err != nil {
-		return err
 	}
 
 	if fc.VeryVerbose {
@@ -74,11 +69,33 @@ func (fc FindCommand) Find(args ...string) error {
 	return fc.FindTemplates(ctx, fc.listTemplates, args...)
 }
 
+// FindAllTemplates is a Helper to locate all resources matching the Findcommands flags.
+// Will scan all given args locations
+func (fc FindCommand) FindAllTemplates(args ...string) ([]*FoundTemplate, error) {
+	var err error
+	fc.Type, err = formatTypeNames(fc.Type)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cnl := context.WithCancel(context.Background())
+	defer cnl()
+
+	var tp []*FoundTemplate
+	fc.FindTemplates(ctx, func(tps []*FoundTemplate) error {
+		tp = append(tp, tps...)
+		return nil
+	}, args...)
+	return tp, nil
+}
+
 // FoundResultFunc is the receiver of the templates found during a search.
 // Each block of templates represents the contents of a single file.
 // returning an error will stop the search.
 type FoundResultFunc func(tps []*FoundTemplate) error
-
+// FindTemplates scans the given 'args' locations looking for matching resources.
+// Each resource found containing template resources is passed to the given reciever func.
+// scan continues until all locations scanned or context cancelled.
 func (fc FindCommand) FindTemplates(ctx context.Context, found FoundResultFunc, args ...string) error {
 	ds := filescan.DirectoryScanner{
 		Recursive:   fc.Recursive,
@@ -229,14 +246,13 @@ func formatTypeNames(types []string) ([]string, error) {
 			ts = appendUnique(ts, "CERTIFICATE REQUEST")
 
 		case "puk", "public", "publickey", "publickeys":
-			ts = appendUnique(ts, "PUBLIC KEY", "SSH PUBLIC KEY")
+			ts = appendUnique(ts, "PUBLIC KEY")
 
 		case "prk", "private", "privatekey", "privatekeys":
-			ts = appendUnique(ts, "PRIVATE KEY", "OPENSSH PRIVATE KEY")
+			ts = appendUnique(ts, "PRIVATE KEY")
 
 		case "keys":
-			ts = appendUnique(ts, "PUBLIC KEY", "SSH PUBLIC KEY",
-				"PRIVATE KEY", "OPENSSH PRIVATE KEY")
+			ts = appendUnique(ts, "PUBLIC KEY", "PRIVATE KEY")
 
 		case "crl", "rev", "revocation", "revocationlist":
 			ts = appendUnique(ts, "X509 CRL")

@@ -61,15 +61,14 @@ func parsePEMs(p string, by []byte, pwd string) ([]templates.Template, error) {
 			return nil, err
 		}
 
-		if strings.Contains(string(by), "ENCRYPTED") {
+		// Attempt to unmarshgal as binary
+		if err := tp.UnmarshalBinary(bl.Bytes); err != nil {
+			// IF failed, attempt as the raw pem
 			if err := tp.UnmarshalBinary(by); err != nil {
 				return nil, err
 			}
-		} else {
-			if err := tp.UnmarshalBinary(bl.Bytes); err != nil {
-				return nil, err
-			}
 		}
+
 		if pwd != "" {
 			ecPem, ok := tp.(EncryptedPEM)
 			if ok {
@@ -118,21 +117,10 @@ func parseBinary(p string, by []byte) ([]templates.Template, error) {
 		return []templates.Template{pubK}, nil
 	}
 
-	// try as ssh public key
-	sspubK := &templates.SSHPublicKeyTemplate{PublicKeyTemplate: *pubK}
-	if err := sspubK.UnmarshalBinary(by); err == nil {
-		return []templates.Template{sspubK}, nil
-	}
-
 	// Try as private key
 	prk := &templates.PrivateKeyTemplate{FilePath: p}
 	if err := prk.UnmarshalBinary(by); err == nil {
 		return []templates.Template{prk}, nil
-	}
-	// ssh private key
-	sshPrk := templates.SSHPrivateKeyTemplate{PrivateKeyTemplate: *prk}
-	if err := sshPrk.UnmarshalBinary(by); err == nil {
-		return []templates.Template{sspubK}, nil
 	}
 
 	// Try as CRL

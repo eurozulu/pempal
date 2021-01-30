@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -9,11 +10,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
-	"github.com/eurozulu/pempal"
 	"github.com/eurozulu/pempal/encoding"
 	"github.com/eurozulu/pempal/templates"
 	"gopkg.in/yaml.v3"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,11 +29,11 @@ const defaultEncoding = "pem"
 var defaultKeyLengthECDSA = elliptic.P521()
 
 type MakeKeyCommand struct {
-	OutPath            string `flag:"out,o"`
 	Encode             string `flag:"encode,en"`
 	PublicKeyAlgorithm string `flag:"keyalgorithm,k"`
 	KeyLength          string `flag:"length,l"`
 	Encrypt            bool   `flag:"encrypt,e"`
+	NoPublicKey        bool   `flag:"nopublickey,npub,npuk,n"`
 
 	// Script flag, when set, prevents any user prompting and assumes confirmation when creating.
 	Script   bool   `flag:"script, s"`
@@ -45,51 +46,64 @@ type MakeKeyCommand struct {
 // When only the first is specified, the public key is written to the same name, with a '.pub' extension.
 // When neither are specified, output is to stdout in encoding set with 'encode' flag (default pem)
 func (kc MakeKeyCommand) MakeKey(args ...string) error {
-	var prName string
-	var puName string
-	prOut := os.Stdout
-	puOut := os.Stdout
-
-	if len(args) > 0 {
-		prName = args[0]
-		// If no public key path given, make one up
-		if len(args) == 1 {
-			args = append(args, strings.Join([]string{args[0], "pub"}, "."))
-		}
-		f, err := openKeyfile(prName)
-		if err != nil {
-			return err
-		}
-		defer func(f io.WriteCloser) {
-			if err := f.Close(); err != nil {
-				log.Println(err)
-			}
-		}(f)
-		prOut = f
-	}
-	// public key given (or made up)
-	if len(args) > 1 {
-		puName = args[1]
-		f, err := openKeyfile(puName)
-		if err != nil {
-			return err
-		}
-		defer func(f io.WriteCloser) {
-			if err := f.Close(); err != nil {
-				log.Println(err)
-			}
-		}(f)
-		puOut = f
-	}
 	if len(args) > 2 {
 		return fmt.Errorf("unexpected argument.  Expecting only 2 arguments max. found %d", len(args))
 	}
+	kt, err := kc.NewKey()
+	if err != nil {
+		return err
+	}
 
-	// Make the new key
+	if len(args) > 0 {
+		p, err := filepath.Abs(args[0])
+		if err != nil {
+			return err
+		}
+		kt.FilePath = p
+	}
+
+	var pukPath string
+	if !kc.NoPublicKey && kt.FilePath != "" {
+		if len(args) > 1 {
+			pukPath = args[1]
+		} else {
+			pukPath = strings.Join([]string{kt.FilePath, "pub"}, ".")
+		}
+	}
+	if !kc.confirmKeys(kt, pukPath) {
+		return fmt.Errorf("aborted")
+	}
+
+	// Write out templates to encoder
+	buf := bytes.NewBuffer(nil)
+	enc, err := kc.encoder(buf)
+	if err != nil {
+		return fmt.Errorf("invalid 'encode' flag  %v", err)
+	}
+	if err := enc.Encode([]templates.Template{kt}); err != nil {
+		return err
+	}
+	if err := writeOutBytes(kt.FilePath, buf.Bytes(), 0600); err != nil {
+		return err
+	}
+
+	if kc.NoPublicKey {
+		return nil
+	}
+	pkt := templates.NewPublicKeyTemplate(kt.PublicKey())
+	buf.Reset()
+	if err := enc.Encode([]templates.Template{pkt}); err != nil {
+		return err
+	}
+	return writeOutBytes(pukPath, buf.Bytes(), 0600)
+}
+
+// NewKey generates a new Privatekey
+func (kc MakeKeyCommand) NewKey() (*templates.PrivateKeyTemplate, error) {
 	var key crypto.PrivateKey
 	keyAlgo, err := kc.keyAlgorithm()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	switch keyAlgo {
 	case x509.RSA:
@@ -99,10 +113,14 @@ func (kc MakeKeyCommand) MakeKey(args ...string) error {
 	case x509.Ed25519:
 		key, err = kc.makeEd25519()
 	default:
-		return fmt.Errorf("key algorithm %v is not supported", keyAlgo)
+		err = fmt.Errorf("key algorithm %v is not supported", keyAlgo)
 	}
 	if err != nil {
-		return err
+		return nil, err
+	}
+	by, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, err
 	}
 
 	pwd := kc.Password
@@ -113,38 +131,22 @@ func (kc MakeKeyCommand) MakeKey(args ...string) error {
 	// If encrypt request but no password, ask for one (unless scripting, then error)
 	if kc.Encrypt && pwd == "" {
 		if kc.Script {
-			return fmt.Errorf("new key encryption failed as no password provided")
+			return nil, fmt.Errorf("new key encryption failed as no password provided")
 		}
 		pwd, err = PromptCreatePassword("Enter a new password for the key.  (Hit enter for unencrypted key)", 0)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	prT, err := privateKeyTemplate(prName, pwd, key)
-	if err != nil {
-		return err
+	prkT := &templates.PrivateKeyTemplate{
+		Passphrase: pwd,
+		Encrypted:  kc.Encrypt,
 	}
-	puk := pempal.PublicKeyFromPrivate(key)
-	puT, err := publicKeyTemplate(puName, puk)
-	if err != nil {
-		return err
+	if err := prkT.UnmarshalBinary(by); err != nil {
+		return nil, err
 	}
-
-	if !kc.confirmKeys(prT) {
-		return fmt.Errorf("aborted")
-	}
-
-	// Write out templates to encoder
-	prEnc, err := kc.encoder(prOut)
-	if err != nil {
-		return fmt.Errorf("invalid 'encode' flag  %v", err)
-	}
-	if err := prEnc.Encode([]templates.Template{prT}); err != nil {
-		return err
-	}
-	puEnc, _ := kc.encoder(puOut) // ignore error as would have triggered on private key
-	return puEnc.Encode([]templates.Template{puT})
+	return prkT, nil
 }
 
 func (kc MakeKeyCommand) keyAlgorithm() (x509.PublicKeyAlgorithm, error) {
@@ -167,40 +169,7 @@ func (kc MakeKeyCommand) encoder(out io.Writer) (encoding.TemplateEncoder, error
 	if kc.Encode != "" {
 		ec = kc.Encode
 	}
-	/*
-		if strings.EqualFold(kc.Encode, "ssh") {
-
-			return &sshEncoder{out: out}, nil
-		}*/
 	return encoding.NewEncoder(ec, out)
-}
-
-func privateKeyTemplate(p, password string, prk crypto.PrivateKey) (*templates.PrivateKeyTemplate, error) {
-	by, err := x509.MarshalPKCS8PrivateKey(prk)
-	if err != nil {
-		return nil, err
-	}
-	prkT := &templates.PrivateKeyTemplate{
-		FilePath:    p,
-		Passphrase:  password,
-		IsEncrypted: password != "",
-	}
-	if err := prkT.UnmarshalBinary(by); err != nil {
-		return nil, err
-	}
-	return prkT, nil
-}
-
-func publicKeyTemplate(p string, puk crypto.PublicKey) (*templates.PublicKeyTemplate, error) {
-	by, err := x509.MarshalPKIXPublicKey(puk)
-	if err != nil {
-		return nil, err
-	}
-	prkT := &templates.PublicKeyTemplate{FilePath: p}
-	if err := prkT.UnmarshalBinary(by); err != nil {
-		return nil, err
-	}
-	return prkT, nil
 }
 
 func (kc MakeKeyCommand) makeEd25519() (crypto.PrivateKey, error) {
@@ -258,7 +227,7 @@ func (kc MakeKeyCommand) keyLengthRsa() (int, error) {
 	return l, nil
 }
 
-func (kc MakeKeyCommand) confirmKeys(key templates.Template) bool {
+func (kc MakeKeyCommand) confirmKeys(key *templates.PrivateKeyTemplate, pubOut string) bool {
 	if kc.Script {
 		return true
 	}
@@ -272,54 +241,16 @@ func (kc MakeKeyCommand) confirmKeys(key templates.Template) bool {
 		log.Println(err)
 		return false
 	}
-	return PromptConfirm("Create new these keys?", false)
-}
-
-func openKeyfile(name string) (*os.File, error) {
-	p, err := filepath.Abs(name)
-	if err != nil {
-		return nil, err
+	if pubOut != "" {
+		fmt.Printf("Public key saved as: %s\n", pubOut)
 	}
-	return os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_TRUNC, 0600)
+	return PromptConfirm("\nCreate new key pair?", false)
 }
 
-// sshEncoder is a psudo encoder to encode key templates to their respective encoding as ssh keys.
-// ssh keys store private key as pem and public key as text/binary format.
-type sshEncoder struct {
-	out io.Writer
-}
-
-func (s sshEncoder) Encode(tps []templates.Template) error {
-	pemEc, _ := encoding.NewEncoder("pem", s.out)
-	binEc, _ := encoding.NewEncoder("der", s.out)
-	for _, t := range tps {
-		tt := templates.TemplateType(t)
-		switch v := t.(type) {
-		case *templates.SSHPrivateKeyTemplate:
-			if err := pemEc.Encode([]templates.Template{v}); err != nil {
-				return err
-			}
-
-		case *templates.PrivateKeyTemplate:
-			// Wrap it in an ssh template
-			st := &templates.SSHPrivateKeyTemplate{PrivateKeyTemplate: *v}
-			if err := pemEc.Encode([]templates.Template{st}); err != nil {
-				return err
-			}
-
-		case *templates.SSHPublicKeyTemplate:
-			if err := binEc.Encode([]templates.Template{v}); err != nil {
-				return err
-			}
-
-		case *templates.PublicKeyTemplate:
-			pt := &templates.SSHPublicKeyTemplate{PublicKeyTemplate: *v}
-			if err := binEc.Encode([]templates.Template{pt}); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("%s is an unsupported template type", tt)
-		}
+func writeOutBytes(p string, by []byte, perm os.FileMode) error {
+	if p == "" {
+		_, err := os.Stdout.Write(by)
+		return err
 	}
-	return nil
+	return ioutil.WriteFile(p, by, perm)
 }

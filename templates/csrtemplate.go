@@ -3,8 +3,6 @@ package templates
 import (
 	"crypto"
 	"crypto/x509"
-	"golang.org/x/crypto/ssh"
-	"log"
 	"net"
 	"net/url"
 	"strings"
@@ -69,12 +67,11 @@ func (t *CSRTemplate) UnmarshalBinary(by []byte) error {
 	t.Subject = NewSubjectTemplate(csr.Subject)
 	t.Version = csr.Version
 
-	spk, err := ssh.NewPublicKey(csr.PublicKey)
+	fpby, err := x509.MarshalPKIXPublicKey(csr.PublicKey)
 	if err != nil {
-		log.Println(err)
-	} else {
-		t.PublicFingerprint = ssh.FingerprintSHA256(spk)
+		return err
 	}
+	t.PublicFingerprint = fingerprint(fpby)
 
 	t.PublicKeyAlgorithm = PublicKeyAlgorithm(csr.PublicKeyAlgorithm)
 	t.SignatureAlgorithm = SignatureAlgorithm(csr.SignatureAlgorithm)
