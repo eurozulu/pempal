@@ -1,0 +1,174 @@
++ = required value
+- derived
+
+
+Key
++PublicKeyAlgorithm:
++PublicKeySize:
+
+
+
+
+Request
+Requires Public / Private key pair, subject and SignatureAlgorithm
++PublicKey:
+	-PublicKeyAlgorithm:
+
++Subject:
+
++Signature: +Private Key
+	-SignatureAlgorithm:
+
+
+Optional
+Version:
+Extensions:
+ExtraExtensions:
+DNSNames:
+EmailAddresses:
+IPAddresses:
+URIs:
+
+
+
+Issue:
+
++Require certificate Request:
+
+-AuthorityKeyId
++NotBefore
++NotAfter
++BasicConstraintsValid
++IsCA
++MaxPathLen
+-MaxPathLenZero
+		
+
++Issuer Cert
+	- issuer public key
+	- issuer common name
+
+- Issuer private key
+
+
+
+Commands:
+pp key 				create a new key
+pp request <key> 	create a new CSR
+pp issue <key/csr> 	create a new Certificate
+
+All command parameters and flags are optional. For required values user is prompted.
+Commands act on a path, which defaults to the current directory.  PAth can be defined using ENV var $PP_PATH
+Path is searched for resources
+
+
+
+pp key
+No paramters
+
+Flags:
+ -publickeyalgorithm (-pka) ["RSA", "DSA","ECDSA","Ed25519"]  Sets the key type to create, defaults to RSA
+ -size 2048 , curve384...									  Sets / enter the key size (depends on pka), defaults to 2048 for rsa
+ -encode [pem | der | p12]									  Sets how new key is encoded, defaults to pem
+ -out														  Define a file path to write the resulting keyfile. defaults to stdout
+ -public (puk)												  Writes an additional output encoding of the new keys public key
+ -script													  When present surpresses user prompts.
+ 															  If no flags given, creates default rsa key without prompting.
+
+"pp key" with no flags will prompt:
+
+Create New key:
+1) PublicKeyAlgorithm: RSA
+2) PublicKeySize: 2048
+0) Abort
+
+Confirm these details to create new key with 'y'
+Select 1-2 to edit key details
+
+
+Selecting 1 to choose key type:
+PublicKeyAlgorithm [rsa] : 
+1) RSA
+2) DSA,
+3) ECDSA
+4) Ed25519
+0) Abort
+
+Selecting 2 to change key size.
+(If key type changes, automatically moves to 'edit' size.)
+PublicKeySize: [2048]
+>
+
+Return to "Create New Key" confirmation
+
+
+
+pp request
+Parameter: <key>
+specifies the pki pair to sign the request.  
+Value acts as query on all prk's in the path.  if >1 keys found or 'key' not specified, shows selection of found private keys.
+
+Flags
+ -subject {} | <template> 	Subject is a map of values to define the request subject. e.g. {"common name": "my server certificate", "country": "nl" ...}
+ 							If subject not wrapped in { }, then treated as a query on templates. (yaml files)
+
+ -SignatureAlgorithm ["MD2WithRSA","MD5WithRSA","SHA1WithRSA"...]  Sets the signing alog.  
+
+ -dnsnames 		Comma seperated list of values to add to the request
+ -ips 				"							"
+ -uris 				"       					"
+ -hostnames			"							"
+
+
+
+
+
+"pp request" will prompt:
+If no key specified in parameter the prompts to select the key.
+
+Select the key to sign new request:
+< list of all found private keys >
+1) ./mykey.pem  34 24 f3 d9 ...
+2) ./cakey.pem  2F 8E D7 22 ...
+99) Create a new key
+0) Abort
+
+Request key password as required.
+
+
+properties from -subject / template transferred into new CSR
+
+Certificate Request
+1) Public Key: 34 24 f3 d9 ...
+2) SignatureAlgorithm: xxx
+3) Subject:
+4)  	Common Name: "my server certificate"
+5)	    Country: "nl"
+
+Confirm these details to create new request with 'y'
+Select 1-5 to edit key details, 'n' to abort.
+
+
+If user bails out prior to positive confirm, write out a temp template  ./templates/~#<timestamp>.yaml.
+tool checks for "~#..." templates on start up and asks user if they wish to resume.  (Like vim)
+
+
+generate signature and csr.
+
+
+
+pp issue
+Parameter <signature>
+Specified item to be signed.  This can be an existing csr or private key.
+
+Flags
+-issuer 		Issuer certificate. Specify c/n or filepath of the CA certificate. '.' will self sign.
+-issuerkey 		private key to the issuer certificate. If "." specified, private key of <signature>
+
+-template <template file to apply> 
+
+-keyusage "comma delimit list of usages" 
+-extkeyusage "comma delimit list of usages" ...
+- ... All other properties specific to a certificate
+
+
