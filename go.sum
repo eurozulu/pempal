@@ -1,8 +1,5 @@
-github.com/eurozulu/commandgo v0.4.10 h1:Fufvx9NLFQasAfno50gzDfrX6xwAPu+k2EAti54GcAA=
-github.com/eurozulu/commandgo v0.4.10/go.mod h1:JbDqSpKPc9dykCO2o7HNWGXuhD6su5ProYNGxabu+5g=
-github.com/eurozulu/commandgo v0.5.1/go.mod h1:JbDqSpKPc9dykCO2o7HNWGXuhD6su5ProYNGxabu+5g=
-github.com/eurozulu/commandgo v0.6.3 h1:OkF5Bq4xnsSomT36O/a4guvCO84G00/OD8DlDY6R9xk=
-github.com/eurozulu/commandgo v0.6.3/go.mod h1:WlIeKnjZ3vg9CX16gcM/9ALEhTft5QY5a23EKfb9FSw=
+github.com/eurozulu/commandgo v0.6.4 h1:aBGZKtWnqoDCWTw4cn+mM9Jr+V702vxwu3XuGawPuu0=
+github.com/eurozulu/commandgo v0.6.4/go.mod h1:WlIeKnjZ3vg9CX16gcM/9ALEhTft5QY5a23EKfb9FSw=
 github.com/eurozulu/mainline v0.5.1/go.mod h1:JbDqSpKPc9dykCO2o7HNWGXuhD6su5ProYNGxabu+5g=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad h1:DN0cp81fZ3njFcrLCytUHRSUkqBjfTo4Tx9RJTWs0EY=

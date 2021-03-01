@@ -55,7 +55,7 @@ type FindCommand struct {
 // The path arguments may be a path to a specific file or a container such as a directory or pkcs container file.
 func (fc FindCommand) Find(args ...string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("Find: must provide at least one path")
+		args = append(args, ".")
 	}
 	if fc.VeryVerbose {
 		fc.Verbose = true
