@@ -13,8 +13,6 @@ import (
 
 // IssueCommand generates new, signed certificates
 type IssueCommand struct {
-	Command `yaml:"-" flag:"-"`
-
 	Version               int                                   `yaml:"Version,omitempty" flag:"version"`
 	Subject               map[string]interface{}                `yaml:"Subject,omitempty" flag:"subject"`
 	PublicKey             *templates.PublicKeyTemplate          `yaml:"PublicKey,omitempty" flag:"publickey"`
@@ -101,12 +99,12 @@ func (ic IssueCommand) Issue(tps ...string) error {
 		return fmt.Errorf("Failed to sign new certificate  %v", err)
 	}
 
-	if err := ic.WriteOutput([]*pem.Block{bl}, 0644); err != nil {
+	if err := writePemsToOutput([]*pem.Block{bl}, 0644); err != nil {
 		return err
 	}
 
 	if ic.keyOut != nil {
-		if err := ic.WriteOutput([]*pem.Block{ic.keyOut.PEMBlock()}, 0600); err != nil {
+		if err := writePemsToOutput([]*pem.Block{ic.keyOut.PEMBlock()}, 0600); err != nil {
 			return err
 		}
 	}
@@ -193,8 +191,7 @@ func (ic IssueCommand) issuerKey(isc *templates.CertificateTemplate) (*templates
 func (ic *IssueCommand) requestNewCSR(t templates.Template) (*templates.RequestTemplate, *templates.PrivateKeyTemplate, error) {
 	buf := bytes.NewBuffer(nil)
 	kc := &RequestCommand{
-		Command: Command{Output: buf},
-		KeyOut:  true,
+		KeyOut: true,
 	}
 	if err := templates.ApplyTemplate(kc, t); err != nil {
 		return nil, nil, err

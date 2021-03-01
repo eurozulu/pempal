@@ -3,43 +3,30 @@ package main
 import (
 	"encoding/pem"
 	"github.com/pempal/pemio"
-	"io"
 	"os"
 )
 
-const defaultEncode = "pem"
+// Out sets an output filename. Defaults to the standard output
+var Out string
 
-type Command struct {
-	Input  io.Reader `flag:"-" yaml:"-"`
-	Output io.Writer `flag:"-" yaml:"-"`
+// Encode sets the output format. valid values are 'pem', 'der' or 'p12'
+var Encode string
 
-	// Out sets an output filename. Defaults to the standard output
-	Out string `flag:"out,o" yaml:"-"`
-
-	// Encode sets the output format. valid values are 'pem', 'der' or 'p12'
-	Encode string `flag:"encode,e" yaml:"-"`
-
-	// Truncate, when true, will truncate any file being written to, wiping any previous contents.
-	// Ignored when not writing to file
-	Truncate bool `flag:"encode,e" yaml:"-"`
+func writePemFilesToOutput(pems []*pemio.PEMFile, perm os.FileMode) error {
+	var bls []*pem.Block
+	for _, pf := range pems {
+		bls = append(bls, pf.Blocks...)
+	}
+	return writePemsToOutput(bls, perm)
 }
 
-func (c Command) ReadInput() ([]*pem.Block, error) {
-	if c.Input == nil {
-		c.Input = os.Stdin
+func writePemsToOutput(pems []*pem.Block, perm os.FileMode) error {
+	if Encode == "" {
+		Encode = "yaml"
 	}
-	return pemio.ReadPEMs(c.Input)
-}
-
-func (c Command) WriteOutput(bls []*pem.Block, perm os.FileMode) error {
-	if c.Output == nil {
-		c.Output = os.Stdout
+	if Out == "" {
+		return pemio.WritePEMs(os.Stdout, pems, Encode)
+	} else {
+		return pemio.WritePEMsFile(Out, pems, Encode, perm, false)
 	}
-	if c.Encode == "" {
-		c.Encode = defaultEncode
-	}
-	if c.Out != "" {
-		return pemio.WritePEMsFile(c.Out, bls, c.Encode, perm, c.Truncate)
-	}
-	return pemio.WritePEMs(c.Output, bls, c.Encode)
 }

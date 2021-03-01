@@ -7,8 +7,6 @@ import (
 )
 
 type KeyCommand struct {
-	Command
-
 	// PublicKeyAlgorithm defines the type of key.
 	PublicKeyAlgorithm string `flag:"publickeyalgorithm,pka" yaml:"PublicKeyAlgorithm"`
 	// PublicKeyKeySize defines the complexity/length of the key
@@ -37,6 +35,7 @@ func (kc KeyCommand) Key(tps ...string) error {
 		return err
 	}
 
+	// Stack any given templates into new key template, then apply 'this' command so its flags are applied.
 	nkt := templates.NewNewKeyTemplate()
 	if err := templates.ApplyTemplates(nkt, ts...); err != nil {
 		return err
@@ -55,6 +54,5 @@ func (kc KeyCommand) Key(tps ...string) error {
 	if err != nil {
 		return err
 	}
-
-	return kc.WriteOutput([]*pem.Block{bl}, 0600)
+	return writePemsToOutput([]*pem.Block{bl}, 0600)
 }

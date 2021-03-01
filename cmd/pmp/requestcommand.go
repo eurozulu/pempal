@@ -7,11 +7,11 @@ import (
 	"github.com/pempal/pemio"
 	"github.com/pempal/pempal"
 	"github.com/pempal/templates"
+	"os"
 	"strings"
 )
 
 type RequestCommand struct {
-	Command
 	Version            int                                   `yaml:"Version,omitempty" flag:"version"`
 	Subject            map[string]interface{}                `yaml:"Subject,omitempty" flag:"subject"`
 	PublicKey          *templates.PublicKeyTemplate          `yaml:"PublicKey,omitempty" flag:"publickey"`
@@ -73,12 +73,11 @@ func (rc RequestCommand) Request(tps ...string) error {
 		return err
 	}
 
-	if err := rc.WriteOutput([]*pem.Block{bl}, 0644); err != nil {
+	if err := writePemsToOutput([]*pem.Block{bl}, 0644); err != nil {
 		return err
 	}
 	if rc.KeyOut {
-		rc.Truncate = false
-		if err := rc.WriteOutput([]*pem.Block{prk.PEMBlock()}, 0600); err != nil {
+		if err := writePemsToOutput([]*pem.Block{prk.PEMBlock()}, 0600); err != nil {
 			return err
 		}
 	}
@@ -119,7 +118,6 @@ func (rc *RequestCommand) findRequestKey() (*templates.PrivateKeyTemplate, error
 func (rc RequestCommand) requestNewKey() (*templates.PrivateKeyTemplate, error) {
 	buf := bytes.NewBuffer(nil)
 	kc := KeyCommand{
-		Command:            Command{Output: buf},
 		PublicKeyAlgorithm: rc.PublicKeyAlgorithm.String(),
 		Password:           rc.Password,
 	}
@@ -135,7 +133,7 @@ func (rc RequestCommand) requestNewKey() (*templates.PrivateKeyTemplate, error) 
 }
 
 func (rc RequestCommand) keyFromInput() (*templates.PrivateKeyTemplate, error) {
-	bls, err := rc.ReadInput()
+	bls, err := pemio.ReadPEMs(os.Stdin)
 	if err != nil {
 		return nil, err
 	}
