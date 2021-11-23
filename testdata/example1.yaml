@@ -1,0 +1,2 @@
+publicKeyAlgorithm: "ecdsa"
+publicKeyLength: 512

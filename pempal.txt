@@ -1,0 +1,148 @@
+pempal
+Concept
+All x509 resources are treated as PEM's.  The original file may not be in the pem format, but will be 'converted' withint he application.
+External file formats, der, pk12 etc are supported, but present as PEMs within the tool.  A PEM block may contain multiple resources,
+i.e. multiple certificates (such as a chain) and the supporting keys can all be stored in a series of pem blocks.
+
+This is known as a PEMResource.  The Pem Resource has one or more PEM blocks and a location, the file location the blocks came from.
+PP manipulates these Resources to generate new resources which are re-formatted into the final file output format.
+
+
+Keypath
+keypath is a colon delimited list of directories containing the private key locations to use for signing the various requources.
+It may be set using an environment Variable $PP_KEYPATH, but defaults to $HOME/.pp
+If existing keys are to be used, the location of those keys should be added to the keypath, either in $PP_KEYPATH or using the --keypath flag.
+New keys are generated in the current dir, however the -output flag can be used to direct them into one of the keypath locations.
+
+Users
+pp has a concept of a User, being a person or process in poccession of both a private key and, at least one certificate signed (issued to) that key, to identify that key.
+A User need not be an actual person.  It is an 'entity' with an identity.
+Any command requiring a digital signature requires a User. With the Exception of the User command itself, all others commands require a User to be identified.
+
+In addition to access to the private key, a User must also have a signed certificate matching that key.  
+This certificate is used to bind the meta data (c/n, d/n, o/u etc) to the key, giving it the identity.
+Although the key can be referenced directly (by location or key hash) it is more common to refer to it under its common name, taken by the certificate coupled to the key.
+A key may have multiple certificates bound to it, and may be referred to by the names of any one of them.
+
+In addition to a name, certificate keyusage is used to control which commands that user can perform.
+e.g. to  run the "issue" command, to sign a certificate, the user certificate must have the 'Certificate signing' usage property.
+'CRL signing' is required for the "revoke" command, and "request" required the "Digital signature" useage
+
+
+Both the private keys and the corrisponding certifcates should be placed in the keypath.  They need not share the same directory, but both must
+be in a directory in the keypath.
+
+User selection.
+With most pki infrustructures there are many keys used and managing them can be difficult.
+When performing a function pp attempts to establish the most suitable user to use from those found in the keypath.
+Initially only users with the required keyusage are selected.
+If there are more than one, pp performs a property match on the new resource, against the remaining keys.
+e.g. Checks values of a CSR's subject with those of the keys, filtering out those with no matches.
+Keys found with a greater number of matches, such as same org, same company, same email domain etc. are selected.
+finally,, if zero or more than one key matches, the user is prompted to select from the remaining keys
+IF at any point the search finds just one key, that key will be used.
+The search can be controlled using a pp.config file in the keypath. (see later)
+
+With careful selection of properties in User certificates, Users can be mapped to specific functions
+and automtically selected.  
+e.g. When signing a certificate, the signer might be an intermiedeate CA.
+Whislt sharing many properties with its Root CA (another candidate user), the ICA can define specific OUs
+relating to the signatures it signs.  Each ICA can have specific OU's in its subject, giving them each spoecific functions.
+The CSR's can then specify the required properties to match and the correct ICA is selected to sign the CSR and issue the certificate.
+
+
+
+Commands:
+
+pp user
+Manages the current user(s)
+    no arg:  generates a new user
+        flags:
+            --name: the common name for the new user.  Required and prompts if not supplied
+            --email:  the email address of the new user  Required and prompts if not supplied
+            --issuer    the name of the user to issue the new user certificaste.  defaults to a self signed certificate
+            --key: optionally provide the keyname or hash to assign to the user.  If not provided a new key is generated
+            --output path to write to, otherwise written to stdout
+            --y  Override confirmation
+
+        flags used for new key (ignored when --key is used)
+            --keyalgoritym  algo to use for new key (rsa, dsa, ecdsa)
+            --keylength     bit/curve length of new key.
+            --usage:     a comma delimited string of key usage. Can ke "official" or the corrisponding command.
+                            e.g. --usage "Digital signature, Certificate signing" or "request, issue"
+                            A psudo use of "all" will apply all keyusages for all commands.
+                            Defaults to no usages.
+
+    single arg, user name:  Displays the full certificate for that user.
+e.g. 
+pp user --name "Certificate Admin" --email "lala@blabla.com" --output "~/mykeys/certadmin.prk" --keyalgoritym rsa --keylength 2048 --usage all
+
+A New user named "Certificate Admin" has its newly generated, rsa 2048bit key, written to the "certadmin.prk" file
+In addition a certadmin.pem file is generated containing a self signed certificate with the name and email and all keyusages
+
+pp user "Certificate Admin"
+Certificate Admin ./certadmin.pem  * RSA 2048 459d9e0b23... 
+
+Displays the user details of the newly created user.
+
+
+pp users
+shows a list of available users from the keypath, with the key location and certificate functions
+Kind of like doing a pp key *
+
+
+pp key
+Generates or shows information about Public/Private Key pairs
+key is provided for completenes, to manipulate/create new keys and not usually needed during the normal usage of pp.
+Keys are independant of Users until they are bound to at least one certificate.  Most key management should be done with "user" command.
+
+    no arg: Generates a new key
+        optional flags: 
+            --keyalgoritym  algo to use (rsa, dsa, ecdsa)
+            --keylength     bit/curve length of key
+            --output path to write to, otherwise written to stdout
+            --y  Override confirmation
+
+    single arg <public key ID>: Finds the resources using the named public key
+        required argument:
+        <keyid> The public key / name of key to search
+        optinal flags :--type comma list of resource types to find, e.g. "certificate, private key". Defaults to all resources
+
+pp keys
+    no argument: Lists all the private key locations in the keypath
+    optional flags    
+            --keyalgoritym  algo to find (rsa, dsa, ecdsa)
+            --keylength     bit/curve length of key
+    
+    Optional arguments: list of paths to search, overridding the keypath
+
+
+pp request
+Generates a Certificate Signing Request based on existing resources and/or given properties
+    All arguments are optional, each specifying the name of a resource to use as a template for the properties of the request.
+    The properties of all templates are combined from left to right, with the last template having the highest priority (overritting the properties of any other templates using the same names)
+        optional flags:
+            All CSR field names can be given to override the any template values.  Flags take highest precedence over templates values
+
+pp requests
+    no args: Lists all the CSRs in the certificate path
+        optional flags:
+            All CSR field names can be given to limit search to CSRs with matching property
+
+
+pp issue [--<any certificate property name and value>] [template (any pem resource name or location)]...
+Issues, or signs new certificates as the current user.
+    All flags and arguments are optional, however some properties are required, so when not provided from cmdline, the user is properted.
+    Required properties, "--subject.common-name"
+                         ???
+
+All arguments (unnamed flags) should name pem resources to use as templates.
+Tempaltes have their properties applied to the new certificate, in the order they are given.  i.e. later tempaltes overwrite values with the same name.
+Templates may be any pem resource.  A sample Certificate, a CSR, a public key or any combination of them.
+Templates are combined into the new certificate, with any provided flags overridding the final value.
+
+
+
+
+
+Revoke
