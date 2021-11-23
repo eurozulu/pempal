@@ -13,7 +13,8 @@ import (
 )
 
 type KeyTracker struct {
-	ShowLogs bool
+	ShowLogs  bool
+	Recursive bool
 }
 
 func (kt KeyTracker) FindIdentities(ctx context.Context, rootPaths ...string) <-chan []Identity {
@@ -24,7 +25,7 @@ func (kt KeyTracker) FindIdentities(ctx context.Context, rootPaths ...string) <-
 			Verbose:           true,
 			AddLocationHeader: true,
 			PemTypes:          certsAndKeys,
-			Recursive:         true,
+			Recursive:         kt.Recursive,
 		}
 		var wg sync.WaitGroup
 		wg.Add(len(paths))
@@ -47,7 +48,7 @@ func (kt KeyTracker) FindKeys(ctx context.Context, rootPaths ...string) <-chan *
 		pr := &pemreader.PemReader{
 			AddLocationHeader: true,
 			PemTypes:          keytools.PrivateKeyTypes,
-			Recursive:         true,
+			Recursive:         kt.Recursive,
 		}
 		var wg sync.WaitGroup
 		for _, p := range rootPaths {

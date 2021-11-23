@@ -17,8 +17,9 @@ const ENV_KeyPath = "PP_KEYPATH"
 var KeyPath = strings.TrimSpace(os.Getenv(ENV_KeyPath))
 
 type KeysCommand struct {
-	listCerts bool
-	showHash  bool
+	ListCerts bool
+	ShowHash  bool
+	Recursive bool
 }
 
 func (cmd *KeysCommand) Description() string {
@@ -26,8 +27,9 @@ func (cmd *KeysCommand) Description() string {
 }
 
 func (cmd *KeysCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.listCerts, "id", false, "lists the keys associated certificates")
-	f.BoolVar(&cmd.showHash, "hash", false, "Displays a sha1 hash of the public key")
+	f.BoolVar(&cmd.ListCerts, "id", false, "lists the keys associated certificates")
+	f.BoolVar(&cmd.ShowHash, "hash", false, "Displays a sha1 hash of the public key")
+	f.BoolVar(&cmd.Recursive, "r", false, "search subdirectories recursively")
 }
 
 func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
@@ -38,7 +40,7 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 	if len(args) == 0 {
 		return fmt.Errorf("must provide at least one location to search for keys or set the %s environment variable with the path to search.", ENV_KeyPath)
 	}
-	keys := Keys(ctx, args)
+	keys := cmd.Keys(ctx, args)
 	//TODO, fix column sizing
 	tw := tabwriter.NewWriter(out, 2, 1, 4, ' ', 0)
 	for _, key := range keys {
@@ -47,8 +49,8 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 	return tw.Flush()
 }
 
-func Keys(ctx context.Context, keypath []string) []keytracker.Key {
-	kt := keytracker.KeyTracker{ShowLogs: Verbose}
+func (cmd *KeysCommand) Keys(ctx context.Context, keypath []string) []keytracker.Key {
+	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: cmd.Recursive}
 	keyCh := kt.FindKeys(ctx, keypath...)
 
 	var found []keytracker.Key

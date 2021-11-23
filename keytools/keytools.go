@@ -182,8 +182,15 @@ func MarshalPublicKey(key crypto.PublicKey) (*pem.Block, error) {
 		by = x509.MarshalPKCS1PublicKey(vk)
 		pemtype = PEM_RSA_PUBLIC_KEY
 
-	case *ecdsa.PublicKey, *ed25519.PrivateKey:
-		b, err := x509.MarshalPKCS8PrivateKey(vk)
+	case *ecdsa.PublicKey:
+		b, err := x509.MarshalPKIXPublicKey(vk)
+		if err != nil {
+			return nil, err
+		}
+		by = b
+		pemtype = PEM_EC_PUBLIC_KEY
+	case *ed25519.PublicKey:
+		b, err := x509.MarshalPKIXPublicKey(vk)
 		if err != nil {
 			return nil, err
 		}

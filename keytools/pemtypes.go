@@ -20,6 +20,7 @@ const (
 	PEM_RSA_PUBLIC_KEY   = "RSA PUBLIC KEY"
 	PEM_DSA_PUBLIC_KEY   = "DSA PUBLIC KEY"
 	PEM_ECDSA_PUBLIC_KEY = "ECDSA PUBLIC KEY"
+	PEM_EC_PUBLIC_KEY    = "EC PUBLIC KEY"
 	PEM_ANY_PUBLIC_KEY   = "ANY_PUBLIC_KEY"
 )
 
@@ -29,11 +30,12 @@ var CertificateTypes = map[string]bool{
 	PEM_TRUSTED_CERTIFICATE: true,
 }
 var PublicKeyTypes = map[string]bool{
-	"PUBLIC KEY":       true,
-	"RSA PUBLIC KEY":   true,
-	"DSA PUBLIC KEY":   true,
-	"ECDSA PUBLIC KEY": true,
-	"ANY_PUBLIC_KEY":   true,
+	PEM_PUBLIC_KEY:       true,
+	PEM_RSA_PUBLIC_KEY:   true,
+	PEM_DSA_PUBLIC_KEY:   true,
+	PEM_ECDSA_PUBLIC_KEY: true,
+	PEM_EC_PUBLIC_KEY:    true,
+	PEM_ANY_PUBLIC_KEY:   true,
 }
 var PrivateKeyTypes = map[string]bool{
 	PEM_PRIVATE_KEY:           true,
