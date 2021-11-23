@@ -7,11 +7,13 @@ type FileFormat interface {
 	Format(by []byte) ([]*pem.Block, error)
 }
 
+var pemFormatter = &pemFileFormat{}
+
 // FileFormats is a map of all the supported file name extensions, mapped to their respective format implementations
 var FileFormats = map[string]FileFormat{
 	// empty key captures files with no extension
 	"":    unknownFormat{},
-	"pem": &pemFileFormat{},
+	"pem": pemFormatter,
 
 	"der":  derCertificateFormat{},
 	"cer":  derCertificateFormat{},

@@ -31,7 +31,7 @@ func PromptCreatePassword(prompt string, minLength int) (string, error) {
 			return "", err
 		}
 		if len(pass) < minLength {
-			fmt.Print("password is too short\n")
+			fmt.Print(" password is too short\n")
 			continue
 		}
 		fmt.Println()

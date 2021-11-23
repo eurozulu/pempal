@@ -9,7 +9,7 @@ type unknownFormat struct {
 }
 
 func (u unknownFormat) Format(by []byte) ([]*pem.Block, error) {
-	blks, err := pemFileFormat{}.Format(by)
+	blks, err := pemFormatter.Format(by)
 	if err == nil {
 		return blks, nil
 	}

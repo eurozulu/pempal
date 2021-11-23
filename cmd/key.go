@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
@@ -10,7 +11,6 @@ import (
 	"io"
 	"pempal/keytools"
 	"pempal/keytracker"
-	"pempal/pemreader"
 )
 
 const encryptPwdMinLength = 6
@@ -18,13 +18,15 @@ const encryptPwdCipher = x509.PEMCipherAES256
 
 // KeyCommand creates new keys.
 // When used with no arguments, it generates a new private/public key pair using the keyAlgorithm and keyLength flags.
-// When used with an argument, it searches the given arguments as key paths searching for private keys to generate a corresponding public key file.
+// When used with an argument, it searches the given arguments as key paths searching for private keys, attempting to show the corresponding public key file for each.
 type KeyCommand struct {
 	keyAlgorithm string
 	keyLength    int
-	quiet        bool
-	encrypt      bool
-	passwd       string
+
+	quiet   bool
+	public  bool
+	encrypt bool
+	passwd  string
 }
 
 func (cmd *KeyCommand) Description() string {
@@ -32,10 +34,12 @@ func (cmd *KeyCommand) Description() string {
 }
 
 func (cmd *KeyCommand) Flags(f *flag.FlagSet) {
-	algos := fmt.Sprintf("The key Algorithm to generate. must be one of %v", keytools.PublicKeyAlgoNames[1:])
+	algos := fmt.Sprintf("The key Algorithm to generate.\n\tmust be one of %v", keytools.PublicKeyAlgoNames[1:])
 	f.StringVar(&cmd.keyAlgorithm, "a", "rsa", algos)
 	f.IntVar(&cmd.keyLength, "l", 2048, "The length/curve to use for the key")
 	f.BoolVar(&cmd.quiet, "q", false, "surpresses the confirmation prompt to generate new key or password request for encrypted keys to generate public keys")
+	f.BoolVar(&cmd.public, "public", true, "When true, default, generates the corresponding public key pem. If private key already exists, requests password to decrypt")
+	f.BoolVar(&cmd.public, "pubout", true, "same as 'public'")
 	f.BoolVar(&cmd.encrypt, "encrypt", true, "When true, default, new keys are encrypted with a password.")
 	f.StringVar(&cmd.passwd, "password", "", "the passwordto encrypt or decrypt a key.")
 }
@@ -67,6 +71,12 @@ func (cmd *KeyCommand) createPrivateKey(out io.Writer) error {
 		return err
 	}
 
+	if cmd.public {
+		// make public prior to encrypting
+		if err = cmd.makePublicKey(keytracker.NewKey(blk), out); err != nil {
+			return err
+		}
+	}
 	if cmd.encrypt {
 		if cmd.passwd == "" {
 			if cmd.quiet {
@@ -78,7 +88,7 @@ func (cmd *KeyCommand) createPrivateKey(out io.Writer) error {
 			}
 			cmd.passwd = pwd
 		}
-		eb, err := x509.EncryptPEMBlock(rand.Reader, keytools.PEM_ENCRYPTED_PRIVATE_KEY, blk.Bytes, []byte(cmd.passwd), encryptPwdCipher)
+		eb, err := x509.EncryptPEMBlock(rand.Reader, blk.Type, blk.Bytes, []byte(cmd.passwd), encryptPwdCipher)
 		if err != nil {
 			return err
 		}
@@ -87,7 +97,7 @@ func (cmd *KeyCommand) createPrivateKey(out io.Writer) error {
 	if err = pem.Encode(out, blk); err != nil {
 		return err
 	}
-	k, err := keytracker.NewKey(blk)
+	k := keytracker.NewKey(blk)
 	if err != nil {
 		return err
 	}
@@ -113,14 +123,16 @@ func (cmd *KeyCommand) createPublicKeys(ctx context.Context, out io.Writer, keyp
 }
 
 func (cmd *KeyCommand) makePublicKey(k keytracker.Key, out io.Writer) error {
-	kp := k.Location()
-	if kp == "" {
-		return fmt.Errorf("key %s has not location header", k)
-	}
-
-	if k.IsEncrypted() {
+	var prk crypto.PrivateKey
+	if !k.IsEncrypted() {
+		pk, err := k.PrivateKey()
+		if err != nil {
+			return err
+		}
+		prk = pk
+	} else {
 		if cmd.passwd == "" {
-			s := fmt.Sprintf("Enter the password for encrypted key.  Just enter to skip key %s\n%s: ", k.Location(), k)
+			s := fmt.Sprintf("Enter the password for encrypted key or enter to skip key %s\n%s: ", k.Location(), k)
 			pwd, err := PromptPassword(s)
 			if err != nil {
 				return err
@@ -130,13 +142,15 @@ func (cmd *KeyCommand) makePublicKey(k keytracker.Key, out io.Writer) error {
 			}
 			cmd.passwd = pwd
 		}
+		pk, err := k.PrivateKeyDecrypted(cmd.passwd)
+		if err != nil {
+			return err
+		}
+		prk = pk
 	}
-	prk, err := k.PrivateKeyDecrypted(cmd.passwd)
 	blk, err := keytools.MarshalPublicKey(keytools.PublicKeyFromPrivate(prk))
 	if err != nil {
 		return err
 	}
-	blk.Headers = map[string]string{pemreader.LocationHeaderKey: k.Location()}
-	//blk.Headers["keyhash"] = k.String()
 	return pem.Encode(out, blk)
 }

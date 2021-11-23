@@ -50,10 +50,9 @@ func (kt KeyTracker) FindKeys(ctx context.Context, rootPaths ...string) <-chan *
 			Recursive:         true,
 		}
 		var wg sync.WaitGroup
-
 		for _, p := range rootPaths {
 			wg.Add(1)
-			// scan each path independantly, all feeding into shared output channel
+			// scan each path independently, all feeding into shared output channel
 			go func(p string, chOut chan<- *key, wg *sync.WaitGroup) {
 				defer wg.Done()
 				chIn := pr.Find(ctx, p)

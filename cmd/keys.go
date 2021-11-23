@@ -42,11 +42,7 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 	//TODO, fix column sizing
 	tw := tabwriter.NewWriter(out, 2, 1, 4, ' ', 0)
 	for _, key := range keys {
-		fmt.Fprintf(out, "%s\t%s\t%s", key.Type(), key.String(), key.Location())
-		pl := key.PublicLocation()
-		if pl != "" {
-			fmt.Fprintf(out, "\n\tPublic key location: %s", pl)
-		}
+		fmt.Fprintf(out, "%s\t%s\t%s\n", key.Type(), key.String(), key.Location())
 	}
 	return tw.Flush()
 }

@@ -17,16 +17,15 @@ func (d derKeyFormat) Format(by []byte) ([]*pem.Block, error) {
 	prk, err := x509.ParsePKCS8PrivateKey(by)
 	if err != nil {
 		// not a private key, try as a public
-		puk, err = x509.ParsePKIXPublicKey(by)
-		if err != nil {
-			return nil, err
-		}
+		puk, _ = x509.ParsePKIXPublicKey(by)
+
 	} else {
 		// is a private key, derive puk from it
 		puk = keytools.PublicKeyFromPrivate(prk)
 	}
 	if puk == nil {
-		return nil, fmt.Errorf("failed to read any key")
+		// Not a known der format, try as PEM
+		return pemFormatter.Format(by)
 	}
 
 	ka := keytools.PublicKeyAlgorithm(puk)

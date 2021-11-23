@@ -87,14 +87,8 @@ func (k key) IsEncrypted() bool {
 	if x509.IsEncryptedPEMBlock(k.pemBlock) {
 		return true
 	}
-	if k.pemBlock.Headers != nil {
-		for _, v := range k.pemBlock.Headers {
-			if strings.Contains(strings.ToUpper(v), "ENCRYPT") {
-				return true
-			}
-		}
-	}
-	return false
+	pt, ok := k.pemBlock.Headers["Proc-Type"]
+	return ok && strings.HasSuffix(pt, "ENCRYPTED")
 }
 
 func (k key) Type() string {
@@ -134,11 +128,8 @@ func (k key) String() string {
 	return strings.Join([]string{encryptedHash, stringHash(k.pemBlock.Bytes)}, "")
 }
 
-func NewKey(blk *pem.Block) (Key, error) {
-	if !keytools.PrivateKeyTypes[blk.Type] {
-		return nil, fmt.Errorf("%s is not a known private key type", blk.Type)
-	}
+func NewKey(blk *pem.Block) Key {
 	return &key{
 		pemBlock: blk,
-	}, nil
+	}
 }
