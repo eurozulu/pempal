@@ -15,11 +15,12 @@ import (
 type FileScanner struct {
 	// Default is aa recursive search.  Set true to scan just one file/directory
 	NonRecursive bool
-	// Filter is an optional way to filter each filename.
-	Filter FilePathFilter
 
 	// Verbose displays error logs found during the scan.  By defqult, these are ignored.
 	Verbose bool
+
+	// Filter is an optional way to filter each filename.
+	Filter FilePathFilter
 
 	// FollowSymLinks will attempt to resolve symlinks to the actual location.  Off by default.
 	FollowSymLinks bool
@@ -44,9 +45,10 @@ func (e ExtensionFilter) Filter(p string) bool {
 	return e[strings.TrimLeft(path.Ext(p), ".")]
 }
 
+// Find finds all the file paths found in the given root.
+// root may be a single file or a directory.  When its a directory, all the files found in that directory are returned in the channel.
 func (p FileScanner) Find(ctx context.Context, root string) <-chan string {
 	ch := make(chan string)
-
 	go func(root string, ch chan<- string) {
 		defer close(ch)
 

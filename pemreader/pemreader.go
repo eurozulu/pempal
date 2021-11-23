@@ -48,7 +48,6 @@ type PemReader struct {
 
 func (p PemReader) Find(ctx context.Context, rootPath string) <-chan *pem.Block {
 	ch := make(chan *pem.Block)
-
 	go func(rootPath string, chOut chan<- *pem.Block) {
 		defer close(chOut)
 
@@ -80,7 +79,7 @@ func (p PemReader) Find(ctx context.Context, rootPath string) <-chan *pem.Block 
 }
 
 // parseResource attempts to read the given filepath as a PEM, using its file extension as the Format.
-// If successfully parsed into Pem(s), it is passed to the given channel as pem blocks
+// If successfully parsed into Pem(s), they are passed to the given pem block channel
 // If unsuccessful, the file is ignored
 func (p PemReader) parseResource(ctx context.Context, fp string, outCh chan<- *pem.Block, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -97,12 +96,14 @@ func (p PemReader) parseResource(ctx context.Context, fp string, outCh chan<- *p
 	}
 	blks, err := f.Format(by)
 	if err != nil {
+		// add the filename to the error for clarity
 		err = fmt.Errorf("%s %w", fp, err)
 	}
 	if !p.handleError(err) || len(blks) == 0 {
 		return
 	}
-	// Filter found blocks to with PEMType filter map
+
+	// Filter found blocks with PEMType filter map
 	blks = p.filterBlockTypes(blks)
 	if len(blks) == 0 {
 		// nothing found, ignore it
