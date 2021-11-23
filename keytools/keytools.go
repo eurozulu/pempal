@@ -9,12 +9,9 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
-	"encoding/asn1"
 	"encoding/hex"
-	"encoding/pem"
 	"fmt"
 	"log"
-	"math/big"
 	"strconv"
 	"strings"
 )
@@ -24,13 +21,13 @@ func PublicKeySha1Hash(key crypto.PublicKey) string {
 	if key == nil {
 		return ""
 	}
-	pm, err := MarshalPublicKey(key)
+	pb, err := MarshalPublicKey(key)
 	if err != nil {
 		log.Println(err)
 		return ""
 	}
 	hash := sha1.New()
-	_, _ = hash.Write(pm.Bytes)
+	_, _ = hash.Write(pb.Bytes)
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
@@ -84,7 +81,7 @@ func PublicKeyLength(pk crypto.PublicKey) string {
 }
 
 // PublicKeyFromPrivate returns the public key element of the given private key
-// supports rsa, ecdsa, ed25519 and dsa keytracker
+// supports rsa, ecdsa, ed25519 and dsa keys
 func PublicKeyFromPrivate(pk crypto.PrivateKey) crypto.PublicKey {
 	switch v := pk.(type) {
 	case *rsa.PrivateKey:
@@ -100,6 +97,7 @@ func PublicKeyFromPrivate(pk crypto.PrivateKey) crypto.PublicKey {
 	}
 }
 
+// ComparePublicKeys compares two given key for equality
 func ComparePublicKeys(pk1 crypto.PublicKey, pk2 crypto.PublicKey) bool {
 	switch v := pk1.(type) {
 	case *rsa.PublicKey:
@@ -122,145 +120,4 @@ func ComparePublicKeys(pk1 crypto.PublicKey, pk2 crypto.PublicKey) bool {
 	default:
 		return false
 	}
-}
-
-func MarshalPrivateKey(key crypto.PrivateKey) (*pem.Block, error) {
-	var pemtype string
-	var by []byte
-
-	switch vk := key.(type) {
-	case *rsa.PrivateKey:
-		by = x509.MarshalPKCS1PrivateKey(vk)
-		pemtype = PEM_RSA_PRIVATE_KEY
-
-	case *ecdsa.PrivateKey:
-		b, err := x509.MarshalECPrivateKey(vk)
-		if err != nil {
-			return nil, err
-		}
-		by = b
-		pemtype = PEM_EC_PRIVATE_KEY
-
-	case *ed25519.PrivateKey:
-		b, err := x509.MarshalPKCS8PrivateKey(vk)
-		if err != nil {
-			return nil, err
-		}
-		by = b
-		pemtype = PEM_PRIVATE_KEY
-
-	case *dsa.PrivateKey:
-		k := dsaOpenssl{
-			Version: 0,
-			P:       vk.P,
-			Q:       vk.Q,
-			G:       vk.G,
-			Pub:     vk.Y,
-			Priv:    vk.X,
-		}
-		b, err := asn1.Marshal(k)
-		if err != nil {
-			return nil, err
-		}
-		by = b
-		pemtype = PEM_PRIVATE_KEY
-	default:
-		return nil, fmt.Errorf("unsupported private key type")
-	}
-	return &pem.Block{
-		Type:  pemtype,
-		Bytes: by,
-	}, nil
-}
-
-func MarshalPublicKey(key crypto.PublicKey) (*pem.Block, error) {
-	var pemtype string
-	var by []byte
-
-	switch vk := key.(type) {
-	case *rsa.PublicKey:
-		by = x509.MarshalPKCS1PublicKey(vk)
-		pemtype = PEM_RSA_PUBLIC_KEY
-
-	case *ecdsa.PublicKey:
-		b, err := x509.MarshalPKIXPublicKey(vk)
-		if err != nil {
-			return nil, err
-		}
-		by = b
-		pemtype = PEM_EC_PUBLIC_KEY
-	case *ed25519.PublicKey:
-		b, err := x509.MarshalPKIXPublicKey(vk)
-		if err != nil {
-			return nil, err
-		}
-		by = b
-		pemtype = PEM_PUBLIC_KEY
-
-	case *dsa.PrivateKey:
-		// TODO: Check this is right.
-		k := dsaOpenssl{
-			Version: 0,
-			P:       vk.P,
-			Q:       vk.Q,
-			G:       vk.G,
-			Pub:     vk.Y,
-		}
-		b, err := asn1.Marshal(k)
-		if err != nil {
-			return nil, err
-		}
-		by = b
-		pemtype = PEM_PUBLIC_KEY
-	default:
-		return nil, fmt.Errorf("unsupported private key type")
-	}
-	return &pem.Block{
-		Type:  pemtype,
-		Bytes: by,
-	}, nil
-}
-
-func ParsePrivateKey(blk *pem.Block) (crypto.PrivateKey, error) {
-	var prk crypto.PrivateKey
-	var err error
-	switch blk.Type {
-
-	case PEM_RSA_PRIVATE_KEY:
-		prk, err = x509.ParsePKCS1PrivateKey(blk.Bytes)
-
-	case PEM_EC_PRIVATE_KEY:
-		prk, err = x509.ParseECPrivateKey(blk.Bytes)
-
-	default:
-		//PEM_ANY_PRIVATE_KEY,
-		//PEM_DSA_PRIVATE_KEY,
-		//PEM_ENCRYPTED_PRIVATE_KEY,
-		//PEM_PRIVATE_KEY,
-		prk, err = x509.ParsePKCS8PrivateKey(blk.Bytes)
-	}
-	return prk, err
-}
-
-func ParsePublicKey(blk *pem.Block) (crypto.PublicKey, error) {
-	var puk crypto.PublicKey
-	var err error
-	switch blk.Type {
-
-	case PEM_RSA_PUBLIC_KEY:
-		puk, err = x509.ParsePKCS1PublicKey(blk.Bytes)
-
-	default:
-		puk, err = x509.ParsePKIXPublicKey(blk.Bytes)
-	}
-	return puk, err
-}
-
-type dsaOpenssl struct {
-	Version int
-	P       *big.Int
-	Q       *big.Int
-	G       *big.Int
-	Pub     *big.Int
-	Priv    *big.Int
 }

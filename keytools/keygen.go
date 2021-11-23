@@ -16,7 +16,6 @@ import (
 func GenerateKey(pka x509.PublicKeyAlgorithm, keyLen int) (crypto.PrivateKey, error) {
 	var prk crypto.PrivateKey
 	var err error
-
 	switch pka {
 	case x509.RSA:
 		prk, err = rsa.GenerateKey(rand.Reader, keyLen)
@@ -31,7 +30,9 @@ func GenerateKey(pka x509.PublicKeyAlgorithm, keyLen int) (crypto.PrivateKey, er
 		_, prk, err = ed25519.GenerateKey(rand.Reader)
 
 	default:
-		return nil, fmt.Errorf("unsupported key type. must be 'RSA', 'DSA', 'ECDSA' or 'Ed25519'")
+		return nil, fmt.Errorf("unsupported key type. must be one of: %v", []x509.PublicKeyAlgorithm{
+			x509.DSA, x509.RSA, x509.ECDSA, x509.Ed25519,
+		})
 	}
 	return prk, err
 }
