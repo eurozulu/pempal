@@ -18,7 +18,7 @@ type Builder interface {
 
 type builder struct {
 	temps []Template
-	pr    *pemreader.PemReader
+	pr    *pemreader.PemScanner
 }
 
 func (tb builder) Templates() []Template {
@@ -114,7 +114,7 @@ func mergeTemplates(ms ...Template) Template {
 func NewBuilder() *builder {
 	return &builder{
 		temps: nil,
-		pr: &pemreader.PemReader{
+		pr: &pemreader.PemScanner{
 			AddLocationHeader: true,
 			Recursive:         false,
 		},

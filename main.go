@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"pempal/cmd"
-	"pempal/pemreader"
 	"strings"
 	"time"
 )
@@ -18,7 +17,6 @@ func main() {
 	started := time.Now()
 	var help bool
 	var timeRun bool
-	var pemTypes string
 	var outFile string
 
 	if len(os.Args) < 2 {
@@ -31,7 +29,6 @@ func main() {
 	fs.BoolVar(&timeRun, "t", false, "Times how long the command takes to execute")
 	fs.BoolVar(&help, "help", false, "Display help")
 	fs.StringVar(&outFile, "out", "", "Specify a filename to write the output to. Defaults to stdout")
-	fs.StringVar(&pemTypes, "types", "", "A comma delimited list of PEM types.")
 
 	command, ok := cmd.Commands[os.Args[1]]
 	if !ok {
@@ -58,10 +55,6 @@ func main() {
 		defer func(s time.Time) {
 			fmt.Printf("took: %v\n", time.Now().Sub(s))
 		}(started)
-	}
-
-	if pemTypes != "" {
-		pemreader.AddPemTypes(strings.Split(pemTypes, ","))
 	}
 
 	// establish the output stream

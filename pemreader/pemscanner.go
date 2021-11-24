@@ -21,12 +21,8 @@ const maxOpenFiles = 64
 
 var pemExtensionMap = extensionMapFromFormats()
 
-var CustomExtensions = map[string]bool{}
-
-var PemTypes = map[string]bool{}
-
-// PemReader scans a single file location and, optionally, if its a directory, all its sub directories, for Pem Blocks.
-type PemReader struct {
+// PemScanner scans a single file location and, optionally, if its a directory, all its sub directories, for Pem Blocks.
+type PemScanner struct {
 	// When true, displays errors incurred during scan. By default errors are ignored
 	Verbose bool
 
@@ -46,13 +42,13 @@ type PemReader struct {
 	PemTypes map[string]bool
 }
 
-func (p PemReader) Find(ctx context.Context, rootPath string) <-chan *pem.Block {
+func (p PemScanner) Find(ctx context.Context, rootPath string) <-chan *pem.Block {
 	ch := make(chan *pem.Block)
 	go func(rootPath string, chOut chan<- *pem.Block) {
 		defer close(chOut)
 
 		fs := &FileScanner{
-			Filter:       completeFileFormatsMap(),
+			Filter:       pemExtensionMap,
 			NonRecursive: !p.Recursive,
 		}
 		chFilePaths := fs.Find(ctx, rootPath)
@@ -81,7 +77,7 @@ func (p PemReader) Find(ctx context.Context, rootPath string) <-chan *pem.Block 
 // parseResource attempts to read the given filepath as a PEM, using its file extension as the Format.
 // If successfully parsed into Pem(s), they are passed to the given pem block channel
 // If unsuccessful, the file is ignored
-func (p PemReader) parseResource(ctx context.Context, fp string, outCh chan<- *pem.Block, wg *sync.WaitGroup) {
+func (p PemScanner) parseResource(ctx context.Context, fp string, outCh chan<- *pem.Block, wg *sync.WaitGroup) {
 	defer wg.Done()
 	by, err := ioutil.ReadFile(fp)
 	if !p.handleError(err) {
@@ -123,7 +119,7 @@ func (p PemReader) parseResource(ctx context.Context, fp string, outCh chan<- *p
 }
 
 // filterBlockTypes returns only those given blocks with a type valid in the PemTypes maps.
-func (p PemReader) filterBlockTypes(blks []*pem.Block) []*pem.Block {
+func (p PemScanner) filterBlockTypes(blks []*pem.Block) []*pem.Block {
 	// If no types stated then do not filter any, return ALL blocks
 	if len(p.PemTypes) == 0 {
 		return blks
@@ -140,7 +136,7 @@ func (p PemReader) filterBlockTypes(blks []*pem.Block) []*pem.Block {
 
 // addLocationHeader adds the given filepath to the headers of all the given pem blocks under the LocationHeaderKey.
 // If blocks length > 1, then an index as appended to the filepath for each index in the slice
-func (p PemReader) addLocationHeader(location string, blks []*pem.Block) []*pem.Block {
+func (p PemScanner) addLocationHeader(location string, blks []*pem.Block) []*pem.Block {
 	showIndex := len(blks) > 1
 	for i, blk := range blks {
 		lc := location
@@ -155,7 +151,7 @@ func (p PemReader) addLocationHeader(location string, blks []*pem.Block) []*pem.
 	return blks
 }
 
-func (p PemReader) handleError(err error) bool {
+func (p PemScanner) handleError(err error) bool {
 	if err == nil {
 		return true
 	}
@@ -165,49 +161,10 @@ func (p PemReader) handleError(err error) bool {
 	return false
 }
 
-// AddCustomFileTypes adds the given list of file extensions to the Custom scan map.
-// File extensions may be excluded by preceeding the extension with a "!".
-// If not preceeded with the !, the extension will be included in the search
-func AddCustomFileTypes(types []string) {
-	for _, ft := range types {
-		v := !strings.HasPrefix(ft, "!")
-		if !v {
-			ft = ft[1:]
-		}
-		CustomExtensions[ft] = v
-	}
-}
-
-// AddPemTypes adds new file extensions to view as a PEM type.
-// each type element shoudk be the file extension EXcluding any preceeding "."
-// The type may have a preceeding "!" to negate the extension and exclude it as a pem type.
-func AddPemTypes(types []string) {
-	for _, pt := range types {
-		v := !strings.HasPrefix(pt, "!")
-		if !v {
-			// trim off !
-			pt = pt[1:]
-		}
-		pt = strings.TrimLeft(pt, ".")
-		PemTypes[strings.ToUpper(pt)] = v
-	}
-}
-
 func extensionMapFromFormats() ExtensionFilter {
 	em := ExtensionFilter{}
 	for k := range fileformats.FileFormats {
 		em[k] = true
-	}
-	return em
-}
-
-func completeFileFormatsMap() ExtensionFilter {
-	em := ExtensionFilter{}
-	for k, v := range pemExtensionMap {
-		em[k] = v
-	}
-	for k, v := range CustomExtensions {
-		em[k] = v
 	}
 	return em
 }

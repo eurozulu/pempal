@@ -30,7 +30,7 @@ func (cmd *ShowCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 		return fmt.Errorf("must provide at least one location to display as a template.")
 	}
 
-	pr := pemreader.PemReader{
+	pr := pemreader.PemScanner{
 		Verbose:           Verbose,
 		AddLocationHeader: cmd.format == "", // Add location if output is template
 		Recursive:         true,

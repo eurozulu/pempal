@@ -45,7 +45,7 @@ func (cmd *ListCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 		cmd.query = q
 	}
 
-	pr := pemreader.PemReader{
+	pr := pemreader.PemScanner{
 		Verbose:           Verbose,
 		AddLocationHeader: true,
 		Recursive:         cmd.recursive,

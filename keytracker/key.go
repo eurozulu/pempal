@@ -22,20 +22,18 @@ type Key interface {
 	// For encrypted keys this is only available when an associated public key file is present.
 	PublicKey() crypto.PublicKey
 
-	// Location is the location of the private key
+	// Location is the location of the private key. May be empty if key never been saved.
 	Location() string
-
-	// PublicLocation is the location of a matched public key, if available.
-	PublicLocation() string
 
 	// Type is the pem type of the private key
 	Type() string
 
 	// IsEncrypted checks if the key is encrypted.
-	// Returns true is the PEM type is ENCRYPTED_PRIVATE_KEY, or any pem header contains the "ENCRYPT" word.
+	// Returns true is the PEM type is ENCRYPTED_PRIVATE_KEY, or the pem headers indicate its encrypted
 	IsEncrypted() bool
 
 	// PrivateKey returns the parsed private key, if available
+	// must NOT be encrypted, for encrypted keys use: PrivateKeyDecrypted
 	PrivateKey() (crypto.PrivateKey, error)
 
 	// PrivateKeyDecrypted returns the decrypted private using the given password.
@@ -43,7 +41,7 @@ type Key interface {
 }
 
 // key represents a private key in its PEM form.
-// key has an additional public key field, used for encryoted keys where an associated public key file was found
+// Has an, optional, public key representation also, mainly for encrypted keys.
 type key struct {
 	pemBlock *pem.Block
 	puk      *pem.Block
