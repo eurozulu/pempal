@@ -52,7 +52,7 @@ func (p FileScanner) Find(ctx context.Context, root string) <-chan string {
 	go func(root string, ch chan<- string) {
 		defer close(ch)
 
-		err := filepath.WalkDir(resolvePath(root),
+		err := filepath.WalkDir(root,
 			func(fp string, d fs.DirEntry, err error) error {
 				if !p.handleError(err) {
 					return nil
@@ -99,7 +99,7 @@ func (p FileScanner) Find(ctx context.Context, root string) <-chan string {
 		if err != nil && err != ctx.Err() {
 			log.Println(err)
 		}
-	}(root, ch)
+	}(resolvePath(root), ch)
 	return ch
 }
 
