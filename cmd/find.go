@@ -13,26 +13,27 @@ import (
 	"text/tabwriter"
 )
 
-type ListCommand struct {
+// FindCommand locates x509 resources
+type FindCommand struct {
 	quiet       bool
 	recursive   bool
 	showHeaders bool
 	queryString string
-	query       ListQuery
+	query       FindQuery
 }
 
-func (cmd *ListCommand) Description() string {
+func (cmd *FindCommand) Description() string {
 	return "finds x509 resources in the given path names.  Can filter using 'query' to find specific resources"
 }
 
-func (cmd *ListCommand) Flags(f *flag.FlagSet) {
+func (cmd *FindCommand) Flags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.quiet, "q", false, "output only the file locations of found resources.")
 	f.BoolVar(&cmd.recursive, "r", true, "searches sub directories.")
 	f.BoolVar(&cmd.showHeaders, "h", true, "shows any PEM header values found in the block.")
 	f.StringVar(&cmd.queryString, "query", "", "comma delimited list of key names, with optional regex expressions to match to searched resources")
 }
 
-func (cmd *ListCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
+func (cmd *FindCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("must provide at least one location to search")
 	}
@@ -49,7 +50,7 @@ func (cmd *ListCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 		Verbose:           Verbose,
 		AddLocationHeader: true,
 		Recursive:         cmd.recursive,
-		PemTypes:          pemreader.PemTypes,
+		PemTypes:          nil,
 	}
 
 	tw := tabwriter.NewWriter(out, 4, 8, 1, '\t', 0)
@@ -68,7 +69,7 @@ func (cmd *ListCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 
 }
 
-func (cmd ListCommand) listPems(ctx context.Context, pemIn <-chan *pem.Block, out io.Writer) error {
+func (cmd FindCommand) listPems(ctx context.Context, pemIn <-chan *pem.Block, out io.Writer) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -99,7 +100,7 @@ func (cmd ListCommand) listPems(ctx context.Context, pemIn <-chan *pem.Block, ou
 		}
 	}
 }
-func (cmd ListCommand) formatPem(b *pem.Block) []string {
+func (cmd FindCommand) formatPem(b *pem.Block) []string {
 	var loc string
 	headers := bytes.NewBuffer(nil)
 	for k, v := range b.Headers {
@@ -126,7 +127,7 @@ func (cmd ListCommand) formatPem(b *pem.Block) []string {
 	return []string{b.Type, headers.String(), loc}
 }
 
-func (cmd ListCommand) queryBlock(b *pem.Block) ([]string, bool) {
+func (cmd FindCommand) queryBlock(b *pem.Block) ([]string, bool) {
 	t, err := templates.ParseBlock(b)
 	if !handleError(err) {
 		return nil, false

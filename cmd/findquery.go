@@ -6,17 +6,17 @@ import (
 	"strings"
 )
 
-type ListQuery interface {
+type FindQuery interface {
 	Match(data map[string]interface{}) bool
 	Values(data map[string]interface{}) []string
 }
 
-type listQuery struct {
+type findQuery struct {
 	names   []string
 	queries map[string]*regexp.Regexp
 }
 
-func (lq listQuery) Match(data map[string]interface{}) bool {
+func (lq findQuery) Match(data map[string]interface{}) bool {
 	for k, v := range lq.queries {
 		if v == nil {
 			continue
@@ -35,7 +35,7 @@ func (lq listQuery) Match(data map[string]interface{}) bool {
 	return true
 }
 
-func (lq listQuery) Values(data map[string]interface{}) []string {
+func (lq findQuery) Values(data map[string]interface{}) []string {
 	vals := make([]string, len(lq.names))
 	var found = false
 	for i, name := range lq.names {
@@ -56,7 +56,7 @@ func (lq listQuery) Values(data map[string]interface{}) []string {
 	return vals
 }
 
-func (lq listQuery) IsEmpty() bool {
+func (lq findQuery) IsEmpty() bool {
 	return len(lq.names) == 0
 }
 
@@ -77,7 +77,7 @@ func indexOf(s string, ss []string) int {
 	return -1
 }
 
-func ParseQuery(query string) (ListQuery, error) {
+func ParseQuery(query string) (FindQuery, error) {
 	var names []string
 	queries := map[string]*regexp.Regexp{}
 	for _, q := range strings.Split(query, ",") {
@@ -96,7 +96,7 @@ func ParseQuery(query string) (ListQuery, error) {
 		}
 		queries[qq[0]] = v
 	}
-	return &listQuery{
+	return &findQuery{
 		names:   names,
 		queries: queries,
 	}, nil
