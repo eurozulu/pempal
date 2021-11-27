@@ -19,37 +19,36 @@ func main() {
 	var timeRun bool
 	var outFile string
 
-	if len(os.Args) < 2 {
+	args := os.Args[1:]
+	if len(args) == 0 {
 		log.Println("must provide a command as the first argument")
 		return
 	}
 
 	fs := flag.CommandLine
-	fs.BoolVar(&cmd.Verbose, "verbose", false, "Display all logging whilst searching for pemreader")
+	fs.BoolVar(&cmd.Verbose, "verbose", false, "Display all logging whilst searching for pems")
 	fs.BoolVar(&timeRun, "t", false, "Times how long the command takes to execute")
 	fs.BoolVar(&help, "help", false, "Display help")
-	fs.StringVar(&outFile, "out", "", "Specify a filename to write the output to. Defaults to stdout")
+	fs.BoolVar(&help, "?", false, "Display help")
+	fs.StringVar(&outFile, "out", "", "Specify a filename to write output into. Defaults to stdout")
 
-	command, ok := cmd.Commands[os.Args[1]]
+	// establish the command
+	als, ok := cmd.Aliases[args[0]]
+	if ok {
+		args[0] = als
+	}
+	command, ok := cmd.Commands[args[0]]
 	if !ok {
 		log.Fatalf("%s unknown command", os.Args[1])
 	}
+
+	// add any flags specific to that command
 	command.Flags(fs)
-	if err := flag.CommandLine.Parse(os.Args[2:]); err != nil {
+	// parse the command line args, trimmed of the leading command
+	if err := flag.CommandLine.Parse(args[1:]); err != nil {
 		log.Fatalln(err)
 	}
-	args := flag.Args()
-
-	// if '-' in the args, insert the std in at that point
-	if i := stringIndex("-", args); i >= 0 {
-		as := args[:i]
-		var ae []string
-		if i+1 < len(args) {
-			ae = args[i+1:]
-		}
-		args = append(as, readInput()...)
-		args = append(args, ae...)
-	}
+	args = flag.Args()
 
 	if timeRun {
 		defer func(s time.Time) {
@@ -70,6 +69,18 @@ func main() {
 			}
 		}(f)
 		out = f
+	}
+
+	// if '-' in the args, insert the std in at that point
+	// TODO: Change pipe in to accept PEM blocks :  Allowing one PP command to stream into another.
+	if i := stringIndex("-", args); i >= 0 {
+		as := args[:i]
+		var ae []string
+		if i+1 < len(args) {
+			ae = args[i+1:]
+		}
+		args = append(as, readInput()...)
+		args = append(args, ae...)
 	}
 
 	// monitor OS signal so trigger ctx cancel to all on-going routines when killed or interrupted

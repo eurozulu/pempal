@@ -13,15 +13,20 @@ type Command interface {
 }
 
 var Commands = map[string]Command{
-	"?":    &HelpCommand{},
 	"help": &HelpCommand{},
+
 	"key":  &KeyCommand{},
 	"keys": &KeysCommand{},
 
 	"issue":   &IssueCommand{},
 	"issuers": &IssuersCommand{},
 
-	"list":      &ListCommand{},
-	"show":      &ShowCommand{},
+	"find":      &FindCommand{},
+	"view":      &ViewCommand{},
 	"templates": &TemplatesCommand{},
+}
+var Aliases = map[string]string{
+	"?":   "help",
+	"fd":  "find",
+	"cat": "view",
 }
