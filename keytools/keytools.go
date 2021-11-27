@@ -26,8 +26,12 @@ func PublicKeySha1Hash(key crypto.PublicKey) string {
 		log.Println(err)
 		return ""
 	}
+	return HashString(pb.Bytes)
+}
+
+func HashString(by []byte) string {
 	hash := sha1.New()
-	_, _ = hash.Write(pb.Bytes)
+	_, _ = hash.Write(by)
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
