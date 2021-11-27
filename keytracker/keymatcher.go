@@ -8,20 +8,17 @@ import (
 	"strings"
 )
 
-// keyMatcher collects both private and public key pems and attempts to match them using their sha1 hash or location.
+// keyMatcher matches private keys with a public key.
 type keyMatcher struct {
 	// anons holds the private (Encrypted) keys, which have yet to be matched to any public key
 	anons map[string]*key
-	// puks holds the public keys which have yet to be matched to any private key
+	// puks holds the public keys which have yet to be matched to any private key, keyed by location
 	puks map[string]*pem.Block
 	// idPuks holds the public keys containing an 'encryptedHash' header, which have yet to be matched to any private key
 	idPuks map[string]*pem.Block
 }
 
-// AddBlock adds the given pem block to the keyMatcher.
-// If the block results in a paired key, the newly paired key is returned.
-// otherwise the block is stored until it is matched and nil is returned.
-func (c *keyMatcher) AddBlock(blk *pem.Block) Key {
+func (c *keyMatcher) AddPem(blk *pem.Block) Key {
 	// Check if new block is a private key
 	if keytools.PrivateKeyTypes[blk.Type] {
 		return c.addPrivateKey(blk)
@@ -34,8 +31,8 @@ func (c *keyMatcher) AddBlock(blk *pem.Block) Key {
 	return nil
 }
 
-// collects the unmatched private keys, unknown publickey.
-func (c *keyMatcher) UnknownKeys() []Key {
+// UnmatchedKeys gets all the private keys which could not be matched to a public key
+func (c *keyMatcher) UnmatchedKeys() []Key {
 	ks := make([]Key, len(c.anons))
 	var i int
 	for _, v := range c.anons {
@@ -49,7 +46,7 @@ func (c *keyMatcher) addPrivateKey(blk *pem.Block) *key {
 	k := &key{pemBlock: blk}
 
 	// If private key encrypted, attempt to match to known puk.
-	// check key has its public available. (Not encrypted)
+	// check key has for null public. (encrypted)
 	if k.PublicKey() == nil {
 		// no PUK on key, attempt to match it with a known PUK
 		// look for an id puk
@@ -83,16 +80,16 @@ func (c *keyMatcher) addPublicKey(blk *pem.Block) *key {
 		return c.addIDPublicKey(blk)
 	}
 	// see if any anons share the same location
-	l := trimLocation(blk.Headers[pemreader.LocationHeaderKey])
-	ak, ok := c.anons[l]
+	loc := trimLocation(blk.Headers[pemreader.LocationHeaderKey])
+	ak, ok := c.anons[loc]
 	if ok {
 		// pair anon with puk and send them on their way
 		ak.puk = blk
-		delete(c.anons, l)
+		delete(c.anons, loc)
 		return ak
 	}
 	// unknown PUK, place in the puks pile, to be claimed
-	c.puks[l] = blk
+	c.puks[loc] = blk
 	return nil
 }
 
@@ -133,4 +130,12 @@ func trimLocation(l string) string {
 	lp := strings.TrimRight(l, "0123456789:")
 	// strip any extension
 	return lp[:len(lp)-len(path.Ext(l))]
+}
+
+func newKeyMatcher() *keyMatcher {
+	return &keyMatcher{
+		anons:  map[string]*key{},
+		puks:   map[string]*pem.Block{},
+		idPuks: map[string]*pem.Block{},
+	}
 }

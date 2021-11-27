@@ -51,7 +51,7 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 }
 
 func (cmd *KeysCommand) Keys(ctx context.Context, keypath []string) []keytracker.Key {
-	kt := keytracker.KeyScanner{ShowLogs: Verbose, Recursive: cmd.Recursive}
+	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: cmd.Recursive}
 	keyCh := kt.FindKeys(ctx, keypath...)
 
 	var found []keytracker.Key

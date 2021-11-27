@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/pem"
 	"flag"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 
 type IssueCommand struct {
 	issuer  string
-	key     string
 	keyPass string
 	keyPath string
 	quiet   bool
@@ -37,7 +35,6 @@ func (cmd *IssueCommand) Description() string {
 func (cmd *IssueCommand) Flags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.quiet, "q", false, "surpress confirmation prompts")
 	f.StringVar(&cmd.issuer, "issuer", "", "set the DN of the issuer for the new certificate. Overrides any template value")
-	f.StringVar(&cmd.key, "key", "$KEYFILE", "Specify the public key to use. Can be a filename or a sha256 hash")
 	f.StringVar(&cmd.keyPass, "password", "", "Specify the password for an encrypted issuer key. Will prompt is required and not provided")
 	f.StringVar(&cmd.keyPath, "keypath", "", "comma delimited list of directories to search for issuer keys.  Overrides KEYPATH environment variable")
 }
@@ -46,7 +43,7 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 	if len(args) == 0 {
 		return fmt.Errorf("must provide a template name or path to existing resource to use as the certificate values.")
 	}
-	// Build the template to create cert on
+	// Build the template to create cert with
 	tb := templates.NewBuilder()
 	if err := tb.Add(args...); err != nil {
 		return err
@@ -61,19 +58,18 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 	if cmd.issuer == "" {
 		cmd.issuer = t.Value(parsers.X509IssuerDN)
 	}
-
 	issuer, err := cmd.getIssuer(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to establish a key for issuer %s  %w", cmd.issuer, err)
+		return fmt.Errorf("failed to find certificate issuer %s  %w", cmd.issuer, err)
 	}
-	// If encrypted, establish the password
+	// If encrypted, get the password
 	if issuer.Key().IsEncrypted() {
 		cmd.keyPass, err = cmd.getKeyPass()
 		if err != nil {
 			return err
 		}
 	}
-	by, err := templates.GenerateCertificate(issuer, t, cmd.keyPass)
+	by, err := templates.GenerateCertificate(issuer, cmd.keyPass, t)
 	if err != nil {
 		return err
 	}
@@ -83,60 +79,39 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 	})
 }
 
-func (cmd *IssueCommand) getIssuerByKey() (keytracker.Identity, error) {
-	return nil, fmt.Errorf("key is not yet implemented")
-}
-
 func (cmd *IssueCommand) getIssuer(ctx context.Context) (keytracker.Identity, error) {
-	if cmd.key != "" {
-		return cmd.getIssuerByKey()
+	if cmd.keyPath == "" {
+		cmd.keyPass = KeyPath
 	}
-	// Search keypath for matching issuer. If flag set, use that, otherwise CWD and any keypath env.
-	issuers := collectIssuers(ctx, cmd.issuer, cmd.getKeyPath())
+	kp := []string{os.ExpandEnv("$PWD")}
+	if cmd.keyPass != "" {
+		kp = append(kp, strings.Split(cmd.keyPath, ":")...)
+	}
+
+	issuers := issuers(ctx, kp, true, cmd.issuer)
 	if len(issuers) == 0 {
 		return nil, fmt.Errorf("no %s private keys found to issue a new certificate.  "+
-			"Set the $%s to a colon delimited list of directories containing the private keys and CA certificates sign certificates.",
+			"Set the $%s to a colon delimited list of directories containing the private keys and CA certificates to sign new certificates.",
 			cmd.issuer, ENV_KeyPath)
 	}
+	if len(issuers) == 1 {
+		return issuers[0], nil
+	}
 
-	// establish the certificates to sign with
-	// Build list of all certificates and index map keeping track of the identity each cert belongs to
-	var certs []*x509.Certificate
-	var index = map[*x509.Certificate]keytracker.Identity{}
-	ids := sortIssuers(issuers)
-	for _, id := range ids {
-		cs := sortCerts(id.Certificates(0, 0))
-		certs = append(certs, cs...)
-		for _, c := range cs {
-			index[c] = id
-		}
-	}
-	// If just one certificate, return that ID
-	if len(certs) == 1 {
-		return index[certs[0]], nil
-	}
+	// more than one issuer, present list
 	if cmd.quiet {
-		return nil, fmt.Errorf("multiple keys match the issuer '%s'. Must be more specific or use -key to select a unique key", cmd.issuer)
+		return nil, fmt.Errorf("more than one issuer is available to sign key.  Be more specific with the issuer flag.")
 	}
-	// propmt user to select a certificate
-	names := certificateNames(certs)
-	ci := PromptChooseList("Select the issuer to sign the new certificate:", names)
-	if ci < 0 {
+	issuers = sortIssuers(issuers)
+	names := make([]string, len(issuers))
+	for i, id := range issuers {
+		names[i] = id.String()
+	}
+	index := PromptChooseList("Select the issuing certificate for the new certificate or zero to abort:", names)
+	if index < 0 {
 		return nil, fmt.Errorf("aborted")
 	}
-	id := index[certs[ci]]
-	// return new Identity containing just the relevant certificate
-	return keytracker.NewIdentity(id.Key(), []*pem.Block{&pem.Block{
-		Type:  keytools.PEM_CERTIFICATE,
-		Bytes: certs[ci].Raw,
-	}}), nil
-}
-
-func (cmd *IssueCommand) getKeyPath() []string {
-	if cmd.keyPath != "" {
-		return strings.Split(cmd.keyPath, ":")
-	}
-	return append([]string{os.ExpandEnv("$PWD")}, strings.Split(KeyPath, ":")...)
+	return issuers[index], nil
 }
 
 // getKeyPass gets a password for an encrypted private key.
@@ -149,13 +124,5 @@ func (cmd *IssueCommand) getKeyPass() (string, error) {
 	if cmd.quiet {
 		return "", fmt.Errorf("encrypted issuer key requires password")
 	}
-	return PromptPassword(fmt.Sprintf("Enter the password for the '%s' issuer private key:", cmd.issuer))
-}
-
-func certificateNames(certs []*x509.Certificate) []string {
-	names := make([]string, len(certs))
-	for i, c := range certs {
-		names[i] = c.Subject.String()
-	}
-	return names
+	return PromptPassword(fmt.Sprintf("Enter the password for the issuer '%s' private key:", cmd.issuer))
 }

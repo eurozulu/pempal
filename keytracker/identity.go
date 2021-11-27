@@ -2,12 +2,13 @@ package keytracker
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
-	"strings"
+	"pempal/pemreader"
 )
 
-// Identity represents a public key in the form of its Private key and a signed certificate sharing the same public key
-// The certificate defines a single usage of that key. (i.e. multiple Identities can share the same public key, using different certificates)
+// Identity represents a public key Identity, in the form of its Private key and a signed certificate sharing the same public key
+// The certificate defines the usage of that key. Each identity shares the same key with any other identity signed by the same key
 type Identity interface {
 	fmt.Stringer
 
@@ -17,6 +18,9 @@ type Identity interface {
 	// Certificate gets the key identity certificate
 	Certificate() *x509.Certificate
 
+	// Location is the location of the identity certificate
+	Location() string
+
 	// Usage checks if this identity can perform the given usages, based on the properties of its certificate.
 	Usage(ku x509.KeyUsage, eku ...x509.ExtKeyUsage) bool
 }
@@ -24,6 +28,7 @@ type Identity interface {
 type identity struct {
 	k    Key
 	cert *x509.Certificate
+	loc  string
 }
 
 func (id identity) String() string {
@@ -31,7 +36,7 @@ func (id identity) String() string {
 	if n == "" {
 		n = id.cert.Subject.String()
 	}
-	return strings.Join([]string{id.Key().String(), n}, " ")
+	return n
 }
 
 func (id identity) Key() Key {
@@ -40,6 +45,10 @@ func (id identity) Key() Key {
 
 func (id identity) Certificate() *x509.Certificate {
 	return id.cert
+}
+
+func (id identity) Location() string {
+	return id.loc
 }
 
 func (id identity) Usage(ku x509.KeyUsage, eku ...x509.ExtKeyUsage) bool {
@@ -71,9 +80,16 @@ func containsExtKeyUsage(c *x509.Certificate, eku x509.ExtKeyUsage) bool {
 	return false
 }
 
-func NewIdentity(k Key, c *x509.Certificate) Identity {
+func NewIdentity(k Key, cert *pem.Block) (Identity, error) {
+	// Check now so can skip when parsing later on
+	c, err := x509.ParseCertificate(cert.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("invalid certificate pem creating new identity  %w", err)
+	}
+	loc, _ := readBlockHeader(pemreader.LocationHeaderKey, cert)
 	return &identity{
 		k:    k,
 		cert: c,
-	}
+		loc:  loc,
+	}, nil
 }

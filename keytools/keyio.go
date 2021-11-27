@@ -131,18 +131,25 @@ func ParsePrivateKey(blk *pem.Block) (crypto.PrivateKey, error) {
 	return prk, err
 }
 
-func ParsePublicKey(blk *pem.Block) (crypto.PublicKey, error) {
+func ParsePublicKeyPem(blk *pem.Block) (crypto.PublicKey, error) {
 	var puk crypto.PublicKey
 	var err error
 	switch blk.Type {
-
 	case PEM_RSA_PUBLIC_KEY:
 		puk, err = x509.ParsePKCS1PublicKey(blk.Bytes)
-
 	default:
 		puk, err = x509.ParsePKIXPublicKey(blk.Bytes)
 	}
 	return puk, err
+}
+
+func ParsePublicKey(by []byte, pka x509.PublicKeyAlgorithm) (crypto.PublicKey, error) {
+	switch pka {
+	case x509.RSA:
+		return x509.ParsePKCS1PublicKey(by)
+	default:
+		return x509.ParsePKIXPublicKey(by)
+	}
 }
 
 type dsaOpenssl struct {

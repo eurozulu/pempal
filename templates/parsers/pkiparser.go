@@ -56,7 +56,7 @@ func parsePrivateKey(blk *pem.Block) (map[string]interface{}, error) {
 }
 
 func parsePublicKey(blk *pem.Block) (map[string]interface{}, error) {
-	puk, err := keytools.ParsePublicKey(blk)
+	puk, err := keytools.ParsePublicKeyPem(blk)
 	if err != nil {
 		return nil, err
 	}

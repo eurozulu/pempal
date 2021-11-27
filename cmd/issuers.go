@@ -13,8 +13,8 @@ import (
 )
 
 type IssuersCommand struct {
-	listCerts bool
-	showHash  bool
+	Recursive    bool
+	ShowLocation bool
 }
 
 func (cmd *IssuersCommand) Description() string {
@@ -22,6 +22,8 @@ func (cmd *IssuersCommand) Description() string {
 }
 
 func (cmd *IssuersCommand) Flags(f *flag.FlagSet) {
+	f.BoolVar(&cmd.Recursive, "r", false, "recursively search args (or keypath) for identity certificates and keys")
+	f.BoolVar(&cmd.ShowLocation, "l", false, "show the file location of the certificate")
 }
 
 func (cmd *IssuersCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
@@ -32,59 +34,53 @@ func (cmd *IssuersCommand) Run(ctx context.Context, out io.Writer, args ...strin
 		return fmt.Errorf("must provide at least one location to search for issuers or set the %s environment variable with the path(s) to search.", ENV_KeyPath)
 	}
 
-	issuers := sortIssuers(collectIssuers(ctx, "", args))
+	issuers := sortIssuers(issuers(ctx, args, cmd.Recursive, ""))
 
 	//TODO, fix column sizing
 	tw := tabwriter.NewWriter(out, 2, 1, 4, ' ', 0)
 
 	for _, issuer := range issuers {
 		k := issuer.Key()
-		certs := sortCerts(issuer.Certificates(0, 0))
-		fmt.Fprintf(out, "%s\t%s\t%s", k.String(), k.Type(), k.Location())
-		for _, c := range certs {
-			fmt.Fprintf(out, "\t%s\n", c.Subject.String())
+		fmt.Fprintf(out, "%s\t%s\t%s", k.String(), k.Type(), issuer.String())
+		if cmd.ShowLocation {
+			fmt.Fprintf(out, "\t%s", issuer.Location())
 		}
+		fmt.Fprintln(out)
 	}
 	return tw.Flush()
 }
 
-func collectIssuers(ctx context.Context, dn string, keypath []string) []keytracker.Identity {
-	kt := &keytracker.KeyTracker{ShowLogs: Verbose}
-	issuers := kt.Issuers(ctx, dn, keypath)
-
+func issuers(ctx context.Context, keypath []string, recursive bool, dn string) []keytracker.Identity {
+	dn = strings.ToLower(dn)
+	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: recursive}
+	idCh := kt.FindIdentities(ctx, keypath...)
 	var found []keytracker.Identity
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-
-		case id, ok := <-issuers:
+		case id, ok := <-idCh:
 			if !ok {
 				return found
+			}
+			if !id.Certificate().IsCA || !id.Usage(x509.KeyUsageCertSign) {
+				continue
+			}
+			if dn != "" && !strings.Contains(strings.ToLower(id.Certificate().Subject.String()), dn) {
+				continue
 			}
 			found = append(found, id)
 		}
 	}
 }
 
-func sortIssuers(ids []keytracker.Identity) []keytracker.Identity {
-	sort.Slice(ids, func(i, j int) bool {
-		is := ids[i].String()
-		ij := ids[i].String()
+func sortIssuers(issuers []keytracker.Identity) []keytracker.Identity {
+	sort.Slice(issuers, func(i, j int) bool {
+		is := issuers[i].String()
+		ij := issuers[i].String()
 		ic := []string{is, ij}
 		sort.Strings(ic)
 		return ic[0] == is
 	})
-	return ids
-}
-
-func sortCerts(certs []*x509.Certificate) []*x509.Certificate {
-	sort.Slice(certs, func(i, j int) bool {
-		is := certs[i].Subject.String()
-		ij := certs[i].Subject.String()
-		ic := []string{is, ij}
-		sort.Strings(ic)
-		return ic[0] == is
-	})
-	return certs
+	return issuers
 }

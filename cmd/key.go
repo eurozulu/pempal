@@ -24,6 +24,7 @@ type KeyCommand struct {
 	keyLength    int
 
 	quiet      bool
+	recursive  bool
 	public     bool
 	private    bool
 	encrypt    bool
@@ -40,6 +41,7 @@ func (cmd *KeyCommand) Flags(f *flag.FlagSet) {
 	f.StringVar(&cmd.keyAlgorithm, "a", "rsa", algos)
 	f.IntVar(&cmd.keyLength, "l", 2048, "The length/curve to use for the key")
 	f.BoolVar(&cmd.quiet, "q", false, "surpresses the confirmation prompt to generate new key or password request for encrypted keys to generate public keys")
+	f.BoolVar(&cmd.recursive, "r", false, "recursively search given locations for keys")
 	f.BoolVar(&cmd.public, "public", true, "When true, default, generates the corresponding public key pem. If private key already exists, requests password to decrypt")
 	f.BoolVar(&cmd.public, "pubout", true, "same as 'public'")
 	f.BoolVar(&cmd.linkPublic, "linkpublic", false, "Generate a hash id in the public key header to link the public key to an encrypted private key.")
@@ -60,7 +62,7 @@ func (cmd *KeyCommand) Run(ctx context.Context, out io.Writer, args ...string) e
 		if err := cmd.encodePublicKey(puk, out); err != nil {
 			return err
 		}
-		if err := cmd.encodePrivateKey(k, out); err != nil {
+		if err := cmd.encodePrivateKey(k, false, out); err != nil {
 			return err
 		}
 	}
@@ -76,7 +78,7 @@ func (cmd *KeyCommand) runNewKey(out io.Writer) error {
 		return err
 	}
 	cmd.private = true
-	return cmd.encodePrivateKey(k, out)
+	return cmd.encodePrivateKey(k, cmd.encrypt, out)
 }
 
 func (cmd *KeyCommand) createPrivateKey() (crypto.PrivateKey, error) {
@@ -96,7 +98,7 @@ func (cmd *KeyCommand) openPrivateKeys(ctx context.Context, keypath []string) <-
 	ch := make(chan crypto.PrivateKey)
 	go func(ch chan<- crypto.PrivateKey) {
 		defer close(ch)
-		kt := keytracker.KeyScanner{ShowLogs: Verbose}
+		kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: cmd.recursive}
 		keyCh := kt.FindKeys(ctx, keypath...)
 		for {
 			select {
@@ -132,7 +134,7 @@ func (cmd *KeyCommand) encodePublicKey(puk crypto.PublicKey, out io.Writer) erro
 	return pem.Encode(out, blk)
 }
 
-func (cmd *KeyCommand) encodePrivateKey(prk crypto.PrivateKey, out io.Writer) error {
+func (cmd *KeyCommand) encodePrivateKey(prk crypto.PrivateKey, encrypt bool, out io.Writer) error {
 	if !cmd.private {
 		return nil
 	}
@@ -141,7 +143,7 @@ func (cmd *KeyCommand) encodePrivateKey(prk crypto.PrivateKey, out io.Writer) er
 		return err
 	}
 
-	if cmd.encrypt {
+	if encrypt {
 		blk, err = cmd.encryptPrivateKey(blk)
 		if err != nil {
 			return err

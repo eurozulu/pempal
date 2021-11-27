@@ -56,7 +56,7 @@ func (k key) PublicKey() crypto.PublicKey {
 	}
 	// no private key available (encrypted), return paired puk if available
 	if k.puk != nil {
-		k, err := keytools.ParsePublicKey(k.puk)
+		k, err := keytools.ParsePublicKeyPem(k.puk)
 		if err != nil {
 			log.Println(err)
 		}
