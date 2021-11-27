@@ -12,20 +12,20 @@ import (
 
 var Verbose bool
 
-type ShowCommand struct {
+type ViewCommand struct {
 	format string
 }
 
-func (cmd *ShowCommand) Description() string {
+func (cmd *ViewCommand) Description() string {
 	return "outputs x509 resource properties in plain text or formatted as pem or der"
 }
 
-func (cmd *ShowCommand) Flags(f *flag.FlagSet) {
+func (cmd *ViewCommand) Flags(f *flag.FlagSet) {
 	flag.StringVar(&cmd.format, "format", "", "defines the output format of the items. One of: pem, der.  Unstated generates a template")
 }
 
-// ShowCommand takes one or more args as pem locations, and outputs them in a given format
-func (cmd *ShowCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
+// ViewCommand takes one or more args as pem locations, and outputs them in a given format
+func (cmd *ViewCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("must provide at least one location to display as a template.")
 	}
@@ -49,7 +49,7 @@ func (cmd *ShowCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 	return nil
 }
 
-func (cmd ShowCommand) formatPems(ctx context.Context, pemIn <-chan *pem.Block, pemOut pemwriter.PemWriter) error {
+func (cmd ViewCommand) formatPems(ctx context.Context, pemIn <-chan *pem.Block, pemOut pemwriter.PemWriter) error {
 	for {
 		select {
 		case <-ctx.Done():
