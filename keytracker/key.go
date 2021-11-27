@@ -11,7 +11,8 @@ import (
 	"strings"
 )
 
-const encryptedHash = "*"
+const encryptedMarker = "*"
+const encryptedHash = "private-key-id"
 
 // A Key represents a Private key, identified by a "KeyHash"
 // The hash is a SHA1 hash of the keys Public key unless the private key is encrypted, in which case
@@ -123,7 +124,7 @@ func (k key) String() string {
 	if puk != nil {
 		return keytools.PublicKeySha1Hash(puk)
 	}
-	return strings.Join([]string{encryptedHash, stringHash(k.pemBlock.Bytes)}, "")
+	return strings.Join([]string{encryptedMarker, keytools.HashString(k.pemBlock.Bytes)}, "")
 }
 
 func NewKey(blk *pem.Block) Key {

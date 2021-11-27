@@ -16,6 +16,7 @@ const ENV_KeyPath = "PP_KEYPATH"
 
 var KeyPath = strings.TrimSpace(os.Getenv(ENV_KeyPath))
 
+// KeysCommand finds and lists all the private keys in the keypath
 type KeysCommand struct {
 	ListCerts bool
 	ShowHash  bool
@@ -50,7 +51,7 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 }
 
 func (cmd *KeysCommand) Keys(ctx context.Context, keypath []string) []keytracker.Key {
-	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: cmd.Recursive}
+	kt := keytracker.KeyScanner{ShowLogs: Verbose, Recursive: cmd.Recursive}
 	keyCh := kt.FindKeys(ctx, keypath...)
 
 	var found []keytracker.Key
