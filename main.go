@@ -19,18 +19,18 @@ func main() {
 	var timeRun bool
 	var outFile string
 
-	args := os.Args[1:]
-	if len(args) == 0 {
-		log.Println("must provide a command as the first argument")
-		return
-	}
-
 	fs := flag.CommandLine
 	fs.BoolVar(&cmd.Verbose, "verbose", false, "Display all logging whilst searching for pems")
 	fs.BoolVar(&timeRun, "t", false, "Times how long the command takes to execute")
 	fs.BoolVar(&help, "help", false, "Display help")
 	fs.BoolVar(&help, "?", false, "Display help")
 	fs.StringVar(&outFile, "out", "", "Specify a filename to write output into. Defaults to stdout")
+
+	args := os.Args[1:]
+	if len(args) == 0 {
+		// use 'default' command
+		args = append(args, "")
+	}
 
 	// establish the command
 	als, ok := cmd.Aliases[args[0]]

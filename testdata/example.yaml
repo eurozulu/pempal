@@ -1,6 +1,0 @@
-# example includes two other examples to form a certificate templates with a spoecific OU
-include:
-  - example1
-  - example2
-
-subject.ou: "testing"

@@ -17,14 +17,23 @@ const FileTag = "#"
 
 const ENV_TemplatePath = "PP_TEMPLATEPATH"
 
-var TemplatePath = strings.Split(strings.TrimSpace(os.Getenv(ENV_TemplatePath)), ":")
+var TemplatePath = strings.TrimSpace(os.Getenv(ENV_TemplatePath))
 
-func ListTemplates() []string {
-	var names []string
-	tp := append([]string{os.ExpandEnv("$PWD")}, TemplatePath...)
-	names = append(names, findAll(tp)...)
+// TemplateNames lists the known names of all the templates, including buuld in one
+func TemplateNames() []string {
+	tp := []string{os.ExpandEnv("$PWD")}
+	if TemplatePath != "" {
+		tp = append(tp, strings.Split(TemplatePath, ":")...)
+	}
+
+	names := findAll(tp)
 	sort.Strings(names)
-	return append(sortedMapKeys(builtInTemplates), names...)
+	// add built in names
+	names = append(names, sortedMapKeys(builtInTemplates)...)
+	for i, n := range names {
+		names[i] = cleanName(n)
+	}
+	return names
 }
 
 func FindTemplate(name string) (Template, error) {
@@ -34,7 +43,10 @@ func FindTemplate(name string) (Template, error) {
 	}
 
 	// not built in, scan for file with that name
-	tp := append([]string{os.ExpandEnv("$PWD")}, TemplatePath...)
+	tp := []string{os.ExpandEnv("$PWD")}
+	if TemplatePath != "" {
+		tp = append(tp, strings.Split(TemplatePath, ":")...)
+	}
 	p := findFirst(tp, name)
 	if p == "" {
 		return nil, fmt.Errorf("%s not found", name)
@@ -92,6 +104,18 @@ func findAll(rootpaths []string) []string {
 	}
 }
 
+func cleanName(p string) string {
+	n := path.Base(p)
+	e := path.Ext(n)
+	if len(e) > 0 {
+		n = n[:len(n)-len(e)]
+	}
+	if !strings.HasPrefix(n, FileTag) {
+		n = strings.Join([]string{FileTag, n}, "")
+	}
+	return n
+}
+
 func findFirst(rootpaths []string, name string) string {
 	fs := &pemreader.FileScanner{Filter: &pemreader.NameFilter{Name: name}}
 	ctx, cnl := context.WithCancel(context.Background())
@@ -136,6 +160,7 @@ func sortedMapKeys(m map[string]Template) []string {
 	var i int
 	for k := range m {
 		keys[i] = k
+		i++
 	}
 	sort.Strings(keys)
 	return keys

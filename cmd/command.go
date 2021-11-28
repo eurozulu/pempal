@@ -26,6 +26,7 @@ var Commands = map[string]Command{
 	"templates": &TemplatesCommand{},
 }
 var Aliases = map[string]string{
+	"":    "view", // empty alias is the 'default' command, used when no command given
 	"?":   "help",
 	"fd":  "find",
 	"cat": "view",

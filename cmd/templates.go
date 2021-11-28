@@ -28,8 +28,9 @@ func (cmd TemplatesCommand) Run(ctx context.Context, out io.Writer, args ...stri
 			return err
 		}
 	}
-	for _, p := range templates.ListTemplates() {
+	for _, p := range templates.TemplateNames() {
 		_, err := fmt.Fprintln(out, p)
+		// TODO: Read each template for a "Description" tag
 		if err != nil {
 			return err
 		}

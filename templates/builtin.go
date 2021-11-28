@@ -2,6 +2,7 @@ package templates
 
 var builtInTemplates = map[string]Template{
 	"selfsigned": {
+		"Description":        "Issues a certificate signed by the certificate owner.",
 		"Subject.CommonName": "?",
 		"IssuedBy":           "${.Subject}",
 		"PublicKeyAlgo":      "?RSA",

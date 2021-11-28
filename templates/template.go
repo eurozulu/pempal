@@ -10,6 +10,7 @@ const requiredPrefix = "?"
 const funcPrefix = "${"
 const funcSuffix = "}"
 
+// Template represents an x509 resource in plain text (yaml) format
 type Template map[string]interface{}
 
 func (t Template) Value(k string) string {
