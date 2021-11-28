@@ -44,7 +44,7 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 		return fmt.Errorf("must provide a template name or path to existing resource to use as the certificate values.")
 	}
 	// Build the template to create cert with
-	tb := templates.NewBuilder()
+	tb := templates.NewTemplateBuilder()
 	if err := tb.Add(args...); err != nil {
 		return err
 	}

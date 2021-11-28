@@ -13,17 +13,15 @@ type Command interface {
 }
 
 var Commands = map[string]Command{
-	"help": &HelpCommand{},
-
-	"key":  &KeyCommand{},
-	"keys": &KeysCommand{},
-
-	"issue":   &IssueCommand{},
-	"issuers": &IssuersCommand{},
-
+	"help":      &HelpCommand{},
+	"key":       &KeyCommand{},
+	"keys":      &KeysCommand{},
+	"issue":     &IssueCommand{},
+	"issuers":   &IssuersCommand{},
 	"find":      &FindCommand{},
 	"view":      &ViewCommand{},
 	"templates": &TemplatesCommand{},
+	"template":  &TemplateCommand{},
 }
 var Aliases = map[string]string{
 	"":    "view", // empty alias is the 'default' command, used when no command given

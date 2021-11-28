@@ -10,7 +10,7 @@ import (
 
 const AppendKeyPrefix = "+"
 
-type Builder interface {
+type TemplateBuilder interface {
 	Add(p string) error
 	Templates() []Template
 	Build() (Template, error)
@@ -111,7 +111,7 @@ func mergeTemplates(ms ...Template) Template {
 	return nt
 }
 
-func NewBuilder() *builder {
+func NewTemplateBuilder() *builder {
 	return &builder{
 		temps: nil,
 		pr: &pemreader.PemScanner{

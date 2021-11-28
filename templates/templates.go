@@ -20,7 +20,7 @@ const ENV_TemplatePath = "PP_TEMPLATEPATH"
 var TemplatePath = strings.TrimSpace(os.Getenv(ENV_TemplatePath))
 
 // TemplateNames lists the known names of all the templates, including buuld in one
-func TemplateNames() []string {
+func TemplateNames(includeBuiltIn bool) []string {
 	tp := []string{os.ExpandEnv("$PWD")}
 	if TemplatePath != "" {
 		tp = append(tp, strings.Split(TemplatePath, ":")...)
@@ -28,8 +28,11 @@ func TemplateNames() []string {
 
 	names := findAll(tp)
 	sort.Strings(names)
+
 	// add built in names
-	names = append(names, sortedMapKeys(builtInTemplates)...)
+	if includeBuiltIn {
+		names = append(names, sortedMapKeys(builtInTemplates)...)
+	}
 	for i, n := range names {
 		names[i] = cleanName(n)
 	}

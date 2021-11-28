@@ -25,7 +25,7 @@ var builtInTemplates = map[string]Template{
 		"IssuedBy":             "?",
 		"Certificates":         "KeyUsageKeyAgreement, KeyUsageDigitalSignature, KeyUsageKeyEncipherment, KeyUsageDataEncipherment",
 	},
-	"rootca": {
+	"caroot": {
 		"Subject.Organisation": "?",
 		"Subject.CommonName":   "?",
 		"PublicKeyAlgo":        "?RSA",
