@@ -31,6 +31,7 @@ var builtInTemplates = map[string]Template{
 		"PublicKeyAlgo":        "?RSA",
 		"PublicKeyLength":      "?2048",
 		"IssuedBy":             "${.Subject}",
+		"IsCA":                 "true",
 		"Certificates":         "KeyUsageCertSign, KeyUsageCRLSign, KeyUsageKeyAgreement, KeyUsageDigitalSignature, KeyUsageKeyEncipherment, KeyUsageDataEncipherment",
 	},
 	"ca": {
@@ -39,6 +40,7 @@ var builtInTemplates = map[string]Template{
 		"PublicKeyAlgo":        "?RSA",
 		"PublicKeyLength":      "?2048",
 		"IssuedBy":             "?",
+		"IsCA":                 "true",
 		"Certificates":         "KeyUsageCertSign, KeyUsageKeyAgreement, KeyUsageDigitalSignature, KeyUsageKeyEncipherment, KeyUsageDataEncipherment",
 	},
 }
