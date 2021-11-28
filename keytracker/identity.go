@@ -52,6 +52,9 @@ func (id identity) Location() string {
 }
 
 func (id identity) Usage(ku x509.KeyUsage, eku ...x509.ExtKeyUsage) bool {
+	if id.cert == nil {
+		return false
+	}
 	if ku != 0 && id.cert.KeyUsage&ku != ku {
 		return false
 	}
@@ -81,15 +84,18 @@ func containsExtKeyUsage(c *x509.Certificate, eku x509.ExtKeyUsage) bool {
 }
 
 func NewIdentity(k Key, cert *pem.Block) (Identity, error) {
-	// Check now so can skip when parsing later on
-	c, err := x509.ParseCertificate(cert.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("invalid certificate pem creating new identity  %w", err)
+	var crt *x509.Certificate
+	if cert != nil {
+		c, err := x509.ParseCertificate(cert.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("invalid certificate pem creating new identity  %w", err)
+		}
+		crt = c
 	}
 	loc, _ := readBlockHeader(pemreader.LocationHeaderKey, cert)
 	return &identity{
 		k:    k,
-		cert: c,
+		cert: crt,
 		loc:  loc,
 	}, nil
 }

@@ -23,6 +23,8 @@ type Key interface {
 	// For encrypted keys this is only available when an associated public key file is present.
 	PublicKey() crypto.PublicKey
 
+	PublicKeyAlgorithm() x509.PublicKeyAlgorithm
+
 	// Location is the location of the private key. May be empty if key never been saved.
 	Location() string
 
@@ -63,6 +65,10 @@ func (k key) PublicKey() crypto.PublicKey {
 		return k
 	}
 	return nil
+}
+
+func (k key) PublicKeyAlgorithm() x509.PublicKeyAlgorithm {
+	return keytools.PublicKeyAlgorithm(k.PublicKey())
 }
 
 func (k key) Location() string {
@@ -128,7 +134,11 @@ func (k key) String() string {
 }
 
 func NewKey(blk *pem.Block) Key {
+	return NewKeyWithPublic(blk, nil)
+}
+func NewKeyWithPublic(blk *pem.Block, puk *pem.Block) Key {
 	return &key{
 		pemBlock: blk,
+		puk:      puk,
 	}
 }

@@ -53,7 +53,7 @@ func (cmd *KeyCommand) Flags(f *flag.FlagSet) {
 
 func (cmd *KeyCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
 	if len(args) == 0 {
-		return cmd.runNewKey(out)
+		return cmd.createPrivateKey(out)
 	}
 
 	keyCh := cmd.openPrivateKeys(ctx, args)
@@ -69,8 +69,17 @@ func (cmd *KeyCommand) Run(ctx context.Context, out io.Writer, args ...string) e
 	return nil
 }
 
-func (cmd *KeyCommand) runNewKey(out io.Writer) error {
-	k, err := cmd.createPrivateKey()
+func (cmd *KeyCommand) createPrivateKey(out io.Writer) error {
+	pka := keytools.ParsePublicKeyAlgorithm(cmd.keyAlgorithm)
+	if pka == x509.UnknownPublicKeyAlgorithm {
+		return fmt.Errorf("%s is not a known PublicKeyAlgorithm. Use one of: %v", cmd.keyAlgorithm, keytools.PublicKeyAlgoNames[1:])
+	}
+	if !cmd.quiet {
+		if !PromptConfirm(fmt.Sprintf("Generate new %s key of length %d", pka.String(), cmd.keyLength), false) {
+			return fmt.Errorf("aborted")
+		}
+	}
+	k, err := keytools.GenerateKey(pka, cmd.keyLength)
 	if err != nil {
 		return err
 	}
@@ -79,19 +88,6 @@ func (cmd *KeyCommand) runNewKey(out io.Writer) error {
 	}
 	cmd.private = true
 	return cmd.encodePrivateKey(k, cmd.encrypt, out)
-}
-
-func (cmd *KeyCommand) createPrivateKey() (crypto.PrivateKey, error) {
-	pka := keytools.ParsePublicKeyAlgorithm(cmd.keyAlgorithm)
-	if pka == x509.UnknownPublicKeyAlgorithm {
-		return nil, fmt.Errorf("%s is not a known PublicKeyAlgorithm. Use one of: %v", cmd.keyAlgorithm, keytools.PublicKeyAlgoNames[1:])
-	}
-	if !cmd.quiet {
-		if !PromptConfirm(fmt.Sprintf("Generate new %s key of length %d", pka.String(), cmd.keyLength), false) {
-			return nil, fmt.Errorf("aborted")
-		}
-	}
-	return keytools.GenerateKey(pka, cmd.keyLength)
 }
 
 func (cmd *KeyCommand) openPrivateKeys(ctx context.Context, keypath []string) <-chan crypto.PrivateKey {

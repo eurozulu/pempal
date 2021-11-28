@@ -25,6 +25,10 @@ func (tb builder) Templates() []Template {
 	return tb.temps
 }
 
+func (tb builder) RequiredNames() []string {
+	return mergeTemplates(tb.temps...).RequiredNames()
+}
+
 func (tb builder) Build() (Template, error) {
 	mt := mergeTemplates(tb.temps...)
 	missing := mt.RequiredNames()
@@ -54,13 +58,17 @@ func (tb *builder) Add(names ...string) error {
 	return nil
 }
 
+func (tb *builder) AddTemplate(ts ...Template) error {
+	tb.temps = append(tb.temps, ts...)
+	return nil
+}
+
 func (tb *builder) addTemplate(p string) error {
 	t, err := FindTemplate(p)
 	if err != nil {
 		return err
 	}
-	tb.temps = append(tb.temps, t)
-	return nil
+	return tb.AddTemplate(t)
 }
 
 func (tb builder) addPemResource(p string) error {
@@ -72,8 +80,7 @@ func (tb builder) addPemResource(p string) error {
 	if err != nil {
 		return err
 	}
-	tb.temps = append(tb.temps, t)
-	return nil
+	return tb.AddTemplate(t)
 }
 
 func (tb builder) findPemResource(p string) (*pem.Block, error) {
@@ -96,7 +103,7 @@ func (tb builder) findPemResource(p string) (*pem.Block, error) {
 func mergeTemplates(ms ...Template) Template {
 	nt := Template{}
 	for _, m := range ms {
-		for k, v := range nt {
+		for k, v := range m {
 			vs := m.Value(k)
 			if vs == requiredPrefix {
 				// only overwrite with required symbol when no value present
@@ -105,7 +112,7 @@ func mergeTemplates(ms ...Template) Template {
 					continue
 				}
 			}
-			m[k] = v
+			nt[k] = v
 		}
 	}
 	return nt

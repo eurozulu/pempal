@@ -27,13 +27,10 @@ func (cmd *IssuersCommand) Flags(f *flag.FlagSet) {
 }
 
 func (cmd *IssuersCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
-	if KeyPath != "" {
-		args = append(args, strings.Split(KeyPath, ":")...)
-	}
+	args = GetKeyPath(args)
 	if len(args) == 0 {
 		return fmt.Errorf("must provide at least one location to search for issuers or set the %s environment variable with the path(s) to search.", ENV_KeyPath)
 	}
-
 	issuers := sortIssuers(issuers(ctx, args, cmd.Recursive, ""))
 
 	//TODO, fix column sizing

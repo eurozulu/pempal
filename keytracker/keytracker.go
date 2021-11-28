@@ -7,6 +7,7 @@ import (
 	"pempal/keytools"
 	"pempal/pemreader"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -51,6 +52,21 @@ func (it KeyTracker) FindIdentities(ctx context.Context, rootPaths ...string) <-
 		}
 	}()
 	return ch
+}
+
+// FindKey finds a single key by the given id (sha1 hash of the public key
+func (it KeyTracker) FindKey(ctx context.Context, id string, rootPaths ...string) Key {
+	// use local context to cancel find once found
+	cctx, cnl := context.WithCancel(context.Background())
+	defer cnl()
+	ch := it.FindKeys(cctx, rootPaths...)
+	for k := range ch {
+		if !strings.EqualFold(k.String(), id) {
+			continue
+		}
+		return k
+	}
+	return nil
 }
 
 func (it KeyTracker) FindKeys(ctx context.Context, rootPaths ...string) <-chan Key {

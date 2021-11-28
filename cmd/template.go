@@ -42,10 +42,10 @@ func (cmd TemplateCommand) Run(ctx context.Context, out io.Writer, args ...strin
 		if err := yout.Encode(&t); err != nil {
 			return err
 		}
-		_, err := out.Write([]byte("\n---\n"))
-		if err != nil {
-			return err
-		}
+		//_, err := out.Write([]byte("\n---\n"))
+		//if err != nil {
+		//	return err
+		//}
 	}
 	return nil
 }

@@ -34,24 +34,34 @@ func (cmd *KeysCommand) Flags(f *flag.FlagSet) {
 }
 
 func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
-	// append keypath to any gioven
-	if KeyPath != "" {
-		args = append(args, strings.Split(KeyPath, ":")...)
-	}
+	// append keypath to any given
+	args = GetKeyPath(args)
 	if len(args) == 0 {
 		return fmt.Errorf("must provide at least one location to search for keys or set the %s environment variable with the path to search.", ENV_KeyPath)
 	}
-	keys := cmd.Keys(ctx, args)
+	keys := SortKeys(Keys(ctx, args, cmd.Recursive))
 	//TODO, fix column sizing
 	tw := tabwriter.NewWriter(out, 2, 1, 4, ' ', 0)
-	for _, key := range keys {
-		fmt.Fprintf(out, "%s\t%s\t%s\n", key.Type(), key.String(), key.Location())
+	for _, s := range KeyList(keys) {
+		fmt.Fprintf(out, s)
 	}
 	return tw.Flush()
 }
 
-func (cmd *KeysCommand) Keys(ctx context.Context, keypath []string) []keytracker.Key {
-	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: cmd.Recursive}
+func KeyList(keys []keytracker.Key) []string {
+	names := make([]string, len(keys))
+	for i, k := range keys {
+		enc := ""
+		if k.IsEncrypted() {
+			enc = "(encrypted)"
+		}
+		names[i] = fmt.Sprintf("%s\t%s\t%s\t%s", k.String(), k.Type(), enc, k.Location())
+	}
+	return names
+}
+
+func Keys(ctx context.Context, keypath []string, recursive bool) []keytracker.Key {
+	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: recursive}
 	keyCh := kt.FindKeys(ctx, keypath...)
 
 	var found []keytracker.Key
@@ -61,14 +71,14 @@ func (cmd *KeysCommand) Keys(ctx context.Context, keypath []string) []keytracker
 			return nil
 		case id, ok := <-keyCh:
 			if !ok {
-				return sortKeys(found)
+				return found
 			}
 			found = append(found, id)
 		}
 	}
 }
 
-func sortKeys(keys []keytracker.Key) []keytracker.Key {
+func SortKeys(keys []keytracker.Key) []keytracker.Key {
 	// sort results by their filepaths
 	sort.Slice(keys, func(i, j int) bool {
 		il := keys[i].Location()
@@ -78,4 +88,14 @@ func sortKeys(keys []keytracker.Key) []keytracker.Key {
 		return ls[0] == il
 	})
 	return keys
+}
+
+func GetKeyPath(p []string) []string {
+	if len(p) == 0 {
+		p = []string{os.ExpandEnv("$PWD")}
+	}
+	if KeyPath == "" {
+		return p
+	}
+	return append(p, strings.Split(KeyPath, ":")...)
 }

@@ -7,6 +7,12 @@ const (
 )
 
 const (
+	PEM_NEW_CERTIFICATE_REQUEST = "NEW CERTIFICATE REQUEST"
+	PEM_CERTIFICATE_REQUEST     = "CERTIFICATE REQUEST"
+)
+const PEM_X509_CRL = "X509 CRL"
+
+const (
 	PEM_PRIVATE_KEY           = "PRIVATE KEY"
 	PEM_ANY_PRIVATE_KEY       = "ANY PRIVATE KEY"
 	PEM_ENCRYPTED_PRIVATE_KEY = "ENCRYPTED PRIVATE KEY"
@@ -47,11 +53,12 @@ var PrivateKeyTypes = map[string]bool{
 }
 
 var CSRTypes = map[string]bool{
-	"NEW CERTIFICATE REQUEST": true,
-	"CERTIFICATE REQUEST":     true,
+	PEM_NEW_CERTIFICATE_REQUEST: true,
+	PEM_CERTIFICATE_REQUEST:     true,
 }
+
 var CRLTypes = map[string]bool{
-	"X509 CRL": true,
+	PEM_X509_CRL: true,
 }
 
 var PKCS7Types = map[string]bool{

@@ -55,6 +55,9 @@ func ParsePublicKeyAlgorithm(s string) x509.PublicKeyAlgorithm {
 
 // PublicKeyAlgorithm gets the PKA of the given public key
 func PublicKeyAlgorithm(pk crypto.PublicKey) x509.PublicKeyAlgorithm {
+	if pk == nil {
+		return x509.UnknownPublicKeyAlgorithm
+	}
 	switch pk.(type) {
 	case *rsa.PublicKey:
 		return x509.RSA

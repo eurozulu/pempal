@@ -29,7 +29,7 @@ func main() {
 	args := os.Args[1:]
 	if len(args) == 0 {
 		// use 'default' command
-		args = append(args, "")
+		args = append(args, "help")
 	}
 
 	// establish the command
@@ -38,14 +38,16 @@ func main() {
 		args[0] = als
 	}
 	command, ok := cmd.Commands[args[0]]
-	if !ok {
-		log.Fatalf("%s unknown command", os.Args[1])
+	if ok {
+		args = args[1:]
+	} else {
+		command = cmd.Commands[""]
 	}
 
 	// add any flags specific to that command
 	command.Flags(fs)
 	// parse the command line args, trimmed of the leading command
-	if err := flag.CommandLine.Parse(args[1:]); err != nil {
+	if err := flag.CommandLine.Parse(args); err != nil {
 		log.Fatalln(err)
 	}
 	args = flag.Args()

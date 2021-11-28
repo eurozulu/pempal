@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"pempal/keytools"
 	"pempal/keytracker"
 	"pempal/pemwriter"
@@ -55,12 +54,23 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 
 	// Establish the signing key
 	// If issuer not specified as flag, take it from the template (which might also be empty!)
+	var issuer keytracker.Identity
 	if cmd.issuer == "" {
 		cmd.issuer = t.Value(parsers.X509IssuerDN)
 	}
-	issuer, err := cmd.getIssuer(ctx)
+	// check if its self signed
+	if cmd.issuer == t.Value(parsers.X509Subject) {
+		// create a psudo Identity, with just the key
+		issuer, err = keytracker.NewIdentity(nil, nil)
+	} else {
+		issuer, err = cmd.getIssuer(ctx)
+	}
 	if err != nil {
-		return fmt.Errorf("failed to find certificate issuer %s  %w", cmd.issuer, err)
+		return err
+	}
+
+	if issuer == nil {
+		// no issuer given in flag or template
 	}
 	// If encrypted, get the password
 	if issuer.Key().IsEncrypted() {
@@ -69,7 +79,7 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 			return err
 		}
 	}
-	by, err := templates.GenerateCertificate(issuer, cmd.keyPass, t)
+	by, err := templates.IssueCertificate(issuer, cmd.keyPass, t)
 	if err != nil {
 		return err
 	}
@@ -79,29 +89,35 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 	})
 }
 
+// getIssuer attempts to find the issuer certificate, based on the issuer DN name.
+// If no Identidy is found and DN (issuer) given, returns error, not found
+// If no Identidy is found and no DN (issuer) given, returns nil
+// If one found, returns that.
+// If more than one, presents a list and prompts to select (or error if quiet flag set)
 func (cmd *IssueCommand) getIssuer(ctx context.Context) (keytracker.Identity, error) {
-	if cmd.keyPath == "" {
-		cmd.keyPass = KeyPath
-	}
-	kp := []string{os.ExpandEnv("$PWD")}
+	var kp []string
 	if cmd.keyPass != "" {
-		kp = append(kp, strings.Split(cmd.keyPath, ":")...)
+		kp = strings.Split(cmd.keyPath, ":")
+	} else {
+		kp = GetKeyPath(nil)
 	}
 
 	issuers := issuers(ctx, kp, true, cmd.issuer)
 	if len(issuers) == 0 {
-		return nil, fmt.Errorf("no %s private keys found to issue a new certificate.  "+
-			"Set the $%s to a colon delimited list of directories containing the private keys and CA certificates to sign new certificates.",
-			cmd.issuer, ENV_KeyPath)
+		if cmd.issuer != "" {
+			return nil, fmt.Errorf("could not locate the issuer %s", cmd.issuer)
+		}
+		return nil, nil
 	}
+
 	if len(issuers) == 1 {
 		return issuers[0], nil
 	}
-
 	// more than one issuer, present list
 	if cmd.quiet {
-		return nil, fmt.Errorf("more than one issuer is available to sign key.  Be more specific with the issuer flag.")
+		return nil, fmt.Errorf("no single issuer was found to sign the certificate.  Be more specific with the issuer flag.")
 	}
+	// Choose from the list of two or more issuers
 	issuers = sortIssuers(issuers)
 	names := make([]string, len(issuers))
 	for i, id := range issuers {

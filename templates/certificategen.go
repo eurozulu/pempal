@@ -1,7 +1,6 @@
 package templates
 
 import (
-	"crypto"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -12,28 +11,21 @@ import (
 	"math/big"
 	"net"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
-	"pempal/keytools"
 	"pempal/keytracker"
 	"pempal/templates/parsers"
 )
 
-func GenerateCertificate(issuer keytracker.Identity, keypass string, t Template) ([]byte, error) {
-	pka := keytools.ParsePublicKeyAlgorithm(t.Value(parsers.X509PublicKeyAlgorithm))
-	puk, err := stringToPublicKey(t.Value(parsers.X509PublicKey), pka)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to issue certificate as the public key of the new certificate could not be read.  %v", err)
-	}
-
+// MakeCertificate copies the given template values into a new Certificate.
+// The resulting certificate is not signed by any issuer.
+func MakeCertificate(t Template) *x509.Certificate {
 	c := &x509.Certificate{
-		PublicKey:          puk,
 		Signature:          stringToBytes(t.Value(parsers.X509Signature)),
 		SignatureAlgorithm: stringToSignatureAlgorithm(t.Value(parsers.X509SignatureAlgorithm)),
-		PublicKeyAlgorithm: pka,
 		Version:            stringToInt(t.Value(parsers.X509Version)),
 		SerialNumber:       stringToBigInt(t.Value(parsers.X509SerialNumber)),
 
@@ -59,9 +51,29 @@ func GenerateCertificate(issuer keytracker.Identity, keypass string, t Template)
 		CRLDistributionPoints: stringToStringArray(t.Value(parsers.X509CRLDistributionPoints)),
 	}
 
+	puk, pka := t.PublicKey()
+	if puk != nil && !reflect.ValueOf(puk).IsNil() {
+		c.PublicKey = puk
+		c.PublicKeyAlgorithm = pka
+	}
+	return c
+}
+
+func IssueCertificate(issuer keytracker.Identity, keypass string, t Template) ([]byte, error) {
+	c := MakeCertificate(t)
+	puk := c.PublicKey
+	if puk == nil || reflect.ValueOf(puk).IsNil() {
+		return nil, fmt.Errorf("no public key in template")
+	}
 	prk, err := issuer.Key().PrivateKeyDecrypted(keypass)
 	if err != nil {
 		return nil, err
+	}
+
+	// Ensure identity has a certificate, otherwise use template cert = self signed.
+	issCert := issuer.Certificate()
+	if issCert == nil {
+		issCert = c
 	}
 	return x509.CreateCertificate(rand.Reader, c, issuer.Certificate(), puk, prk)
 }
@@ -250,14 +262,6 @@ func parseExtKeyUsage(s string) x509.ExtKeyUsage {
 		}
 	}
 	return 0
-}
-
-func stringToPublicKey(s string, pka x509.PublicKeyAlgorithm) (crypto.PublicKey, error) {
-	if s == "" {
-		return nil, fmt.Errorf("no public key found")
-	}
-	by := stringToBytes(s)
-	return keytools.ParsePublicKey(by, pka)
 }
 
 func stringToSignatureAlgorithm(s string) x509.SignatureAlgorithm {

@@ -13,10 +13,13 @@ type Command interface {
 }
 
 var Commands = map[string]Command{
+	"":          &ViewCommand{},
 	"help":      &HelpCommand{},
 	"key":       &KeyCommand{},
-	"keys":      &KeysCommand{},
+	"request":   &RequestCommand{},
 	"issue":     &IssueCommand{},
+	"revoke":    &RevokeCommand{},
+	"keys":      &KeysCommand{},
 	"issuers":   &IssuersCommand{},
 	"find":      &FindCommand{},
 	"view":      &ViewCommand{},
@@ -24,8 +27,14 @@ var Commands = map[string]Command{
 	"template":  &TemplateCommand{},
 }
 var Aliases = map[string]string{
-	"":    "view", // empty alias is the 'default' command, used when no command given
-	"?":   "help",
-	"fd":  "find",
-	"cat": "view",
+	"?":     "help",
+	"fd":    "find",
+	"cat":   "view",
+	"temps": "templates",
+	"temp":  "template",
+	"req":   "request",
+	"csr":   "request",
+	"iss":   "issue",
+	"rev":   "revoke",
+	"crl":   "revoke",
 }

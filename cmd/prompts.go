@@ -50,6 +50,36 @@ func PromptCreatePassword(prompt string, minLength int) (string, error) {
 	}
 }
 
+func PromptInput(msg string, def string, minLen int, maxLen int) string {
+	in := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("%s", msg)
+		if def != "" {
+			fmt.Print(" [%s]")
+		}
+		fmt.Print(": ")
+		l, _, err := in.ReadLine()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		// hit enter, take default
+		if len(l) == 0 && def != "" {
+			return def
+		}
+		if len(l) < minLen {
+			fmt.Printf("\nEnter at least %d characters", minLen)
+			continue
+		}
+		if maxLen > 0 && len(l) > maxLen {
+			fmt.Printf("\nToo long, must not be longer than %d characters", maxLen)
+			def = string(l[:maxLen])
+			continue
+		}
+		return string(l)
+	}
+}
+
 func PromptConfirm(msg string, def bool) bool {
 	in := bufio.NewReader(os.Stdin)
 	for {
