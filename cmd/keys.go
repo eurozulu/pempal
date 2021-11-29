@@ -19,8 +19,6 @@ var KeyPath = strings.TrimSpace(os.Getenv(ENV_KeyPath))
 
 // KeysCommand finds and lists all the private keys in the keypath
 type KeysCommand struct {
-	ListCerts bool
-	ShowHash  bool
 	Recursive bool
 }
 
@@ -47,8 +45,6 @@ func (cmd *KeysCommand) Description() string {
 }
 
 func (cmd *KeysCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.ListCerts, "id", false, "lists the keys associated certificates")
-	f.BoolVar(&cmd.ShowHash, "hash", false, "Displays a sha1 hash of the public key")
 	f.BoolVar(&cmd.Recursive, "r", false, "search subdirectories recursively")
 }
 

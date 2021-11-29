@@ -32,7 +32,7 @@ func (h HelpCommand) Run(ctx context.Context, out io.Writer, args ...string) err
 
 func showGeneralHelp() error {
 	fn := path.Base(os.Args[0])
-	fmt.Println("Usage:")
+	fmt.Println("\nUsage:")
 	fmt.Printf("%s <command> [<optional general flags>] [<optional command flags>] <command arguments>\n", fn)
 	fmt.Printf("<command> is required and most commands require at least one argument.\n")
 	fmt.Printf("use '%s <command> -help' for detailed help about each command and its flags.\n", fn)
@@ -64,7 +64,7 @@ func showCommandHelp(cmd string) error {
 	if c == nil {
 		return fmt.Errorf("%s is an unknown command", cmd)
 	}
-	fmt.Printf("Usage of %s:\n", cmd)
+	fmt.Printf("\nUsage of %s:\n", cmd)
 	aNames := sortedAliasNames(cmd)
 	if len(aNames) > 0 {
 		fmt.Printf("Shortcut alternatives: %s\n", strings.Join(aNames, ", "))
