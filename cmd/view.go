@@ -22,6 +22,7 @@ func (cmd *ViewCommand) Flags(f *flag.FlagSet) {
 	f.StringVar(&cmd.format, "format", "", "defines the output format of the items. One of: pem, der.  When unstated generates a yaml template of the resource")
 }
 
+// TODO: Fix bug with ECDSA keys (failed to parse EC private key: asn1: structure error: length too large)
 // ViewCommand takes one or more args as pem locations, and outputs them in a given format
 func (cmd *ViewCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
 	if len(args) == 0 {
