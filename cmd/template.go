@@ -14,7 +14,7 @@ type TemplateCommand struct {
 }
 
 func (cmd TemplateCommand) Description() string {
-	return "displays listed resources or templates and, optionally, merges them into a single template"
+	return "creates a new template from the given resources and/or templates"
 }
 
 func (cmd TemplateCommand) Flags(f *flag.FlagSet) {

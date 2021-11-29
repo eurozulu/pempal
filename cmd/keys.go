@@ -25,8 +25,9 @@ type KeysCommand struct {
 }
 
 func (cmd *KeysCommand) Description() string {
-	lines := bytes.NewBufferString(fmt.Sprintf("lists the private keys available in the given path(s) and in $%s if it is set.\n", ENV_KeyPath))
-	lines.WriteString("keys matches the private keys to their public key, to give them an identity.\n")
+	lines := bytes.NewBufferString(fmt.Sprintf("lists all the available private keys in the given path(s) and in $%s if it is set.\n", ENV_KeyPath))
+	lines.WriteString("Available keys are private keys which can be identified by their public key pair.\n")
+	lines.WriteString("The keys command matches the private keys to their public key, to give them an identity.\n")
 	lines.WriteString("Private keys which are encrypted can not be used to generate the public key, therefore.\n")
 	lines.WriteString("require a supporting public key pem linked to them.\n")
 	lines.WriteString("public keys are linked either by location or a 'link' header\n")
@@ -34,6 +35,7 @@ func (cmd *KeysCommand) Description() string {
 	lines.WriteString("If the public key pem can not be stored in the same location, a linking key can be generated using 'key'.\n")
 	lines.WriteString("A linked public key has a special header, identifying the encyprted private key it belongs to.\n")
 	lines.WriteString("Keys linked in this way can be in any location, provided they both appear in the keypath.\n")
+	lines.WriteString("Unencrypted private keys (for those that like to live dangeriously) do not require a matching public pair as they can generate their own. \n")
 	lines.WriteString("\n")
 	lines.WriteString("Output of keys shows:\n")
 	lines.WriteString("<Public Key Hash>\t\t<Pem type>\t<encrypted status>\t<location of the private key>:\n")

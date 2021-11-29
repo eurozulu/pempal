@@ -67,7 +67,7 @@ func (cmd *FindCommand) Description() string {
 func (cmd *FindCommand) Flags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.quiet, "q", false, "output only the file locations of found resources.")
 	f.BoolVar(&cmd.recursive, "r", false, "searches sub directories.")
-	f.BoolVar(&cmd.showHeaders, "h", false, "shows any PEM header values found in the block.")
+	f.BoolVar(&cmd.showHeaders, "h", false, "shows any PEM header values found in the resource.")
 	f.StringVar(&cmd.types, "types", "", "comma delimited list of pem types. CERTIFICATE, RSA PRIVATE KEY etc, limits results to just the listed types")
 	f.StringVar(&cmd.queryString, "query", "", "comma delimited list of key names, with optional regex expressions to match to searched resources")
 }
