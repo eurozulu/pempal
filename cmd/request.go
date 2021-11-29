@@ -132,7 +132,8 @@ func (cmd RequestCommand) getUserKey(ctx context.Context, out io.Writer, keyPath
 
 	// Ask user to select or generate a key
 	keys = SortKeys(keys)
-	names := KeyList(keys)
+	kc := &KeysCommand{ShowIndex: true, Recursive: true}
+	names := kc.KeyList(keys)
 	names = append(names, "Generate new key")
 	var prompt string
 	if len(names) == 1 {

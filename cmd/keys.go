@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"pempal/keytracker"
 	"sort"
 	"strings"
@@ -20,6 +21,7 @@ var KeyPath = strings.TrimSpace(os.Getenv(ENV_KeyPath))
 // KeysCommand finds and lists all the private keys in the keypath
 type KeysCommand struct {
 	Recursive bool
+	ShowIndex bool
 }
 
 func (cmd *KeysCommand) Description() string {
@@ -46,6 +48,7 @@ func (cmd *KeysCommand) Description() string {
 
 func (cmd *KeysCommand) Flags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.Recursive, "r", false, "search subdirectories recursively")
+	f.BoolVar(&cmd.ShowIndex, "i", false, "Adds the index location to the path for files containing more than one resource")
 }
 
 func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
@@ -56,20 +59,28 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 	}
 	keys := SortKeys(Keys(ctx, args, cmd.Recursive))
 	tw := tabwriter.NewWriter(out, 4, 4, 2, ' ', 0)
-	for _, s := range KeyList(keys) {
+	for _, s := range cmd.KeyList(keys) {
 		fmt.Fprintln(tw, s)
 	}
 	return tw.Flush()
 }
 
-func KeyList(keys []keytracker.Key) []string {
+func (cmd *KeysCommand) KeyList(keys []keytracker.Key) []string {
 	names := make([]string, len(keys))
 	for i, k := range keys {
 		enc := " "
 		if k.IsEncrypted() {
 			enc = "encrypted"
 		}
-		names[i] = fmt.Sprintf("%s\t%s\t%s\t%s", k.String(), k.Type(), enc, k.Location())
+		loc := k.Location()
+		if !cmd.ShowIndex {
+			b := path.Base(loc)
+			ii := strings.Index(b, ":")
+			if ii >= 0 {
+				loc = path.Join(path.Dir(loc), b[:ii])
+			}
+		}
+		names[i] = fmt.Sprintf("%s\t%s\t%s\t%s", k.String(), k.Type(), enc, loc)
 	}
 	return names
 }

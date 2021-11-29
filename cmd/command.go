@@ -49,8 +49,5 @@ func FlagsMain(f *flag.FlagSet) {
 	f.BoolVar(&VerboseFlag, "v", false, "same as verbose")
 	f.BoolVar(&TimeRunFlag, "t", false, "Times how long the command takes to execute")
 	f.StringVar(&OutFileFlag, "out", "", "Specify a filename to write output into. Defaults to stdout")
-
-	f.BoolVar(&HelpFlag, "help", false, "Same as ?")
-	f.BoolVar(&HelpFlag, "?", false, "Display help")
-
+	f.BoolVar(&HelpFlag, "help", false, "Display help")
 }

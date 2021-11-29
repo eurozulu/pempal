@@ -19,7 +19,7 @@ func (cmd *ViewCommand) Description() string {
 }
 
 func (cmd *ViewCommand) Flags(f *flag.FlagSet) {
-	flag.StringVar(&cmd.format, "format", "", "defines the output format of the items. One of: pem, der.  Unstated generates a template")
+	f.StringVar(&cmd.format, "format", "", "defines the output format of the items. One of: pem, der.  When unstated generates a yaml template of the resource")
 }
 
 // ViewCommand takes one or more args as pem locations, and outputs them in a given format
