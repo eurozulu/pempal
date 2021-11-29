@@ -55,10 +55,9 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 		return fmt.Errorf("must provide at least one location to search for keys or set the %s environment variable with the path to search.", ENV_KeyPath)
 	}
 	keys := SortKeys(Keys(ctx, args, cmd.Recursive))
-	//TODO, fix column sizing
-	tw := tabwriter.NewWriter(out, 2, 1, 4, ' ', 0)
+	tw := tabwriter.NewWriter(out, 4, 4, 2, ' ', 0)
 	for _, s := range KeyList(keys) {
-		fmt.Fprintf(out, "%s\n", s)
+		fmt.Fprintln(tw, s)
 	}
 	return tw.Flush()
 }
@@ -66,9 +65,9 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 func KeyList(keys []keytracker.Key) []string {
 	names := make([]string, len(keys))
 	for i, k := range keys {
-		enc := ""
+		enc := " "
 		if k.IsEncrypted() {
-			enc = "(encrypted)"
+			enc = "encrypted"
 		}
 		names[i] = fmt.Sprintf("%s\t%s\t%s\t%s", k.String(), k.Type(), enc, k.Location())
 	}
