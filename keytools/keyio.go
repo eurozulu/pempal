@@ -13,6 +13,8 @@ import (
 	"math/big"
 )
 
+// MarshalPrivateKey marshals the given key into a pem block.
+// The resulting block contains the der encoded bytes of the key and the relevant PEM type.
 func MarshalPrivateKey(key crypto.PrivateKey) (*pem.Block, error) {
 	var pemtype string
 	var by []byte
@@ -62,6 +64,8 @@ func MarshalPrivateKey(key crypto.PrivateKey) (*pem.Block, error) {
 	}, nil
 }
 
+// MarshalPublicKey marshals the given key into a pem block.
+// The resulting block contains the der encoded bytes of the key and the relevant PEM type.
 func MarshalPublicKey(key crypto.PublicKey) (*pem.Block, error) {
 	var pemtype string
 	var by []byte
@@ -110,6 +114,8 @@ func MarshalPublicKey(key crypto.PublicKey) (*pem.Block, error) {
 	}, nil
 }
 
+// ParsePrivateKey parses the given pem block into a privatekey.
+// Depending on the key type stated in the pem block type, the key is parsed with the relevant parser
 func ParsePrivateKey(blk *pem.Block) (crypto.PrivateKey, error) {
 	var prk crypto.PrivateKey
 	var err error
@@ -131,6 +137,8 @@ func ParsePrivateKey(blk *pem.Block) (crypto.PrivateKey, error) {
 	return prk, err
 }
 
+// ParsePublicKeyPem parses the given pem block into a PublicKey.
+// Depending on the key type stated in the pem block type, the key is parsed with the relevant parser
 func ParsePublicKeyPem(blk *pem.Block) (crypto.PublicKey, error) {
 	var puk crypto.PublicKey
 	var err error
@@ -142,7 +150,6 @@ func ParsePublicKeyPem(blk *pem.Block) (crypto.PublicKey, error) {
 	}
 	return puk, err
 }
-
 func ParsePublicKey(by []byte, pka x509.PublicKeyAlgorithm) (crypto.PublicKey, error) {
 	switch pka {
 	case x509.RSA:

@@ -12,7 +12,7 @@ import (
 	"fmt"
 )
 
-// GenerateKey generates a new private key of the given algorithm and length
+// GenerateKey generates a new private key pair of the given algorithm and length
 func GenerateKey(pka x509.PublicKeyAlgorithm, keyLen int) (crypto.PrivateKey, error) {
 	var prk crypto.PrivateKey
 	var err error

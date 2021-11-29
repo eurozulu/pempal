@@ -26,15 +26,16 @@ func PublicKeySha1Hash(key crypto.PublicKey) string {
 		log.Println(err)
 		return ""
 	}
-	return HashString(pb.Bytes)
+	return SHA1HashString(pb.Bytes)
 }
 
-func HashString(by []byte) string {
+func SHA1HashString(by []byte) string {
 	hash := sha1.New()
 	_, _ = hash.Write(by)
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+// PublicKeyAlgoNames is (unsurprisingly) the names of all the Public Key Algorithms
 var PublicKeyAlgoNames = [...]string{
 	x509.UnknownPublicKeyAlgorithm: "",
 	x509.RSA:                       "RSA",
@@ -72,6 +73,8 @@ func PublicKeyAlgorithm(pk crypto.PublicKey) x509.PublicKeyAlgorithm {
 	}
 }
 
+// PublicKeyLength returns a representation of the key length.
+// Depending on the key typem this can be bitlength (rsa), curve size (ecdsa).  ed25519 has no such length so returns empty string.
 func PublicKeyLength(pk crypto.PublicKey) string {
 	switch v := pk.(type) {
 	case *rsa.PublicKey:
