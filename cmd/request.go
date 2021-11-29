@@ -115,7 +115,7 @@ func (cmd *RequestCommand) Run(ctx context.Context, out io.Writer, args ...strin
 func (cmd RequestCommand) getUserKey(ctx context.Context, out io.Writer, keyPath ...string) (keytracker.Key, error) {
 	var key keytracker.Key
 	if cmd.key != "" {
-		key = keytracker.KeyTracker{ShowLogs: Verbose, Recursive: true}.FindKey(ctx, cmd.key, keyPath...)
+		key = keytracker.KeyTracker{ShowLogs: VerboseFlag, Recursive: true}.FindKey(ctx, cmd.key, keyPath...)
 		if key == nil {
 			return nil, fmt.Errorf("could not find key %s", cmd.key)
 		}

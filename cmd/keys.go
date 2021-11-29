@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -24,7 +25,23 @@ type KeysCommand struct {
 }
 
 func (cmd *KeysCommand) Description() string {
-	return fmt.Sprintf("lists the private keys available in the given path(s) and in $%s if it is set. See keypath for more details", ENV_KeyPath)
+	lines := bytes.NewBufferString(fmt.Sprintf("lists the private keys available in the given path(s) and in $%s if it is set.\n", ENV_KeyPath))
+	lines.WriteString("keys matches the private keys to their public key, to give them an identity.\n")
+	lines.WriteString("Private keys which are encrypted can not be used to generate the public key, therefore.\n")
+	lines.WriteString("require a supporting public key pem linked to them.\n")
+	lines.WriteString("public keys are linked either by location or a 'link' header\n")
+	lines.WriteString("By location, if a private key and a public key share the same filepath, excluding any file extension, they are assumed to be a pair.\n")
+	lines.WriteString("If the public key pem can not be stored in the same location, a linking key can be generated using 'key'.\n")
+	lines.WriteString("A linked public key has a special header, identifying the encyprted private key it belongs to.\n")
+	lines.WriteString("Keys linked in this way can be in any location, provided they both appear in the keypath.\n")
+	lines.WriteString("\n")
+	lines.WriteString("Output of keys shows:\n")
+	lines.WriteString("<Public Key Hash>\t\t<Pem type>\t<encrypted status>\t<location of the private key>:\n")
+	lines.WriteString("Public Key Hash is the SHA1 hash of the public key for that private key.\n")
+	lines.WriteString("If any private, encrypted key can not be linked to its public key pair, it is unidentified.\n" +
+		"Unidentified private keys show a hash of the encrypted key itself, preceeded with a \"*\"\n")
+
+	return lines.String()
 }
 
 func (cmd *KeysCommand) Flags(f *flag.FlagSet) {
@@ -43,7 +60,7 @@ func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 	//TODO, fix column sizing
 	tw := tabwriter.NewWriter(out, 2, 1, 4, ' ', 0)
 	for _, s := range KeyList(keys) {
-		fmt.Fprintf(out, s)
+		fmt.Fprintf(out, "%s\n", s)
 	}
 	return tw.Flush()
 }
@@ -61,7 +78,7 @@ func KeyList(keys []keytracker.Key) []string {
 }
 
 func Keys(ctx context.Context, keypath []string, recursive bool) []keytracker.Key {
-	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: recursive}
+	kt := keytracker.KeyTracker{ShowLogs: VerboseFlag, Recursive: recursive}
 	keyCh := kt.FindKeys(ctx, keypath...)
 
 	var found []keytracker.Key

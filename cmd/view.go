@@ -10,14 +10,12 @@ import (
 	"pempal/pemwriter"
 )
 
-var Verbose bool
-
 type ViewCommand struct {
 	format string
 }
 
 func (cmd *ViewCommand) Description() string {
-	return "outputs x509 resource properties in plain text or formatted as pem or der"
+	return "outputs x509 resources in plain text or formatted as pem or der"
 }
 
 func (cmd *ViewCommand) Flags(f *flag.FlagSet) {
@@ -31,7 +29,7 @@ func (cmd *ViewCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 	}
 
 	pr := pemreader.PemScanner{
-		Verbose:           Verbose,
+		Verbose:           VerboseFlag,
 		AddLocationHeader: cmd.format == "", // Add location if output is template
 		Recursive:         true,
 	}
@@ -69,7 +67,7 @@ func handleError(err error) bool {
 	if err == nil {
 		return true
 	}
-	if Verbose {
+	if VerboseFlag {
 		fmt.Println(err)
 	}
 	return false

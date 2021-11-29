@@ -94,7 +94,7 @@ func (cmd *KeyCommand) openPrivateKeys(ctx context.Context, keypath []string) <-
 	ch := make(chan crypto.PrivateKey)
 	go func(ch chan<- crypto.PrivateKey) {
 		defer close(ch)
-		kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: cmd.recursive}
+		kt := keytracker.KeyTracker{ShowLogs: VerboseFlag, Recursive: cmd.recursive}
 		keyCh := kt.FindKeys(ctx, keypath...)
 		for {
 			select {

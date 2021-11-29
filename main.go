@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -15,44 +16,43 @@ import (
 
 func main() {
 	started := time.Now()
-	var help bool
-	var timeRun bool
-	var outFile string
-
-	fs := flag.CommandLine
-	fs.BoolVar(&cmd.Verbose, "verbose", false, "Display all logging whilst searching for pems")
-	fs.BoolVar(&timeRun, "t", false, "Times how long the command takes to execute")
-	fs.BoolVar(&help, "help", false, "Display help")
-	fs.BoolVar(&help, "?", false, "Display help")
-	fs.StringVar(&outFile, "out", "", "Specify a filename to write output into. Defaults to stdout")
-
 	args := os.Args[1:]
-	if len(args) == 0 {
-		// use 'default' command
-		args = append(args, "help")
-	}
 
 	// establish the command
-	als, ok := cmd.Aliases[args[0]]
-	if ok {
-		args[0] = als
+	// If no args given, or first arg a flag, insert empty string to force help
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		args = append([]string{""}, args...)
 	}
-	command, ok := cmd.Commands[args[0]]
-	if ok {
-		args = args[1:]
-	} else {
-		command = cmd.Commands[""]
-	}
+	firstArg := args[0]
 
-	// add any flags specific to that command
-	command.Flags(fs)
-	// parse the command line args, trimmed of the leading command
-	if err := flag.CommandLine.Parse(args); err != nil {
+	// remap if its an alias command
+	if als, ok := cmd.Aliases[firstArg]; ok {
+		firstArg = als
+	}
+	command, ok := cmd.Commands[firstArg]
+	if !ok {
+		log.Fatalf("%s is an unknown command\n", firstArg)
+	}
+	// add flags, both general and command specific
+	cmd.FlagsMain(flag.CommandLine)
+	command.Flags(flag.CommandLine)
+
+	// parse the command line args, (again) trimmed of the leading command
+	if err := flag.CommandLine.Parse(args[1:]); err != nil {
 		log.Fatalln(err)
 	}
 	args = flag.Args()
+	if cmd.HelpFlag {
+		command = cmd.Commands[""]
+		// Add on first command for command specific help
+		if firstArg != "" {
+			args = []string{firstArg}
+		}
+	} else {
 
-	if timeRun {
+	}
+
+	if cmd.TimeRunFlag {
 		defer func(s time.Time) {
 			fmt.Printf("took: %v\n", time.Now().Sub(s))
 		}(started)
@@ -60,8 +60,8 @@ func main() {
 
 	// establish the output stream
 	out := os.Stdout
-	if outFile != "" {
-		f, err := os.OpenFile(outFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640)
+	if cmd.OutFileFlag != "" {
+		f, err := os.OpenFile(cmd.OutFileFlag, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -128,4 +128,31 @@ func stringIndex(s string, ss []string) int {
 		}
 	}
 	return -1
+}
+
+// parseMainFlags parses any leading main flags.  main flags are flags shared by all commands.
+func containsHelp(args []string) []string {
+	//flagset to ignore unknown flags (command flags)
+	var index int
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			break
+		}
+		index++
+	}
+
+	fs := flag.NewFlagSet("General flags", flag.ContinueOnError)
+	fs.Usage = func() {}
+	fs.SetOutput(bytes.NewBuffer(nil))
+	cmd.FlagsMain(fs)
+	_ = fs.Parse(args[index:])
+	if fs.NFlag() == 0 {
+		return args
+	}
+	newArgs := fs.Args()
+	if index > 0 {
+		// insert the discarded args into the start
+		newArgs = append(args[:index], newArgs...)
+	}
+	return newArgs
 }

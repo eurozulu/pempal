@@ -130,7 +130,7 @@ func (k key) String() string {
 	if puk != nil {
 		return keytools.PublicKeySha1Hash(puk)
 	}
-	return strings.Join([]string{encryptedMarker, keytools.HashString(k.pemBlock.Bytes)}, "")
+	return strings.Join([]string{encryptedMarker, keytools.SHA1HashString(k.pemBlock.Bytes)}, "")
 }
 
 func NewKey(blk *pem.Block) Key {

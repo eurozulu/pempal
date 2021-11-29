@@ -22,8 +22,7 @@ type IssueCommand struct {
 }
 
 func (cmd *IssueCommand) Description() string {
-	lines := []string{"<template name or existing certificate/csr> ...[<template name or existing certificate/csr>]"}
-	lines = append(lines, "issues a new X509 certificate, based on the given templates/resources")
+	lines := []string{"issues a new certificate, based on the given templates/resources"}
 	lines = append(lines, "Properties from each resource are merged into one, from left to right, with the right most taking precedence")
 	lines = append(lines, "At least one resource should contain the DN of the issuer of the certificare unless specified with the -issuer flag")
 	lines = append(lines, "-issuer flag takes precedence over all templates and resource properties.")

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"flag"
@@ -18,7 +19,13 @@ type IssuersCommand struct {
 }
 
 func (cmd *IssuersCommand) Description() string {
-	return fmt.Sprintf("lists the issuers available.")
+	lines := bytes.NewBufferString("lists the issuers available.\n")
+	lines.WriteString("The list shows all the certificates which can be used to issue new certificates.\n")
+	lines.WriteString("issuers links the available private keys to any certificates with valid properties for being an issuer.\n")
+	lines.WriteString("Each certificate will be marked 'IsCA' true and have the KeyUsageCertSign permission\nas well as having a Public Key matching the available Private key\n")
+	lines.WriteString("Only the certificate for which the private key is available are listed.\n")
+	lines.WriteString("These are certificates which can be used by the caller (defined by their key access) for issuing new certificates.\n")
+	return lines.String()
 }
 
 func (cmd *IssuersCommand) Flags(f *flag.FlagSet) {
@@ -49,7 +56,7 @@ func (cmd *IssuersCommand) Run(ctx context.Context, out io.Writer, args ...strin
 
 func issuers(ctx context.Context, keypath []string, recursive bool, dn string) []keytracker.Identity {
 	dn = strings.ToLower(dn)
-	kt := keytracker.KeyTracker{ShowLogs: Verbose, Recursive: recursive}
+	kt := keytracker.KeyTracker{ShowLogs: VerboseFlag, Recursive: recursive}
 	idCh := kt.FindIdentities(ctx, keypath...)
 	var found []keytracker.Identity
 	for {
