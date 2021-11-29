@@ -2,72 +2,51 @@ package cmd
 
 import (
 	"fmt"
+	"pempal/templates"
 	"regexp"
 	"strings"
 )
 
 type FindQuery interface {
-	Match(data map[string]interface{}) bool
-	Values(data map[string]interface{}) []string
+	Match(data templates.Template) bool
+	Values(data templates.Template) []string
 }
 
 type findQuery struct {
-	names   []string
-	queries map[string]*regexp.Regexp
+	orderedNames []string
+	queries      map[string]*regexp.Regexp
 }
 
-func (lq findQuery) Match(data map[string]interface{}) bool {
+func (lq findQuery) Match(data templates.Template) bool {
 	for k, v := range lq.queries {
+		// No exoression, accept
 		if v == nil {
 			continue
 		}
-
 		// If query has condition, that property must match.
-		dv, ok := data[k]
-		dvs := fmt.Sprintf("%v", dv)
-		if !ok {
+		if !data.Contains(k) {
 			return false
 		}
-		if !v.MatchString(dvs) {
+		dv := data.Value(k)
+		if !v.MatchString(dv) {
 			return false
 		}
 	}
 	return true
 }
 
-func (lq findQuery) Values(data map[string]interface{}) []string {
-	vals := make([]string, len(lq.names))
-	var found = false
-	for i, name := range lq.names {
-		k := keyWithoutCase(name, data)
-		if k == "" {
-			continue
-		}
-		v, ok := data[k]
-		if !ok {
-			continue
-		}
-		found = true
-		vals[i] = fmt.Sprintf("%s", v)
-	}
-	if !found {
-		return nil
+func (lq findQuery) Values(data templates.Template) []string {
+	vals := make([]string, len(lq.orderedNames))
+	for i, name := range lq.orderedNames {
+		vals[i] = data.Value(name)
 	}
 	return vals
 }
 
 func (lq findQuery) IsEmpty() bool {
-	return len(lq.names) == 0
+	return len(lq.orderedNames) == 0
 }
 
-func keyWithoutCase(name string, m map[string]interface{}) string {
-	for k := range m {
-		if strings.EqualFold(k, name) {
-			return k
-		}
-	}
-	return ""
-}
 func indexOf(s string, ss []string) int {
 	for i, sz := range ss {
 		if s == sz {
@@ -82,22 +61,28 @@ func ParseQuery(query string) (FindQuery, error) {
 	queries := map[string]*regexp.Regexp{}
 	for _, q := range strings.Split(query, ",") {
 		qq := strings.SplitN(q, "=", 2)
-		_, ok := queries[qq[0]]
+		name := strings.TrimSpace(qq[0])
+		_, ok := queries[name]
 		if !ok {
-			names = append(names, qq[0])
+			names = append(names, name)
 		}
 		var v *regexp.Regexp
 		if len(qq) > 1 {
-			r, err := regexp.Compile(qq[1])
+			value := strings.TrimSpace(qq[1])
+			// Convert short cut wildcrd to a regex equiv
+			if value == "*" {
+				value = ".*"
+			}
+			r, err := regexp.Compile(value)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to evaluate expression %s  %v", q, err)
 			}
 			v = r
 		}
-		queries[qq[0]] = v
+		queries[name] = v
 	}
 	return &findQuery{
-		names:   names,
-		queries: queries,
+		orderedNames: names,
+		queries:      queries,
 	}, nil
 }

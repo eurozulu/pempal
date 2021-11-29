@@ -21,12 +21,12 @@ const funcSuffix = "}}"
 type Template map[string]interface{}
 
 func (t Template) Contains(k string) bool {
-	_, ok := t.valueIgnoreCase(k)
+	_, ok := t.value(k)
 	return ok
 }
 
 func (t Template) Value(k string) string {
-	v, ok := t.valueIgnoreCase(k)
+	v, ok := t.value(k)
 	if !ok {
 		return ""
 	}
@@ -34,7 +34,7 @@ func (t Template) Value(k string) string {
 }
 
 func (t Template) SetValue(k string, v interface{}) {
-	ks := strings.Split(k, ".")
+	ks := strings.Split(k, KeyDelimiter)
 	m := t
 	for len(ks) > 1 {
 		cm := m.ValueMap(ks[0])
@@ -48,7 +48,7 @@ func (t Template) SetValue(k string, v interface{}) {
 	m[ks[0]] = v
 }
 func (t Template) ValueMap(k string) map[string]interface{} {
-	v, ok := t.valueIgnoreCase(k)
+	v, ok := t.value(k)
 	if !ok {
 		return nil
 	}
@@ -76,7 +76,7 @@ func (t Template) requiredNames(parent string) []string {
 	var names []string
 	for k, v := range t {
 		if parent != "" {
-			k = strings.Join([]string{parent, k}, ".")
+			k = strings.Join([]string{parent, k}, KeyDelimiter)
 		}
 		switch vt := v.(type) {
 		case Template:
@@ -122,7 +122,25 @@ func (t Template) funcNames() []string {
 	return names
 }
 
-func (t Template) valueIgnoreCase(key string) (interface{}, bool) {
+func (t Template) value(key string) (interface{}, bool) {
+	ks := strings.Split(key, KeyDelimiter)
+	m := t
+	for len(ks) > 1 {
+		v, ok := valueIgnoreCase(m, ks[0])
+		if !ok {
+			return nil, false
+		}
+		vm, ok := v.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		m = vm
+		ks = ks[1:]
+	}
+	return valueIgnoreCase(m, ks[0])
+}
+
+func valueIgnoreCase(t Template, key string) (interface{}, bool) {
 	for k, v := range t {
 		if strings.EqualFold(k, key) {
 			return v, true
