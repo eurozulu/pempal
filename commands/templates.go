@@ -1,6 +1,7 @@
-package cmd
+package commands
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -15,7 +16,17 @@ type TemplatesCommand struct {
 }
 
 func (cmd *TemplatesCommand) Description() string {
-	return fmt.Sprintf("returns a list of all the available templates found in the current directory and $%s", templates.ENV_TemplatePath)
+	lines := bytes.NewBufferString("returns a list of all the available templates found in the current directory and $")
+	lines.WriteString(templates.ENV_TemplatePath)
+	lines.WriteString("Templates are yaml files with a '#' as the first character of the name.\n")
+	lines.WriteString("They contain the properties to be applied to new resources when they're being generated.\n")
+	lines.WriteString("Users should place their templates in the current directory or in any firectory listed in the comma delimited list of directories in the $")
+	lines.WriteString(templates.ENV_TemplatePath)
+	lines.WriteString("environment variable\n")
+	lines.WriteRune('\n')
+	lines.WriteString("There are a number of built in templates to help create common resource types.\n")
+	lines.WriteString("By default, templates command will only show user defined templates.  To show all the built in temapltes available, use the -b flag\n")
+	return lines.String()
 }
 
 func (cmd *TemplatesCommand) Flags(f *flag.FlagSet) {

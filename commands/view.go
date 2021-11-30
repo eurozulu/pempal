@@ -1,6 +1,7 @@
-package cmd
+package commands
 
 import (
+	"bytes"
 	"context"
 	"encoding/pem"
 	"flag"
@@ -15,7 +16,11 @@ type ViewCommand struct {
 }
 
 func (cmd *ViewCommand) Description() string {
-	return "outputs x509 resources in plain text or formatted as pem or der"
+	lines := bytes.NewBufferString("outputs x509 resources in plain text or formatted as pem or der\n")
+	lines.WriteString("Requires one or more locations as parameters.  Location can be a directory or single file.\n")
+	lines.WriteString("By default output will be in text (Yaml) format.\n")
+	lines.WriteString("Use the -format flag to alter the output format to pem or der.\n")
+	return lines.String()
 }
 
 func (cmd *ViewCommand) Flags(f *flag.FlagSet) {

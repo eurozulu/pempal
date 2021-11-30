@@ -1,4 +1,4 @@
-package cmd
+package commands
 
 import (
 	"context"
@@ -130,8 +130,8 @@ func (cmd *IssueCommand) getIssuer(ctx context.Context) (keytracker.Identity, er
 }
 
 // getKeyPass gets a password for an encrypted private key.
-// If cmd.keyPass already set with a flag, that is returned.
-// Otherwise user is prompted for input, unless cmd.queit flag set, in which case an error is rasied for the missing password.
+// If commands.keyPass already set with a flag, that is returned.
+// Otherwise user is prompted for input, unless commands.queit flag set, in which case an error is rasied for the missing password.
 func (cmd *IssueCommand) getKeyPass() (string, error) {
 	if cmd.keyPass != "" {
 		return cmd.keyPass, nil

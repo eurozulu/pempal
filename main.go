@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"pempal/cmd"
+	"pempal/commands"
 	"strings"
 	"time"
 )
@@ -26,15 +26,15 @@ func main() {
 	firstArg := args[0]
 
 	// remap if its an alias command
-	if als, ok := cmd.Aliases[firstArg]; ok {
+	if als, ok := commands.Aliases[firstArg]; ok {
 		firstArg = als
 	}
-	command, ok := cmd.Commands[firstArg]
+	command, ok := commands.Commands[firstArg]
 	if !ok {
 		log.Fatalf("%s is an unknown command\n", firstArg)
 	}
 	// add flags, both general and command specific
-	cmd.FlagsMain(flag.CommandLine)
+	commands.FlagsMain(flag.CommandLine)
 	command.Flags(flag.CommandLine)
 
 	// parse the command line args, (again) trimmed of the leading command
@@ -42,8 +42,8 @@ func main() {
 		log.Fatalln(err)
 	}
 	args = flag.Args()
-	if cmd.HelpFlag {
-		command = cmd.Commands[""]
+	if commands.HelpFlag {
+		command = commands.Commands[""]
 		// Add on first command for command specific help
 		if firstArg != "" {
 			args = []string{firstArg}
@@ -52,7 +52,7 @@ func main() {
 
 	}
 
-	if cmd.TimeRunFlag {
+	if commands.TimeRunFlag {
 		defer func(s time.Time) {
 			fmt.Printf("took: %v\n", time.Now().Sub(s))
 		}(started)
@@ -60,8 +60,8 @@ func main() {
 
 	// establish the output stream
 	out := os.Stdout
-	if cmd.OutFileFlag != "" {
-		f, err := os.OpenFile(cmd.OutFileFlag, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640)
+	if commands.OutFileFlag != "" {
+		f, err := os.OpenFile(commands.OutFileFlag, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -144,7 +144,7 @@ func containsHelp(args []string) []string {
 	fs := flag.NewFlagSet("General flags", flag.ContinueOnError)
 	fs.Usage = func() {}
 	fs.SetOutput(bytes.NewBuffer(nil))
-	cmd.FlagsMain(fs)
+	commands.FlagsMain(fs)
 	_ = fs.Parse(args[index:])
 	if fs.NFlag() == 0 {
 		return args
