@@ -18,12 +18,12 @@ import (
 
 // FindCommand locates x509 resources
 type FindCommand struct {
-	quiet       bool
-	recursive   bool
-	showHeaders bool
-	types       string
-	queryString string
-	query       FindQuery
+	Quiet       bool
+	Recursive   bool
+	ShowHeaders bool
+	Types       string
+	QueryString string
+	Query       FindQuery
 }
 
 func (cmd *FindCommand) Description() string {
@@ -65,11 +65,11 @@ func (cmd *FindCommand) Description() string {
 }
 
 func (cmd *FindCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.quiet, "q", false, "output only the file locations of found resources.")
-	f.BoolVar(&cmd.recursive, "r", false, "searches sub directories.")
-	f.BoolVar(&cmd.showHeaders, "h", false, "shows any PEM header values found in the resource.")
-	f.StringVar(&cmd.types, "types", "", "comma delimited list of pem types. CERTIFICATE, RSA PRIVATE KEY etc, limits results to just the listed types")
-	f.StringVar(&cmd.queryString, "query", "", "comma delimited list of key names, with optional regex expressions to match to searched resources")
+	f.BoolVar(&cmd.Quiet, "q", false, "output only the file locations of found resources.")
+	f.BoolVar(&cmd.Recursive, "r", false, "searches sub directories.")
+	f.BoolVar(&cmd.ShowHeaders, "h", false, "shows any PEM header values found in the resource.")
+	f.StringVar(&cmd.Types, "types", "", "comma delimited list of pem types. CERTIFICATE, RSA PRIVATE KEY etc, limits results to just the listed types")
+	f.StringVar(&cmd.QueryString, "query", "", "comma delimited list of key names, with optional regex expressions to match to searched resources")
 }
 
 func (cmd *FindCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
@@ -77,18 +77,18 @@ func (cmd *FindCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 		return fmt.Errorf("must provide at least one location to search")
 	}
 
-	if cmd.queryString != "" {
-		q, err := ParseQuery(cmd.queryString)
+	if cmd.QueryString != "" {
+		q, err := ParseQuery(cmd.QueryString)
 		if err != nil {
 			return err
 		}
-		cmd.query = q
+		cmd.Query = q
 	}
 
 	pr := pemreader.PemScanner{
 		Verbose:           VerboseFlag,
 		AddLocationHeader: true,
-		Recursive:         cmd.recursive,
+		Recursive:         cmd.Recursive,
 		PemTypes:          cmd.typeFilterMap(),
 	}
 
@@ -118,7 +118,7 @@ func (cmd FindCommand) listPems(ctx context.Context, pemIn <-chan *pem.Block, ou
 			}
 
 			lineCols := cmd.formatPem(b)
-			if cmd.query != nil {
+			if cmd.Query != nil {
 				// query is present, gather values from matching block or ignore unmathed block
 				qs, ok := cmd.queryBlock(b)
 				if !ok {
@@ -141,12 +141,12 @@ func (cmd FindCommand) formatPem(b *pem.Block) []string {
 	for k, v := range b.Headers {
 		if strings.EqualFold(k, pemreader.LocationHeaderKey) {
 			loc = v
-			if !cmd.showHeaders {
+			if !cmd.ShowHeaders {
 				break
 			}
 			continue
 		}
-		if !cmd.showHeaders {
+		if !cmd.ShowHeaders {
 			continue
 		}
 		if headers.Len() > 0 {
@@ -167,17 +167,17 @@ func (cmd FindCommand) queryBlock(b *pem.Block) ([]string, bool) {
 	if !handleError(err) {
 		return nil, false
 	}
-	if !cmd.query.Match(t) {
+	if !cmd.Query.Match(t) {
 		return nil, false
 	}
-	return cmd.query.Values(t), true
+	return cmd.Query.Values(t), true
 }
 
 func (cmd FindCommand) typeFilterMap() map[string]bool {
-	if cmd.types == "" {
+	if cmd.Types == "" {
 		return nil
 	}
-	types := strings.Split(cmd.types, ",")
+	types := strings.Split(cmd.Types, ",")
 	m := map[string]bool{}
 	for _, t := range types {
 		t = strings.ToUpper(t)

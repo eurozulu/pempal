@@ -20,35 +20,36 @@ const encryptPwdCipher = x509.PEMCipherAES256
 // When used with no arguments, it generates a new private/public key pair using the keyAlgorithm and keyLength flags.
 // When used with an argument, it searches the given arguments as key paths searching for private keys, attempting to show the corresponding public key file for each.
 type KeyCommand struct {
-	keyAlgorithm string
-	keyLength    int
+	KeyAlgorithm string
+	KeyLength    int
 
-	quiet      bool
-	recursive  bool
-	public     bool
-	private    bool
-	encrypt    bool
-	passwd     string
-	linkPublic bool
+	Quiet      bool
+	Recursive  bool
+	Public     bool
+	Private    bool
+	Encrypt    bool
+	Password   string
+	LinkPublic bool
 }
 
 func (cmd *KeyCommand) Description() string {
 	return "creates a new key pair"
+	//TODO: add more here
 }
 
 func (cmd *KeyCommand) Flags(f *flag.FlagSet) {
 	algos := fmt.Sprintf("The key Algorithm to generate.\n\tmust be one of %v", keytools.PublicKeyAlgoNames[1:])
-	f.StringVar(&cmd.keyAlgorithm, "a", "rsa", algos)
-	f.IntVar(&cmd.keyLength, "l", 2048, "The length/curve to use for the key")
-	f.BoolVar(&cmd.quiet, "q", false, "surpresses the confirmation prompt to generate new key or password request for encrypted keys to generate public keys")
-	f.BoolVar(&cmd.recursive, "r", false, "recursively search given locations for keys")
-	f.BoolVar(&cmd.public, "public", true, "When true, default, generates the corresponding public key pem. If private key already exists, requests password to decrypt")
-	f.BoolVar(&cmd.public, "pubout", true, "same as 'public'")
-	f.BoolVar(&cmd.linkPublic, "linkpublic", false, "Generate a hash id in the public key header to link the public key to an encrypted private key.")
-	f.BoolVar(&cmd.linkPublic, "lp", false, "Same as 'linkpublic'")
-	f.BoolVar(&cmd.private, "private", true, "When true, default, outputs the private key")
-	f.BoolVar(&cmd.encrypt, "encrypt", true, "When true, default, new keys are encrypted with a password.")
-	f.StringVar(&cmd.passwd, "password", "", "the passwordto encrypt or decrypt a key.")
+	f.StringVar(&cmd.KeyAlgorithm, "a", "rsa", algos)
+	f.IntVar(&cmd.KeyLength, "l", 2048, "The length/curve to use for the key")
+	f.BoolVar(&cmd.Quiet, "q", false, "surpresses the confirmation prompt to generate new key or password request for encrypted keys to generate public keys")
+	f.BoolVar(&cmd.Recursive, "r", false, "recursively search given locations for keys")
+	f.BoolVar(&cmd.Public, "public", true, "When true, default, generates the corresponding public key pem. If private key already exists, requests password to decrypt")
+	f.BoolVar(&cmd.Public, "pubout", true, "same as 'public'")
+	f.BoolVar(&cmd.LinkPublic, "linkpublic", false, "Generate a hash id in the public key header to link the public key to an encrypted private key.")
+	f.BoolVar(&cmd.LinkPublic, "lp", false, "Same as 'linkpublic'")
+	f.BoolVar(&cmd.Private, "private", true, "When true, default, outputs the private key")
+	f.BoolVar(&cmd.Encrypt, "encrypt", true, "When true, default, new keys are encrypted with a password.")
+	f.StringVar(&cmd.Password, "password", "", "the passwordto encrypt or decrypt a key.")
 }
 
 func (cmd *KeyCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
@@ -70,31 +71,31 @@ func (cmd *KeyCommand) Run(ctx context.Context, out io.Writer, args ...string) e
 }
 
 func (cmd *KeyCommand) createPrivateKey(out io.Writer) error {
-	pka := keytools.ParsePublicKeyAlgorithm(cmd.keyAlgorithm)
+	pka := keytools.ParsePublicKeyAlgorithm(cmd.KeyAlgorithm)
 	if pka == x509.UnknownPublicKeyAlgorithm {
-		return fmt.Errorf("%s is not a known PublicKeyAlgorithm. Use one of: %v", cmd.keyAlgorithm, keytools.PublicKeyAlgoNames[1:])
+		return fmt.Errorf("%s is not a known PublicKeyAlgorithm. Use one of: %v", cmd.KeyAlgorithm, keytools.PublicKeyAlgoNames[1:])
 	}
-	if !cmd.quiet {
-		if !PromptConfirm(fmt.Sprintf("Generate new %s key of length %d", pka.String(), cmd.keyLength), false) {
+	if !cmd.Quiet {
+		if !PromptConfirm(fmt.Sprintf("Generate new %s key of length %d", pka.String(), cmd.KeyLength), false) {
 			return fmt.Errorf("aborted")
 		}
 	}
-	k, err := keytools.GenerateKey(pka, cmd.keyLength)
+	k, err := keytools.GenerateKey(pka, cmd.KeyLength)
 	if err != nil {
 		return err
 	}
 	if err = cmd.encodePublicKey(keytools.PublicKeyFromPrivate(k), out); err != nil {
 		return err
 	}
-	cmd.private = true
-	return cmd.encodePrivateKey(k, cmd.encrypt, out)
+	cmd.Private = true
+	return cmd.encodePrivateKey(k, cmd.Encrypt, out)
 }
 
 func (cmd *KeyCommand) openPrivateKeys(ctx context.Context, keypath []string) <-chan crypto.PrivateKey {
 	ch := make(chan crypto.PrivateKey)
 	go func(ch chan<- crypto.PrivateKey) {
 		defer close(ch)
-		kt := keytracker.KeyTracker{ShowLogs: VerboseFlag, Recursive: cmd.recursive}
+		kt := keytracker.KeyTracker{ShowLogs: VerboseFlag, Recursive: cmd.Recursive}
 		keyCh := kt.FindKeys(ctx, keypath...)
 		for {
 			select {
@@ -120,7 +121,7 @@ func (cmd *KeyCommand) openPrivateKeys(ctx context.Context, keypath []string) <-
 }
 
 func (cmd *KeyCommand) encodePublicKey(puk crypto.PublicKey, out io.Writer) error {
-	if !cmd.public {
+	if !cmd.Public {
 		return nil
 	}
 	blk, err := keytools.MarshalPublicKey(puk)
@@ -131,7 +132,7 @@ func (cmd *KeyCommand) encodePublicKey(puk crypto.PublicKey, out io.Writer) erro
 }
 
 func (cmd *KeyCommand) encodePrivateKey(prk crypto.PrivateKey, encrypt bool, out io.Writer) error {
-	if !cmd.private {
+	if !cmd.Private {
 		return nil
 	}
 	blk, err := keytools.MarshalPrivateKey(prk)
@@ -149,17 +150,17 @@ func (cmd *KeyCommand) encodePrivateKey(prk crypto.PrivateKey, encrypt bool, out
 }
 
 func (cmd *KeyCommand) encryptPrivateKey(blk *pem.Block) (*pem.Block, error) {
-	if cmd.passwd == "" {
-		if cmd.quiet {
+	if cmd.Password == "" {
+		if cmd.Quiet {
 			return nil, fmt.Errorf("no password provided to encrypt new key")
 		}
 		pwd, err := PromptCreatePassword("Enter a password for the new key:", encryptPwdMinLength)
 		if err != nil {
 			return nil, err
 		}
-		cmd.passwd = pwd
+		cmd.Password = pwd
 	}
-	return x509.EncryptPEMBlock(rand.Reader, blk.Type, blk.Bytes, []byte(cmd.passwd), encryptPwdCipher)
+	return x509.EncryptPEMBlock(rand.Reader, blk.Type, blk.Bytes, []byte(cmd.Password), encryptPwdCipher)
 }
 
 func (cmd *KeyCommand) decryptPrivateKey(k keytracker.Key) (crypto.PrivateKey, error) {
@@ -167,7 +168,7 @@ func (cmd *KeyCommand) decryptPrivateKey(k keytracker.Key) (crypto.PrivateKey, e
 		return k.PrivateKey()
 	}
 	// encrypted key, ask for key
-	if cmd.quiet || cmd.passwd == "" {
+	if cmd.Quiet || cmd.Password == "" {
 		s := fmt.Sprintf("Enter the password for encrypted key or enter to skip key %s\n%s: ", k.Location(), k)
 		pwd, err := PromptPassword(s)
 		if err != nil {
@@ -176,7 +177,7 @@ func (cmd *KeyCommand) decryptPrivateKey(k keytracker.Key) (crypto.PrivateKey, e
 		if pwd == "" {
 			return nil, fmt.Errorf("skipped")
 		}
-		cmd.passwd = pwd
+		cmd.Password = pwd
 	}
-	return k.PrivateKeyDecrypted(cmd.passwd)
+	return k.PrivateKeyDecrypted(cmd.Password)
 }

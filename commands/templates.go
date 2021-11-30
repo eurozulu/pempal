@@ -11,8 +11,8 @@ import (
 
 // TemplatesCommand lists all the available templates
 type TemplatesCommand struct {
-	showTemplatepath     bool
-	showBuildInTemplates bool
+	ShowPath         bool
+	ShowAllTemplates bool
 }
 
 func (cmd *TemplatesCommand) Description() string {
@@ -30,12 +30,12 @@ func (cmd *TemplatesCommand) Description() string {
 }
 
 func (cmd *TemplatesCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.showTemplatepath, "tp", false, fmt.Sprintf("display the current $%s", templates.ENV_TemplatePath))
-	f.BoolVar(&cmd.showBuildInTemplates, "b", false, "include all the built in template names at the end of the list")
+	f.BoolVar(&cmd.ShowPath, "tp", false, fmt.Sprintf("display the current $%s", templates.ENV_TemplatePath))
+	f.BoolVar(&cmd.ShowAllTemplates, "b", false, "include all the built in template names at the end of the list")
 }
 
 func (cmd TemplatesCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
-	if cmd.showTemplatepath {
+	if cmd.ShowPath {
 		tp := templates.TemplatePath
 		if tp == "" {
 			tp = "not set"
@@ -45,7 +45,7 @@ func (cmd TemplatesCommand) Run(ctx context.Context, out io.Writer, args ...stri
 			return err
 		}
 	}
-	for _, p := range templates.TemplateNames(cmd.showBuildInTemplates) {
+	for _, p := range templates.TemplateNames(cmd.ShowAllTemplates) {
 		_, err := fmt.Fprintln(out, p)
 		// TODO: Read each template for a "Description" tag
 		if err != nil {

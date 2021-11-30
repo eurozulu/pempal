@@ -6,12 +6,14 @@ import (
 	"io"
 )
 
+// Command represents a single operation
 type Command interface {
 	Description() string
 	Flags(f *flag.FlagSet)
 	Run(ctx context.Context, out io.Writer, args ...string) error
 }
 
+// Commands maps the command keyword to the actual Command
 var Commands = map[string]Command{
 	"":          &HelpCommand{},
 	"key":       &KeyCommand{},
@@ -25,6 +27,8 @@ var Commands = map[string]Command{
 	"templates": &TemplatesCommand{},
 	"template":  &TemplateCommand{},
 }
+
+// Aliases lists alternative names for command keywords
 var Aliases = map[string]string{
 	"fd":    "find",
 	"list":  "find",

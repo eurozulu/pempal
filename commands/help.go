@@ -12,14 +12,12 @@ import (
 	"text/tabwriter"
 )
 
-type HelpCommand struct {
-}
+type HelpCommand struct{}
 
-func (h HelpCommand) Flags(f *flag.FlagSet) {
-}
+func (h HelpCommand) Flags(f *flag.FlagSet) {}
 
 func (h HelpCommand) Description() string {
-	return "Displays help"
+	return "Displays help, what you're looking at!"
 }
 
 // TODO: Tidy up output

@@ -12,7 +12,7 @@ import (
 )
 
 type ViewCommand struct {
-	format string
+	Format string
 }
 
 func (cmd *ViewCommand) Description() string {
@@ -24,7 +24,7 @@ func (cmd *ViewCommand) Description() string {
 }
 
 func (cmd *ViewCommand) Flags(f *flag.FlagSet) {
-	f.StringVar(&cmd.format, "format", "", "defines the output format of the items. One of: pem, der.  When unstated generates a yaml template of the resource")
+	f.StringVar(&cmd.Format, "format", "", "defines the output format of the items. One of: pem, der.  When unstated generates a yaml template of the resource")
 }
 
 // TODO: Fix bug with ECDSA keys (failed to parse EC private key: asn1: structure error: length too large)
@@ -36,10 +36,10 @@ func (cmd *ViewCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 
 	pr := pemreader.PemScanner{
 		Verbose:           VerboseFlag,
-		AddLocationHeader: cmd.format == "", // Add location if output is template
+		AddLocationHeader: cmd.Format == "", // Add location if output is template
 		Recursive:         true,
 	}
-	pw, err := pemwriter.NewPemWriter(cmd.format, out)
+	pw, err := pemwriter.NewPemWriter(cmd.Format, out)
 	if err != nil {
 		return err
 	}

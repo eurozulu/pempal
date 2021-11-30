@@ -14,6 +14,7 @@ type TemplateCommand struct {
 }
 
 func (cmd TemplateCommand) Description() string {
+	// TODO: Add more
 	return "creates a new template from the given resources and/or templates"
 }
 

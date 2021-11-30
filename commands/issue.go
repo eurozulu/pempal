@@ -15,10 +15,10 @@ import (
 )
 
 type IssueCommand struct {
-	issuer  string
-	keyPass string
-	keyPath string
-	quiet   bool
+	Issuer  string
+	KeyPass string
+	KeyPath string
+	Quiet   bool
 }
 
 func (cmd *IssueCommand) Description() string {
@@ -31,10 +31,10 @@ func (cmd *IssueCommand) Description() string {
 }
 
 func (cmd *IssueCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.quiet, "q", false, "surpress confirmation prompts")
-	f.StringVar(&cmd.issuer, "issuer", "", "set the DN of the issuer for the new certificate. Overrides any template value")
-	f.StringVar(&cmd.keyPass, "password", "", "Specify the password for an encrypted issuer key. Will prompt is required and not provided")
-	f.StringVar(&cmd.keyPath, "keypath", "", "comma delimited list of directories to search for issuer keys.  Overrides KEYPATH environment variable")
+	f.BoolVar(&cmd.Quiet, "q", false, "surpress confirmation prompts")
+	f.StringVar(&cmd.Issuer, "issuer", "", "set the DN of the issuer for the new certificate. Overrides any template value")
+	f.StringVar(&cmd.KeyPass, "password", "", "Specify the password for an encrypted issuer key. Will prompt is required and not provided")
+	f.StringVar(&cmd.KeyPath, "keypath", "", "comma delimited list of directories to search for issuer keys.  Overrides KEYPATH environment variable")
 }
 
 func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
@@ -54,11 +54,11 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 	// Establish the signing key
 	// If issuer not specified as flag, take it from the template (which might also be empty!)
 	var issuer keytracker.Identity
-	if cmd.issuer == "" {
-		cmd.issuer = t.Value(parsers.X509IssuerDN)
+	if cmd.Issuer == "" {
+		cmd.Issuer = t.Value(parsers.X509IssuerDN)
 	}
 	// check if its self signed
-	if cmd.issuer == t.Value(parsers.X509Subject) {
+	if cmd.Issuer == t.Value(parsers.X509Subject) {
 		// create a psudo Identity, with just the key
 		issuer, err = keytracker.NewIdentity(nil, nil)
 	} else {
@@ -73,12 +73,12 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 	}
 	// If encrypted, get the password
 	if issuer.Key().IsEncrypted() {
-		cmd.keyPass, err = cmd.getKeyPass()
+		cmd.KeyPass, err = cmd.getKeyPass()
 		if err != nil {
 			return err
 		}
 	}
-	by, err := templates.IssueCertificate(issuer, cmd.keyPass, t)
+	by, err := templates.IssueCertificate(issuer, cmd.KeyPass, t)
 	if err != nil {
 		return err
 	}
@@ -88,23 +88,23 @@ func (cmd *IssueCommand) Run(ctx context.Context, out io.Writer, args ...string)
 	})
 }
 
-// getIssuer attempts to find the issuer certificate, based on the issuer DN name.
-// If no Identidy is found and DN (issuer) given, returns error, not found
-// If no Identidy is found and no DN (issuer) given, returns nil
+// getIssuer attempts to find the Issuer certificate, based on the Issuer DN name.
+// If no Identidy is found and DN (Issuer) given, returns error, not found
+// If no Identidy is found and no DN (Issuer) given, returns nil
 // If one found, returns that.
-// If more than one, presents a list and prompts to select (or error if quiet flag set)
+// If more than one, presents a list and prompts to select (or error if Quiet flag set)
 func (cmd *IssueCommand) getIssuer(ctx context.Context) (keytracker.Identity, error) {
 	var kp []string
-	if cmd.keyPass != "" {
-		kp = strings.Split(cmd.keyPath, ":")
+	if cmd.KeyPass != "" {
+		kp = strings.Split(cmd.KeyPath, ":")
 	} else {
 		kp = GetKeyPath(nil)
 	}
 
-	issuers := issuers(ctx, kp, true, cmd.issuer)
+	issuers := issuers(ctx, kp, true, cmd.Issuer)
 	if len(issuers) == 0 {
-		if cmd.issuer != "" {
-			return nil, fmt.Errorf("could not locate the issuer %s", cmd.issuer)
+		if cmd.Issuer != "" {
+			return nil, fmt.Errorf("could not locate the issuer %s", cmd.Issuer)
 		}
 		return nil, nil
 	}
@@ -113,7 +113,7 @@ func (cmd *IssueCommand) getIssuer(ctx context.Context) (keytracker.Identity, er
 		return issuers[0], nil
 	}
 	// more than one issuer, present list
-	if cmd.quiet {
+	if cmd.Quiet {
 		return nil, fmt.Errorf("no single issuer was found to sign the certificate.  Be more specific with the issuer flag.")
 	}
 	// Choose from the list of two or more issuers
@@ -133,11 +133,11 @@ func (cmd *IssueCommand) getIssuer(ctx context.Context) (keytracker.Identity, er
 // If commands.keyPass already set with a flag, that is returned.
 // Otherwise user is prompted for input, unless commands.queit flag set, in which case an error is rasied for the missing password.
 func (cmd *IssueCommand) getKeyPass() (string, error) {
-	if cmd.keyPass != "" {
-		return cmd.keyPass, nil
+	if cmd.KeyPass != "" {
+		return cmd.KeyPass, nil
 	}
-	if cmd.quiet {
+	if cmd.Quiet {
 		return "", fmt.Errorf("encrypted issuer key requires password")
 	}
-	return PromptPassword(fmt.Sprintf("Enter the password for the issuer '%s' private key:", cmd.issuer))
+	return PromptPassword(fmt.Sprintf("Enter the password for the issuer '%s' private key:", cmd.Issuer))
 }
