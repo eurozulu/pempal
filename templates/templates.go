@@ -19,7 +19,7 @@ const ENV_TemplatePath = "PP_TEMPLATEPATH"
 
 var TemplatePath = strings.TrimSpace(os.Getenv(ENV_TemplatePath))
 
-// TemplateNames lists the known names of all the templates, including buuld in one
+// TemplateNames lists the known names of all the templates, including buuld in ones
 func TemplateNames(includeBuiltIn bool) []string {
 	tp := []string{os.ExpandEnv("$PWD")}
 	if TemplatePath != "" {
