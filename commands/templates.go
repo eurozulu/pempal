@@ -18,11 +18,11 @@ type TemplatesCommand struct {
 func (cmd *TemplatesCommand) Description() string {
 	lines := bytes.NewBufferString("returns a list of all the available templates found in the current directory and $")
 	lines.WriteString(templates.ENV_TemplatePath)
-	lines.WriteString("Templates are yaml files with a '#' as the first character of the name.\n")
+	lines.WriteString("\nTemplates are yaml files with a '#' as the first character of the name.\n")
 	lines.WriteString("They contain the properties to be applied to new resources when they're being generated.\n")
-	lines.WriteString("Users should place their templates in the current directory or in any firectory listed in the comma delimited list of directories in the $")
+	lines.WriteString("Users should place their templates in the current directory or in any directory listed in the comma delimited $")
 	lines.WriteString(templates.ENV_TemplatePath)
-	lines.WriteString("environment variable\n")
+	lines.WriteString(" environment variable\n")
 	lines.WriteRune('\n')
 	lines.WriteString("There are a number of built in templates to help create common resource types.\n")
 	lines.WriteString("By default, templates command will only show user defined templates.  To show all the built in temapltes available, use the -b flag\n")
@@ -30,13 +30,17 @@ func (cmd *TemplatesCommand) Description() string {
 }
 
 func (cmd *TemplatesCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.showTemplatepath, "kp", false, "display the current keypath")
+	f.BoolVar(&cmd.showTemplatepath, "tp", false, fmt.Sprintf("display the current $%s", templates.ENV_TemplatePath))
 	f.BoolVar(&cmd.showBuildInTemplates, "b", false, "include all the built in template names at the end of the list")
 }
 
 func (cmd TemplatesCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
 	if cmd.showTemplatepath {
-		_, err := fmt.Fprintf(out, "$%s: %s\n", templates.ENV_TemplatePath, templates.TemplatePath)
+		tp := templates.TemplatePath
+		if tp == "" {
+			tp = "not set"
+		}
+		_, err := fmt.Fprintf(out, "$%s: %s\n", templates.ENV_TemplatePath, tp)
 		if err != nil {
 			return err
 		}
