@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"pempal/keytools"
 	"strconv"
 	"strings"
 )
@@ -43,6 +44,7 @@ func (cp CsrParser) Parse(b *pem.Block) (map[string]interface{}, error) {
 
 	m[X509PublicKey] = publicKeyToString(csr.PublicKey)
 	m[X509PublicKeyAlgorithm] = csr.PublicKeyAlgorithm.String()
+	m[X509PublicKeyHash] = keytools.PublicKeySha1Hash(csr.PublicKey)
 
 	m[X509Version] = strconv.Itoa(csr.Version)
 

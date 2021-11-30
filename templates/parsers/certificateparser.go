@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"pempal/keytools"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,7 @@ const (
 	X509Signature             = "Signature"
 	X509SignatureAlgorithm    = "SignatureAlgorithm"
 	X509PublicKey             = "PublicKey"
+	X509PublicKeyHash         = PKI_PublicKeyHash
 	X509PublicKeyAlgorithm    = "PublicKeyAlgorithm"
 	X509Version               = "Version"
 	X509SerialNumber          = "SerialNumber"
@@ -143,6 +145,8 @@ func (cp CertificateParser) Parse(b *pem.Block) (map[string]interface{}, error) 
 	m[X509SignatureAlgorithm] = c.SignatureAlgorithm.String()
 
 	m[X509PublicKey] = publicKeyToString(c.PublicKey)
+	m[X509PublicKeyHash] = keytools.PublicKeySha1Hash(c.PublicKey)
+
 	m[X509PublicKeyAlgorithm] = c.PublicKeyAlgorithm.String()
 
 	m[X509Version] = strconv.Itoa(c.Version)
