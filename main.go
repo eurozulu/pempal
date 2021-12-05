@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -128,31 +127,4 @@ func stringIndex(s string, ss []string) int {
 		}
 	}
 	return -1
-}
-
-// parseMainFlags parses any leading main flags.  main flags are flags shared by all commands.
-func containsHelp(args []string) []string {
-	//flagset to ignore unknown flags (command flags)
-	var index int
-	for _, arg := range args {
-		if strings.HasPrefix(arg, "-") {
-			break
-		}
-		index++
-	}
-
-	fs := flag.NewFlagSet("General flags", flag.ContinueOnError)
-	fs.Usage = func() {}
-	fs.SetOutput(bytes.NewBuffer(nil))
-	commands.FlagsMain(fs)
-	_ = fs.Parse(args[index:])
-	if fs.NFlag() == 0 {
-		return args
-	}
-	newArgs := fs.Args()
-	if index > 0 {
-		// insert the discarded args into the start
-		newArgs = append(args[:index], newArgs...)
-	}
-	return newArgs
 }
