@@ -12,6 +12,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"pempal/fileformats"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -21,7 +23,7 @@ func PublicKeySha1Hash(key crypto.PublicKey) string {
 	if key == nil {
 		return ""
 	}
-	pb, err := MarshalPublicKey(key)
+	pb, err := fileformats.MarshalPublicKey(key)
 	if err != nil {
 		log.Println(err)
 		return ""
@@ -93,6 +95,9 @@ func PublicKeyLength(pk crypto.PublicKey) string {
 // PublicKeyFromPrivate returns the public key element of the given private key
 // supports rsa, ecdsa, ed25519 and dsa keys
 func PublicKeyFromPrivate(pk crypto.PrivateKey) crypto.PublicKey {
+	if pk == nil || reflect.ValueOf(pk).IsNil() {
+		return nil
+	}
 	switch v := pk.(type) {
 	case *rsa.PrivateKey:
 		return v.Public()

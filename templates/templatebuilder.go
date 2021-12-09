@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/pem"
 	"fmt"
-	"pempal/pemreader"
-	"strings"
 )
 
 const AppendKeyPrefix = "+"
@@ -18,7 +16,6 @@ type TemplateBuilder interface {
 
 type builder struct {
 	temps []Template
-	pr    *pemreader.PemScanner
 }
 
 func (tb builder) Templates() []Template {
@@ -44,17 +41,7 @@ func (tb builder) Build() (Template, error) {
 }
 
 func (tb *builder) Add(names ...string) error {
-	var err error
-	for _, p := range names {
-		if !strings.HasPrefix(p, FileTag) {
-			err = tb.addPemResource(p)
-		} else {
-			err = tb.addTemplate(p)
-		}
-		if err != nil {
-			return fmt.Errorf("failed to open %s  %v", p, err)
-		}
-	}
+	Find
 	return nil
 }
 
@@ -64,7 +51,7 @@ func (tb *builder) AddTemplate(ts ...Template) error {
 }
 
 func (tb *builder) addTemplate(p string) error {
-	t, err := FindTemplate(p)
+	t, err := NamedTemplate(p)
 	if err != nil {
 		return err
 	}
@@ -118,12 +105,8 @@ func mergeTemplates(ms ...Template) Template {
 	return nt
 }
 
-func NewTemplateBuilder() *builder {
+func NewTemplateBuilder(base Template) *builder {
 	return &builder{
-		temps: nil,
-		pr: &pemreader.PemScanner{
-			AddLocationHeader: true,
-			Recursive:         false,
-		},
+		temps: []Template{base},
 	}
 }

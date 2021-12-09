@@ -6,26 +6,20 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path"
-	"pempal/keytracker"
+	"pempal/pemresources"
 	"sort"
 	"strings"
 	"text/tabwriter"
 )
 
-const ENV_KeyPath = "PP_KEYPATH"
-
-var KeyPath = strings.TrimSpace(os.Getenv(ENV_KeyPath))
-
 // KeysCommand finds and lists all the private keys in the keypath
 type KeysCommand struct {
-	Recursive bool
-	ShowIndex bool
+	ShowIndex   bool
+	ShowHeaders bool
 }
 
 func (cmd *KeysCommand) Description() string {
-	lines := bytes.NewBufferString(fmt.Sprintf("lists all the available private keys in the given path(s) and in $%s if it is set.\n", ENV_KeyPath))
+	lines := bytes.NewBufferString(fmt.Sprintf("lists all the available private keys in the given path(s) and in $%s if it is set.\n", ENV_KEYPATH))
 	lines.WriteString("Available keys are private keys which can be identified by their public key pair.\n")
 	lines.WriteString("The keys command matches the private keys to their public key, to give them an identity.\n")
 	lines.WriteString("Private keys which are encrypted can not be used to generate the public key, therefore.\n")
@@ -47,80 +41,84 @@ func (cmd *KeysCommand) Description() string {
 }
 
 func (cmd *KeysCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.Recursive, "r", false, "search subdirectories recursively")
 	f.BoolVar(&cmd.ShowIndex, "i", false, "Adds the index location to the path for files containing more than one resource")
+	f.BoolVar(&cmd.ShowHeaders, "h", false, "output any pem headers for each key")
 }
 
 func (cmd *KeysCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
 	// append keypath to any given
 	args = GetKeyPath(args)
 	if len(args) == 0 {
-		return fmt.Errorf("must provide at least one location to search for keys or set the %s environment variable with the path to search.", ENV_KeyPath)
+		return fmt.Errorf("must provide at least one location to search for keys or set the %s environment variable with the path to search.", ENV_KEYPATH)
 	}
-	keys := SortKeys(Keys(ctx, args, cmd.Recursive))
+
+	keyscan := pemresources.Keys{
+		ShowLogs:      Verbose,
+		HideAnonymous: false,
+	}
+
+	keyCh := keyscan.ScanKeys(ctx, args...)
+	var keys []*pemresources.PrivateKey
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case k, ok := <-keyCh:
+			if !ok {
+				return nil
+			}
+			keys = append(keys, k)
+		}
+	}
+
+	keys = SortKeys(keys)
 	tw := tabwriter.NewWriter(out, 4, 4, 2, ' ', 0)
-	for _, s := range cmd.KeyList(keys) {
-		fmt.Fprintln(tw, s)
+	for _, k := range keys {
+		var s = bytes.NewBuffer(nil)
+		s.WriteString(k.PublicKeyHash)
+		s.WriteString("\t")
+		s.WriteString(k.PemType)
+		s.WriteString("\t")
+		if k.IsEncrypted {
+			s.WriteString("encrypted")
+		}
+		s.WriteString("\t")
+		if cmd.ShowHeaders {
+			s.WriteString(collectHeaders(k.PemHeaders))
+			s.WriteString("\t")
+		}
+		l := k.Location
+		if !cmd.ShowIndex {
+			l = strings.TrimRight(l, "0123456789:")
+		}
+		s.WriteString(l)
+		s.WriteString("\t")
+		fmt.Fprintln(tw, s.String())
 	}
 	return tw.Flush()
 }
 
-func (cmd *KeysCommand) KeyList(keys []keytracker.Key) []string {
-	names := make([]string, len(keys))
-	for i, k := range keys {
-		enc := " "
-		if k.IsEncrypted() {
-			enc = "encrypted"
+func collectHeaders(heads map[string]string) string {
+	buf := bytes.NewBuffer(nil)
+	for k, v := range heads {
+		if buf.Len() > 0 {
+			buf.WriteString(", ")
 		}
-		loc := k.Location()
-		if !cmd.ShowIndex {
-			b := path.Base(loc)
-			ii := strings.Index(b, ":")
-			if ii >= 0 {
-				loc = path.Join(path.Dir(loc), b[:ii])
-			}
-		}
-		names[i] = fmt.Sprintf("%s\t%s\t%s\t%s", k.String(), k.Type(), enc, loc)
+		buf.WriteString(k)
+		buf.WriteString(" = ")
+		buf.WriteString(v)
 	}
-	return names
+	return buf.String()
 }
 
-func Keys(ctx context.Context, keypath []string, recursive bool) []keytracker.Key {
-	kt := keytracker.KeyTracker{ShowLogs: VerboseFlag, Recursive: recursive}
-	keyCh := kt.FindKeys(ctx, keypath...)
-
-	var found []keytracker.Key
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case id, ok := <-keyCh:
-			if !ok {
-				return found
-			}
-			found = append(found, id)
-		}
-	}
-}
-
-func SortKeys(keys []keytracker.Key) []keytracker.Key {
+func SortKeys(keys []*pemresources.PrivateKey) []*pemresources.PrivateKey {
 	// sort results by their filepaths
 	sort.Slice(keys, func(i, j int) bool {
-		il := keys[i].Location()
-		jl := keys[j].Location()
+		il := keys[i].Location
+		jl := keys[j].Location
 		ls := []string{il, jl}
 		sort.Strings(ls)
 		return ls[0] == il
 	})
 	return keys
-}
-
-func GetKeyPath(p []string) []string {
-	if len(p) == 0 {
-		p = []string{os.ExpandEnv("$PWD")}
-	}
-	if KeyPath == "" {
-		return p
-	}
-	return append(p, strings.Split(KeyPath, ":")...)
 }

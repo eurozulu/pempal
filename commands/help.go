@@ -37,7 +37,7 @@ func showGeneralHelp() error {
 	fmt.Println()
 	fmt.Println("<optional general flags> can be used with any command.")
 	fs := flag.NewFlagSet("General Flags", flag.ContinueOnError)
-	FlagsMain(fs)
+	Flags(fs)
 	fs.Usage()
 
 	fmt.Println()
