@@ -1,6 +1,8 @@
 # Pempal
 ### A tool for managing tls/x509 certificates and the associated resources.  
-  
+
+## This project is currently still in development stage!  
+
 ### Overview
 Pempal is designed to help anyone using TLS/SSL Public key Infrastructure certificates,  
 both in managing existing resources and generating new ones.  
