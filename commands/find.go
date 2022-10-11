@@ -10,8 +10,6 @@ import (
 	"os"
 	"path"
 	"pempal/fileformats"
-	"pempal/keytools"
-	"pempal/pemreader"
 	"pempal/pemresources"
 	"pempal/templates"
 	"strings"
@@ -20,7 +18,6 @@ import (
 
 // FindCommand locates x509 resources
 type FindCommand struct {
-	Quiet       bool
 	Recursive   bool
 	ShowHeaders bool
 	Types       string
@@ -65,7 +62,6 @@ func (cmd *FindCommand) Description() string {
 }
 
 func (cmd *FindCommand) Flags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.Quiet, "q", false, "output only the file locations of found resources.")
 	f.BoolVar(&cmd.Recursive, "r", false, "searches sub directories.")
 	f.BoolVar(&cmd.ShowHeaders, "h", false, "shows any PEM header values found in the resource.")
 	f.StringVar(&cmd.Types, "types", "", "comma delimited list of pem types. CERTIFICATE, RSA PRIVATE KEY etc, limits results to just the listed types")
@@ -84,13 +80,14 @@ func (cmd *FindCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 		}
 		cmd.Query = q
 	}
-	pr := pemresources.PemScanner{
-		Recursive:  cmd.Recursive,
-		Verbose:    Verbose,
-		Reader:     fileformats.NewFormatReader(),
-		TypeFilter: cmd.typeFilterMap(),
+	ps := pemresources.PemScanner{
+		Recursive:         cmd.Recursive,
+		Verbose:           Verbose,
+		Reader:            fileformats.NewFormatReader(),
+		TypeFilter:        cmd.typeFilterMap(),
+		AddLocationHeader: true,
 	}
-	pemCh := pr.Scan(ctx, args...)
+	pemCh := ps.Scan(ctx, args...)
 	tw := tabwriter.NewWriter(out, 4, 8, 1, '\t', 0)
 
 	for {
@@ -121,35 +118,27 @@ func (cmd *FindCommand) Run(ctx context.Context, out io.Writer, args ...string) 
 }
 
 func (cmd FindCommand) formatPem(b *pem.Block) []string {
-	var loc string
+	fields := []string{b.Type}
+
 	// gather location header and, optionally the rest of them.
-	headers := bytes.NewBuffer(nil)
-	for k, v := range b.Headers {
-		if strings.EqualFold(k, pemreader.LocationHeaderKey) {
-			loc = v
-			if !cmd.ShowHeaders {
-				break
+	if cmd.ShowHeaders {
+		headers := bytes.NewBuffer(nil)
+		for k, v := range b.Headers {
+			if headers.Len() > 0 {
+				headers.WriteString(", ")
 			}
-			continue
+			headers.WriteString(k)
+			headers.WriteString(" = ")
+			headers.WriteString(v)
 		}
-		if !cmd.ShowHeaders {
-			continue
-		}
-		if headers.Len() > 0 {
-			headers.WriteString(", ")
-		}
-		headers.WriteString(k)
-		headers.WriteString(" = ")
-		headers.WriteString(v)
+		fields = append(fields, headers.String())
 	}
-	if headers.Len() > 0 {
-		headers.WriteRune('\t')
-	}
-	return []string{b.Type, headers.String(), loc}
+	fields = append(fields, b.Headers[pemresources.LocationHeaderKey])
+	return fields
 }
 
 func (cmd FindCommand) queryBlock(b *pem.Block) ([]string, bool) {
-	t, err := templates.ParseBlock(b)
+	t, err := templates.BlockToTemplate(b)
 	if !handleError(err) {
 		return nil, false
 	}
@@ -167,22 +156,20 @@ func (cmd FindCommand) typeFilterMap() map[string]bool {
 	m := map[string]bool{}
 	for _, t := range types {
 		t = strings.ToUpper(t)
-		if keytools.CertificateTypes[t] {
-			m = keytools.CombineMaps(m, keytools.CertificateTypes)
+		if fileformats.PemTypesCertificate[t] {
+			m = fileformats.CombineMaps(m, fileformats.PemTypesCertificate)
 			continue
 		}
-		if keytools.PrivateKeyTypes[t] {
-			m = keytools.CombineMaps(m, keytools.PrivateKeyTypes)
+		if fileformats.PemTypesPrivateKey[t] {
+			m = fileformats.CombineMaps(m, fileformats.PemTypesPrivateKey)
 			continue
 		}
-
-		if keytools.PublicKeyTypes[t] {
-			m = keytools.CombineMaps(m, keytools.PublicKeyTypes)
+		if fileformats.PemTypesPublicKey[t] {
+			m = fileformats.CombineMaps(m, fileformats.PemTypesPublicKey)
 			continue
 		}
-
-		if keytools.CSRTypes[t] {
-			m = keytools.CombineMaps(m, keytools.CSRTypes)
+		if fileformats.PemTypesCertificateRequest[t] {
+			m = fileformats.CombineMaps(m, fileformats.PemTypesCertificateRequest)
 			continue
 		}
 		m[t] = true

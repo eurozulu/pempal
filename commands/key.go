@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"pempal/fileformats"
-	"pempal/keycache"
 	"pempal/keytools"
 	"pempal/pemresources"
 	"pempal/templates"
@@ -29,8 +28,6 @@ type KeyCommand struct {
 	Recursive bool
 
 	LinkPublic bool
-
-	keyCache *keycache.KeyCache
 }
 
 func (cmd *KeyCommand) Description() string {
@@ -50,13 +47,13 @@ func (cmd *KeyCommand) Flags(fs *flag.FlagSet) {
 }
 
 func (cmd *KeyCommand) Run(ctx context.Context, out io.Writer, args ...string) error {
-	pk := &pemresources.PrivateKey{}
-	tb := templates.NewTemplateBuilder(pk)
-	if err := tb.Add(args...); err != nil {
+	pkt, err := templates.CompoundTemplate(&pemresources.PrivateKey{}, args...)
+	if err != nil {
 		return err
 	}
-	if _, err := tb.Build(); err != nil {
-		return err
+	pk, ok := pkt.(*pemresources.PrivateKey)
+	if !ok {
+		return fmt.Errorf("unexpected template base.")
 	}
 
 	// IF no key set, generate a new one
@@ -64,7 +61,7 @@ func (cmd *KeyCommand) Run(ctx context.Context, out io.Writer, args ...string) e
 		return cmd.createPrivateKey(pk, out)
 	}
 
-	prk := cmd.keyCache.KeyByID(pk.PublicKeyHash)
+	prk := keyCache.KeyByID(pk.PublicKeyHash)
 	if prk == nil {
 		return fmt.Errorf("failed to find private key for %s %s", pk.PublicKeyHash, pk.Location)
 	}
@@ -97,16 +94,14 @@ func (cmd *KeyCommand) showKey(k *pemresources.PrivateKey, out io.Writer) error 
 	if err != nil {
 		return err
 	}
+	if cmd.LinkPublic && linkId != puk.PublicKeyHash {
+		puk.LinkedId = linkId
+	}
 	blkPub, err := puk.MarshalPem()
 	if err != nil {
 		return err
 	}
-	if cmd.LinkPublic && linkId != puk.PublicKeyHash {
-		if blkPub.Headers == nil {
-			blkPub.Headers = map[string]string{}
-		}
-		blkPub.Headers[pemresources.LinkedKeyHeaderKey] = linkId
-	}
+
 	blkPrv, err := k.MarshalPem()
 	if err != nil {
 		return err
@@ -115,20 +110,20 @@ func (cmd *KeyCommand) showKey(k *pemresources.PrivateKey, out io.Writer) error 
 	return formatWriter.Marshal([]*pem.Block{blkPrv, blkPub}, out)
 }
 
-func (cmd *KeyCommand) createPrivateKey(prk *pemresources.PrivateKey, out io.Writer) error {
-	pka := prk.PublicKeyAlgorithm
+func (cmd *KeyCommand) createPrivateKey(t *pemresources.PrivateKey, out io.Writer) error {
+	pka := t.PublicKeyAlgorithm
 	if pka == x509.UnknownPublicKeyAlgorithm {
 		pka = keytools.ParsePublicKeyAlgorithm(cmd.KeyAlgorithm)
 	}
 	if pka == x509.UnknownPublicKeyAlgorithm {
 		return fmt.Errorf("%s is not a known PublicKeyAlgorithm. Use one of: %v", pka, keytools.PublicKeyAlgoNames[1:])
 	}
-	if prk.PublicKeyLength == "" {
-		prk.PublicKeyLength = strconv.Itoa(cmd.KeyLength)
+	if t.PublicKeyLength == "" {
+		t.PublicKeyLength = strconv.Itoa(cmd.KeyLength)
 	}
-	kl, err := strconv.Atoi(prk.PublicKeyLength)
+	kl, err := strconv.Atoi(t.PublicKeyLength)
 	if err != nil {
-		return fmt.Errorf("PublicKeyLength (%s) is not a valid number", prk.PublicKeyLength)
+		return fmt.Errorf("PublicKeyLength (%s) is not a valid number", t.PublicKeyLength)
 	}
 	if !Script {
 		if !PromptConfirm(fmt.Sprintf("Generate a new %s key of length %d?", pka, kl), false) {
@@ -165,8 +160,4 @@ func (cmd *KeyCommand) createPrivateKey(prk *pemresources.PrivateKey, out io.Wri
 		return err
 	}
 	return cmd.showKey(pkt, out)
-}
-
-func (cmd *KeyCommand) SetKeys(keys *keycache.KeyCache) {
-	cmd.keyCache = keys
 }

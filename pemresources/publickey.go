@@ -70,6 +70,8 @@ func (kt *PublicKey) UnmarshalPem(block *pem.Block) error {
 	return nil
 }
 
+// PublicKeyFromBlock extracts the Public key from the given resource.
+// given resource may be a Private key (unencrypted), public key, Certificate ro Certificate request.
 func PublicKeyFromBlock(blk *pem.Block) crypto.PublicKey {
 	if fileformats.PemTypesPrivateKey[blk.Type] {
 		prk, err := fileformats.ParsePrivateKey(blk.Bytes)

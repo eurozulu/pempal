@@ -130,7 +130,8 @@ func PromptInputNumber(max int) int {
 	}
 }
 
-//
+// PromptChooseList displays the choices as a numbered list and accepts an input of a number in the list.
+// It returns the index in the choices or -1 if nothing choosen (zero to abort)
 func PromptChooseList(msg string, choices []string) int {
 	if msg != "" {
 		fmt.Println(msg)

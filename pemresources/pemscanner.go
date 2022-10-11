@@ -11,6 +11,8 @@ import (
 	"sync"
 )
 
+const LocationHeaderKey = "location"
+
 // PemScanner scans one or more locations for resources which can be formatted into pem blocks.
 type PemScanner struct {
 	// Recursive, when true, scans sub directories of locations (Assuming they're directories, otherwise its ignored)
@@ -23,6 +25,8 @@ type PemScanner struct {
 	// TypeFilter is a pem type filter, to limit output to only the PEM types in the filter map.
 	// when set, only PEM types in the map are returned, when not set all (parsable) pems are returned.
 	TypeFilter map[string]bool
+
+	AddLocationHeader bool
 }
 
 // Scan scans all of the given root paths simultaneously returning any found pems in no particular order.
@@ -68,6 +72,12 @@ func (rs PemScanner) parseFile(ctx context.Context, ch chan<- *pem.Block, wg *sy
 	for _, blk := range blks {
 		if hasFilter && !rs.TypeFilter[blk.Type] {
 			continue
+		}
+		if rs.AddLocationHeader {
+			if blk.Headers == nil {
+				blk.Headers = map[string]string{}
+			}
+			blk.Headers[LocationHeaderKey] = p
 		}
 		select {
 		case <-ctx.Done():

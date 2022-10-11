@@ -6,11 +6,16 @@ import (
 )
 
 type cacheRequest struct {
-	Request          string
+	RequestHash      string
+	RequestPath      string
 	IncludeAnonymous bool
 	Response         chan *pemresources.PrivateKey
 }
 
+// KeyCache caches the results of a keyscan.
+// using its keypath, it scans for keys.  Requests are served from the cache.
+// If the scan is active, requests are blocked until the result is found or the scan completes.
+// when scan is complete all requests are serviced directly from the cache.
 type KeyCache struct {
 	keyPath    []string
 	chRequests chan *cacheRequest
@@ -22,7 +27,15 @@ func (ki KeyCache) Refresh() {
 }
 
 func (ki KeyCache) KeyByID(publicKeyHash string) *pemresources.PrivateKey {
-	keys := ki.makeRequest(publicKeyHash, false)
+	keys := ki.makeRequest(publicKeyHash, "", false)
+	if len(keys) == 0 {
+		return nil
+	}
+	return keys[0]
+}
+
+func (ki KeyCache) KeyByPath(keyPath string) *pemresources.PrivateKey {
+	keys := ki.makeRequest("", keyPath, false)
 	if len(keys) == 0 {
 		return nil
 	}
@@ -30,12 +43,13 @@ func (ki KeyCache) KeyByID(publicKeyHash string) *pemresources.PrivateKey {
 }
 
 func (ki KeyCache) Keys(includeAnonymous bool) []*pemresources.PrivateKey {
-	return ki.makeRequest("*", includeAnonymous)
+	return ki.makeRequest("*", "", includeAnonymous)
 }
 
-func (ki KeyCache) makeRequest(request string, anonymous bool) []*pemresources.PrivateKey {
+func (ki KeyCache) makeRequest(hash string, pth string, anonymous bool) []*pemresources.PrivateKey {
 	r := &cacheRequest{
-		Request:          request,
+		RequestHash:      hash,
+		RequestPath:      pth,
 		IncludeAnonymous: anonymous,
 		Response:         make(chan *pemresources.PrivateKey, 1),
 	}
@@ -53,6 +67,7 @@ func (ki KeyCache) serveRequestsActive(ctx context.Context) {
 
 	keys := pemresources.Keys{}
 	cache := map[string]*pemresources.PrivateKey{}
+	locationIndex := map[string][]*pemresources.PrivateKey{}
 
 	// Main loop run whilst indexing (Active) (chIndexer is open)
 	for {
@@ -73,22 +88,30 @@ func (ki KeyCache) serveRequestsActive(ctx context.Context) {
 				// on return, refresh cache again
 				continue
 			}
-
 			cache[k.PublicKeyHash] = k
-
+			if k.Location != "" {
+				locationIndex[k.Location] = append(locationIndex[k.Location], k)
+			}
 			// Check if any outstanding requests are waiting for this key
-			wrs, ok := waiting[k.PublicKeyHash]
-			if ok {
+			if wrs, ok := waiting[k.PublicKeyHash]; ok {
 				delete(waiting, k.PublicKeyHash)
 				sendWaitingRequests(k, wrs)
 			}
 
 		case r := <-ki.chRequests:
-			k, ok := cache[r.Request]
+			var k *pemresources.PrivateKey
+			if r.RequestHash == "" {
+				lk, ok := locationIndex[r.RequestPath]
+			}
+			k, ok := cache[r.RequestHash]
 			if !ok {
-				// not found, place request in waiting until finished indexing
-				waiting[r.Request] = append(waiting[r.Request], r)
-				continue
+				ks, ok := locationIndex[r.RequestPath]
+				if !ok {
+					// not found, place request in waiting until finished indexing
+					// * wildcard request should always fail here, as they can only be served by the passive server.
+					waiting[r.RequestHash] = append(waiting[r.RequestHash], r)
+					continue
+				}
 			}
 			// hit the cache, send response and close
 			r.Response <- k
@@ -107,7 +130,11 @@ func (ki KeyCache) serveRequestsPassive(ctx context.Context, cache map[string]*p
 			// refresh signal ends passive serving and returns to active serving
 			return
 		case r := <-ki.chRequests:
-			if k, ok := cache[r.Request]; ok {
+			if r.RequestHash == "*" {
+				go ki.pushAllCache(ctx, r.Response, cache)
+				continue
+			}
+			if k, ok := cache[r.RequestHash]; ok {
 				r.Response <- k
 			}
 			close(r.Response)
@@ -119,6 +146,17 @@ func (ki KeyCache) serveRequestsPassive(ctx context.Context, cache map[string]*p
 func (ki KeyCache) flushRefreshChannel() {
 	for len(ki.chRefresh) > 0 {
 		<-ki.chRefresh
+	}
+}
+
+func (ki KeyCache) pushAllCache(ctx context.Context, ch chan<- *pemresources.PrivateKey, cache map[string]*pemresources.PrivateKey) {
+	defer close(ch)
+	for _, k := range cache {
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- k:
+		}
 	}
 }
 

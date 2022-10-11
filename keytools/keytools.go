@@ -74,6 +74,20 @@ func PublicKeyAlgorithm(pk crypto.PublicKey) x509.PublicKeyAlgorithm {
 		return x509.UnknownPublicKeyAlgorithm
 	}
 }
+func PublicKeyAlgorithmFromPrivate(pk crypto.PrivateKey) x509.PublicKeyAlgorithm {
+	switch pk.(type) {
+	case *rsa.PublicKey:
+		return x509.RSA
+	case *ecdsa.PublicKey:
+		return x509.ECDSA
+	case *ed25519.PublicKey:
+		return x509.Ed25519
+	case *dsa.PublicKey:
+		return x509.DSA
+	default:
+		return x509.UnknownPublicKeyAlgorithm
+	}
+}
 
 // PublicKeyLength returns a representation of the key length.
 // Depending on the key typem this can be bitlength (rsa), curve size (ecdsa).  ed25519 has no such length so returns empty string.

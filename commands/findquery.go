@@ -19,7 +19,7 @@ type findQuery struct {
 
 func (lq findQuery) Match(data templates.Template) bool {
 	for k, v := range lq.queries {
-		// No exoression, accept
+		// No expression, accept
 		if v == nil {
 			continue
 		}

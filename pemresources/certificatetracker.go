@@ -5,13 +5,13 @@ import (
 	"pempal/fileformats"
 )
 
-type certificateCollector struct {
+type certificateTracker struct {
 	keyCollection *keyTracker
 	keys          map[string]*PrivateKey
 	certs         map[string][]*Certificate
 }
 
-func (cc *certificateCollector) AddBlocks(blocks []*pem.Block) ([]*Identity, error) {
+func (cc *certificateTracker) AddBlocks(blocks []*pem.Block) ([]*Identity, error) {
 	var ids []*Identity
 	for _, block := range blocks {
 		if k, _ := cc.keyCollection.AddBlock(block); k != nil {
@@ -41,7 +41,7 @@ func (cc *certificateCollector) AddBlocks(blocks []*pem.Block) ([]*Identity, err
 	return ids, nil
 }
 
-func (cc *certificateCollector) addKey(k *PrivateKey) ([]*Identity, error) {
+func (cc *certificateTracker) addKey(k *PrivateKey) ([]*Identity, error) {
 	cc.keys[k.PublicKeyHash] = k
 	certs, ok := cc.certs[k.PublicKeyHash]
 	if !ok {
@@ -58,8 +58,8 @@ func (cc *certificateCollector) addKey(k *PrivateKey) ([]*Identity, error) {
 	return ids, nil
 }
 
-func newCertificateCollector() *certificateCollector {
-	return &certificateCollector{
+func newCertificateCollector() *certificateTracker {
+	return &certificateTracker{
 		keyCollection: newKeyTracker(),
 		keys:          map[string]*PrivateKey{},
 		certs:         map[string][]*Certificate{},

@@ -1,112 +1,129 @@
 package templates
 
 import (
-	"context"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"gopkg.in/yaml.v3"
+	"log"
+	"pempal/fileformats"
+	"sort"
+	"strings"
 )
 
+const RequiredKey = "?"
+const funcStartKey = "{{"
+const funcEndKey = "}}"
 const AppendKeyPrefix = "+"
 
-type TemplateBuilder interface {
-	Add(p string) error
-	Templates() []Template
-	Build() (Template, error)
+type TemplateBuilder struct {
+	Templates []Template
 }
 
-type builder struct {
-	temps []Template
-}
-
-func (tb builder) Templates() []Template {
-	return tb.temps
-}
-
-func (tb builder) RequiredNames() []string {
-	return mergeTemplates(tb.temps...).RequiredNames()
-}
-
-func (tb builder) Build() (Template, error) {
-	mt := mergeTemplates(tb.temps...)
-	missing := mt.RequiredNames()
+func (tb TemplateBuilder) Build() (Template, error) {
+	base, req := tb.mergedMaps()
+	missing := falseKeys(req)
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("The following properties are required: %v", missing)
+		return nil, fmt.Errorf("missing required properties: %s", strings.Join(missing, ", "))
 	}
-
-	funcs := mt.funcNames()
-	if len(funcs) > 0 {
-		return nil, fmt.Errorf("template functions not yet supported")
+	pt, ok := base["pem_type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing or invalid 'pem_type'")
 	}
-	return mt, nil
-}
-
-func (tb *builder) Add(names ...string) error {
-	Find
-	return nil
-}
-
-func (tb *builder) AddTemplate(ts ...Template) error {
-	tb.temps = append(tb.temps, ts...)
-	return nil
-}
-
-func (tb *builder) addTemplate(p string) error {
-	t, err := NamedTemplate(p)
+	by, err := yaml.Marshal(base)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return tb.AddTemplate(t)
+	if !strings.HasSuffix(pt, fileformats.PEM_TEMPLATE) {
+		pt = strings.Join([]string{pt, fileformats.PEM_TEMPLATE}, "")
+	}
+	return BlockToTemplate(&pem.Block{
+		Type:  pt,
+		Bytes: by,
+	})
 }
 
-func (tb builder) addPemResource(p string) error {
-	pb, err := tb.findPemResource(p)
+func (tb TemplateBuilder) MissingNames() []string {
+	return falseKeys(tb.RequiredNames())
+}
+
+func (tb TemplateBuilder) RequiredNames() map[string]bool {
+	_, r := tb.mergedMaps()
+	return r
+}
+
+func (tb TemplateBuilder) mergedMaps() (base map[string]interface{}, required map[string]bool) {
+	base = map[string]interface{}{}
+	required = map[string]bool{}
+	ms, err := templatesToMaps(tb.Templates)
 	if err != nil {
-		return err
+		log.Println(err)
+		return base, required
 	}
-	t, err := ParseBlock(pb)
-	if err != nil {
-		return err
-	}
-	return tb.AddTemplate(t)
-}
-
-func (tb builder) findPemResource(p string) (*pem.Block, error) {
-	ctx, cnl := context.WithCancel(context.Background())
-	defer cnl()
-	pemIn := tb.pr.Find(ctx, p)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case pb, ok := <-pemIn:
-			if !ok {
-				return nil, fmt.Errorf("%s not found", p)
-			}
-			return pb, nil
-		}
-	}
-}
-
-func mergeTemplates(ms ...Template) Template {
-	nt := Template{}
 	for _, m := range ms {
-		for k, v := range m {
-			vs := m.Value(k)
-			if vs == requiredPrefix {
-				// only overwrite with required symbol when no value present
-				_, ok := m[k]
-				if ok {
+		mergeMap(m, base, "", required)
+	}
+	return base, required
+}
+
+func mergeMap(m map[string]interface{}, base map[string]interface{}, keyheader string, required map[string]bool) {
+	for k, v := range m {
+		switch vt := v.(type) {
+		case string:
+			if vt == RequiredKey {
+				required[k] = required[k]
+				continue
+			}
+			// empty string doesn't overwrite
+			if vt == "" {
+				if _, exists := base[k]; exists {
 					continue
 				}
 			}
-			nt[k] = v
+			// If this is a required field, mark it as satisfied
+			if _, ok := required[k]; ok {
+				required[k] = true
+			}
+			base[k] = vt
+
+		case map[string]interface{}:
+			existMap, ok := base[k].(map[string]interface{})
+			if !ok {
+				existMap = map[string]interface{}{}
+				base[k] = existMap
+			}
+			mergeMap(vt, existMap, strings.Join([]string{keyheader, k}, "."), required)
+
+		default:
+			base[k] = v
 		}
 	}
-	return nt
 }
 
-func NewTemplateBuilder(base Template) *builder {
-	return &builder{
-		temps: []Template{base},
+func templatesToMaps(ts []Template) ([]map[string]interface{}, error) {
+	ms := make([]map[string]interface{}, len(ts))
+	for i, t := range ts {
+		by, err := yaml.Marshal(t)
+		if err != nil {
+			return nil, err
+		}
+		m := map[string]interface{}{}
+		if err = json.Unmarshal(by, &m); err != nil {
+			return nil, err
+		}
+		ms[i] = m
 	}
+	return ms, nil
+}
+
+func falseKeys(m map[string]bool) []string {
+	var names []string
+	for k, v := range m {
+		if v {
+			continue
+		}
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }

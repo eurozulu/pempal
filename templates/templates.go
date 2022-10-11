@@ -22,47 +22,87 @@ var TemplatePath = strings.TrimSpace(os.Getenv(ENV_TemplatePath))
 
 // TemplateNames lists the known names of all the templates, including buuld in ones
 func TemplateNames(includeBuiltIn bool) []string {
-	names := templateFileNames()
+	paths := templateFileNames()
+	names := make([]string, len(paths))
+	var i int
+	for k := range paths {
+		names[i] = k
+	}
+	sort.Strings(names)
 	// add built in names
 	if includeBuiltIn {
 		names = append(names, templateInBuiltNames()...)
 	}
-	// TODO: // search for duplicate names as directory is not considured. When found, add the parset path to it. e.g. mytemps/#thattemp
-	for i, n := range names {
-		names[i] = cleanName(n)
-	}
 	return names
 }
 
-func FindTemplate(name string) (Template, error) {
-	key := strings.ToLower(strings.TrimLeft(name, FileTag))
-	if t, ok := builtInTemplates[key]; ok {
-		return ParseTemplate(t.([]byte))
+// CompoundTemplate generates a new temapltes, which is the combination of all the given templates.
+func CompoundTemplate(base Template, names ...string) (Template, error) {
+	temps, err := Templates(names...)
+	if err != nil {
+		return nil, err
 	}
-	// not built in, search for file
+	if base != nil {
+		temps = append([]Template{base}, temps...)
+	}
+	tb := &TemplateBuilder{Templates: temps}
+	return tb.Build()
+}
+
+// Templates loads the named templates
+// names can be # preceeded names, to indicate template, or resource path to existing resources, to make into template.
+func Templates(names ...string) ([]Template, error) {
+	var temps []Template
+	paths := templateFileNames()
+	for _, name := range names {
+		key := cleanName(name)
+		if _, ok := builtInTemplates[key]; ok {
+			t, err := loadBuildInTemplate(key)
+			if err != nil {
+				return nil, err
+			}
+			temps = append(temps, t)
+			continue
+		}
+		// check if name is a known template name or just a file path.
+		p := name
+		if !strings.Contains(p, "/") {
+			p = paths[key]
+		}
+		t, err := loadResourceAsTemplate(p)
+		if err != nil {
+			return nil, fmt.Errorf("problem with built in template!  %w", err)
+		}
+		temps = append(temps, t)
+	}
+	return temps, nil
+}
+
+func loadBuildInTemplate(name string) (Template, error) {
+	tb, ok := builtInTemplates[strings.ToLower(strings.TrimLeft(name, FileTag))]
+	if !ok {
+		return nil, fmt.Errorf("unknown template %s", name)
+	}
+	return ParseTemplate(tb.([]byte))
+}
+
+func loadResourceAsTemplate(p string) (Template, error) {
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
-	ts := TemplateScanner{
+	ts := pemresources.PemScanner{
 		Recursive: true,
 		Verbose:   false,
 		Reader:    fileformats.NewFormatReader(),
-		FilterFunc: func(p string) bool {
-			// get name without extension
-			n := path.Base(p)
-			e := len(path.Ext(n))
-			n = n[:len(n)-e]
-			return strings.EqualFold(n, name)
-		},
 	}
-	tch := ts.Find(ctx, templatePath()...)
+	tch := ts.Scan(ctx, p)
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case t, ok := <-tch:
+	case blk, ok := <-tch:
 		if !ok {
 			return nil, os.ErrNotExist
 		}
-		return t, nil
+		return BlockToTemplate(blk)
 	}
 }
 
@@ -77,22 +117,22 @@ func templateInBuiltNames() []string {
 }
 
 // templateFileNames gets a list of all the template names found in the templateKeyPath
-func templateFileNames() []string {
+func templateFileNames() map[string]string {
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
 	ts := filepathscanner.FilePathScanner{
 		Recursive: true,
 		ExtFilter: map[string]bool{"yaml": true},
 	}
-	nameCh := ts.Scan(ctx, templatePath()...)
-	var names []string
-	for name := range nameCh {
-		if !strings.HasPrefix(name, FileTag) {
+	pathCh := ts.Scan(ctx, GetTemplatePath()...)
+	names := map[string]string{}
+	for p := range pathCh {
+		if !strings.Contains(p, FileTag) {
 			continue
 		}
-		names = append(names, name)
+		name := cleanName(p)
+		names[name] = p
 	}
-	sort.Strings(names)
 	return names
 }
 
@@ -103,15 +143,13 @@ func cleanName(p string) string {
 	if len(e) > 0 {
 		n = n[:len(n)-len(e)]
 	}
-	if !strings.HasPrefix(n, FileTag) {
-		n = strings.Join([]string{FileTag, n}, "")
-	}
+	n = strings.TrimLeft(n, FileTag)
 	return n
 }
 
-// templatePath gets the template path, the path(s) to search for private keys
+// GetTemplatePath gets the template path, the path(s) to search for private keys
 // Template path is the current working directory with any additional (comma demited) paths set in the ENV_TemplatePath
-func templatePath() []string {
+func GetTemplatePath() []string {
 	tp := []string{os.ExpandEnv("$PWD")}
 	if TemplatePath != "" {
 		tp = append(tp, strings.Split(os.ExpandEnv(TemplatePath), ":")...)
@@ -128,10 +166,11 @@ func ParseTemplate(by []byte) (Template, error) {
 	if len(tblk) < 1 {
 		return nil, fmt.Errorf("failed to parse template")
 	}
-	return TemplateFromBlock(tblk[0], "")
+	return BlockToTemplate(tblk[0])
 }
 
-func TemplateFromBlock(blk *pem.Block, location string) (Template, error) {
+func BlockToTemplate(blk *pem.Block) (Template, error) {
+	location := blk.Headers[pemresources.LocationHeaderKey]
 	var t Template
 	pt := blk.Type
 	isTemplate := strings.HasSuffix(pt, fileformats.PEM_TEMPLATE)

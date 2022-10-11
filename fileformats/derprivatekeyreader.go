@@ -21,31 +21,27 @@ func (d derPrivateKeyReader) Unmarshal(by []byte) ([]*pem.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	// see if public key is available (unencryoted
-	puk := keytools.PublicKeyFromPrivate(prk)
-	pt := "PRIVATE KEY"
-	var pka = x509.UnknownPublicKeyAlgorithm
-	if puk != nil {
-		pka = keytools.PublicKeyAlgorithm(puk)
-		pt = PrivateKeyPEMType(pka)
-	}
+
+	pka := keytools.PublicKeyAlgorithmFromPrivate(prk)
+	pt := PrivateKeyPEMType(pka)
 	blocks := []*pem.Block{{
 		Type:  pt,
 		Bytes: by,
 	}}
 
+	// see if public key is available (unencryoted)
+	puk := keytools.PublicKeyFromPrivate(prk)
 	if puk != nil {
 		pby, err := x509.MarshalPKIXPublicKey(puk)
 		if err != nil {
 			return nil, err
 		}
 		blocks = append(blocks, &pem.Block{
-			Type:  PublicKeyPEMType(pka),
+			Type:  PublicKeyPEMType(keytools.PublicKeyAlgorithm(puk)),
 			Bytes: pby,
 		})
 	}
 	return blocks, nil
-
 }
 
 func PrivateKeyPEMType(ka x509.PublicKeyAlgorithm) string {
@@ -56,7 +52,7 @@ func PrivateKeyPEMType(ka x509.PublicKeyAlgorithm) string {
 		return "DSA PRIVATE KEY"
 	case x509.ECDSA:
 		return "EC PRIVATE KEY"
-	default:
+	default: // x509.Ed25519
 		return "PRIVATE KEY"
 	}
 }

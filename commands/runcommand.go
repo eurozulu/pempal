@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"pempal/fileformats"
-	"pempal/keycache"
+	"pempal/index"
 	"strings"
 	"time"
 )
@@ -20,10 +20,6 @@ const defaultCommand = "help"
 const PPName = "Pempal, the certificate assistant"
 const PPVersion = "0.0.0"
 
-const ENV_KEYPATH = "PEMPAL_KEYPATH"
-
-var KeyPath = os.ExpandEnv(os.Getenv(ENV_KEYPATH))
-
 var Verbose bool
 var Version bool
 var Script bool
@@ -31,6 +27,9 @@ var TimeRun bool
 var OutFileName string
 var HelpFlag bool
 var Format string
+
+var KeyFlag string
+var KeyPathFlag string
 
 var formatWriter fileformats.FormatWriter
 
@@ -42,6 +41,10 @@ func Flags(f *flag.FlagSet) {
 	f.StringVar(&OutFileName, "out", "", "Specify a filename to write output into. Defaults to stdout")
 	f.BoolVar(&HelpFlag, "help", false, "Display help")
 	f.StringVar(&Format, "format", "yaml", "The output format. should be yaml, pem or der")
+
+	f.StringVar(&KeyFlag, "key", "", "specify a key to perform a signing operation. Can be key hash or path to a key")
+	f.StringVar(&KeyPathFlag, "keypath", "",
+		fmt.Sprintf("specify a comma delimited list of paths to search for key. Overrides %s if set", ENV_KEYPATH))
 }
 
 // Runs the command given as the first argument
@@ -87,10 +90,17 @@ func RunCommand(args ...string) error {
 		}
 	}
 
+	if KeyPathFlag != "" {
+		KeyPath = KeyPathFlag
+	}
+	if KeyFlag != "" {
+		UserKey = KeyFlag
+	}
+
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
 	if keyCmd, ok := command.(SigningCommand); ok {
-		keyCmd.SetKeys(keycache.NewKeyCache(ctx, GetKeyPath([]string{})...))
+		keyCmd.SetKeys(index.NewKeyCache(ctx, GetKeyPath([]string{})...))
 	}
 
 	if fr, err := fileformats.NewFormatWriter(Format); err != nil {
@@ -182,12 +192,12 @@ func showVersion() {
 	fmt.Printf("\n%s, Version: %s\n", PPName, PPVersion)
 }
 
-func GetKeyPath(p []string) []string {
-	if len(p) == 0 {
-		p = []string{os.ExpandEnv("$PWD")}
+func handleError(err error) bool {
+	if err == nil {
+		return true
 	}
-	if KeyPath == "" {
-		return p
+	if Verbose {
+		log.Println(err)
 	}
-	return append(p, strings.Split(KeyPath, ":")...)
+	return false
 }
