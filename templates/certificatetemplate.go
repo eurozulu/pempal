@@ -1,71 +1,51 @@
 package templates
 
-import (
-	"crypto"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/asn1"
-	"math/big"
-	"net"
-	"net/url"
-	"time"
-)
+import "pempal/resources"
 
 type CertificateTemplate struct {
-	Signature          []byte
-	SignatureAlgorithm x509.SignatureAlgorithm
-
-	PublicKeyAlgorithm x509.PublicKeyAlgorithm
-	PublicKey          crypto.PublicKey
-
-	Version             int
-	SerialNumber        *big.Int
-	Issuer              pkix.Name
-	Subject             pkix.Name
-	NotBefore, NotAfter time.Time // Validity bounds.
-	KeyUsage            x509.KeyUsage
-
-	Extensions []pkix.Extension
-
-	ExtraExtensions []pkix.Extension
-
-	ExtKeyUsage        []x509.ExtKeyUsage      // Sequence of extended key usages.
-	UnknownExtKeyUsage []asn1.ObjectIdentifier // Encountered extended key usages unknown to this package.
-
-	BasicConstraintsValid bool
-	IsCA                  bool
-	MaxPathLen            int
-	MaxPathLenZero        bool
-
-	SubjectKeyId   []byte
-	AuthorityKeyId []byte
-
-	// RFC 5280, 4.2.2.1 (Authority Information Access)
-	OCSPServer            []string
-	IssuingCertificateURL []string
-
-	DNSNames       []string
-	EmailAddresses []string
-	IPAddresses    []net.IP
-	URIs           []*url.URL
+	Version               int           `yaml:"version"`
+	Signature             string        `yaml:"signature,omitempty"`
+	SignatureAlgorithm    string        `yaml:"signature-algorithm"`
+	PublicKeyAlgorithm    string        `yaml:"public-key-algorithm"`
+	PublicKey             string        `yaml:"public-key"`
+	Subject               *NameTemplate `yaml:"subject"`
+	Issuer                *NameTemplate `yaml:"issuer"`
+	SerialNumber          int64         `yaml:"serial-number"`
+	Extensions            []string      `yaml:"extensions"`
+	ExtraExtensions       []string      `yaml:"extra-extensions"`
+	NotBefore             string        `yaml:"not-before"`
+	NotAfter              string        `yaml:"not-after"`
+	KeyUsage              string        `yaml:"key-usage,omitempty"`
+	ExtKeyUsage           []string      `yaml:"ext-key-usage,omitempty"` // Sequence of extended key usages.
+	BasicConstraintsValid bool          `yaml:"basic-constraints-valid"`
+	IsCA                  bool          `yaml:"is-ca"`
+	MaxPathLen            int           `yaml:"max-path-len"`
+	MaxPathLenZero        bool          `yaml:"max-path-len-zero"`
+	SubjectKeyId          string        `yaml:"subject-key-id,omitempty"`
+	AuthorityKeyId        string        `yaml:"authority-key-id,omitempty"`
+	OCSPServer            []string      `yaml:"ocsp-server,omitempty"`
+	IssuingCertificateURL []string      `yaml:"issuing-certificate-url,omitempty"`
+	DNSNames              []string      `yaml:"dns-names,omitempty"`
+	EmailAddresses        []string      `yaml:"email-addresses"`
+	IPAddresses           []string      `yaml:"ip-addresses,omitempty"`
+	URIs                  []string      `yaml:"uris,omitempty"`
 
 	// Name constraints
-	PermittedDNSDomainsCritical bool // if true then the name constraints are marked critical.
-	PermittedDNSDomains         []string
-	ExcludedDNSDomains          []string
-	PermittedIPRanges           []*net.IPNet
-	ExcludedIPRanges            []*net.IPNet
-	PermittedEmailAddresses     []string
-	ExcludedEmailAddresses      []string
-	PermittedURIDomains         []string
-	ExcludedURIDomains          []string
+	PermittedDNSDomainsCritical bool     `yaml:"permitted-dns-domains-critical,omitempty"`
+	PermittedDNSDomains         []string `yaml:"permitted-dns-domains,omitempty"`
+	ExcludedDNSDomains          []string `yaml:"excluded-dns-domains,omitempty"`
+	PermittedIPRanges           []string `yaml:"permitted-ip-ranges,omitempty"`
+	ExcludedIPRanges            []string `yaml:"excluded-ip-ranges,omitempty"`
+	PermittedEmailAddresses     []string `yaml:"permitted-email-addresses,omitempty"`
+	ExcludedEmailAddresses      []string `yaml:"excluded-email-addresses,omitempty"`
+	PermittedURIDomains         []string `yaml:"permitted-uri-domains,omitempty"`
+	ExcludedURIDomains          []string `yaml:"excluded-uri-domains,omitempty"`
 
 	// CRL Distribution Points
 	CRLDistributionPoints []string
-
-	PolicyIdentifiers []asn1.ObjectIdentifier
+	//PolicyIdentifiers []asn1.ObjectIdentifier
 }
 
-func (c2 CertificateTemplate) Apply(c *x509.Certificate) error {
-
+func (c CertificateTemplate) Type() resources.ResourceType {
+	return resources.Certificate
 }
