@@ -1,0 +1,40 @@
+- version: 1
+  signature: 1174d098616c62d9fca1270cc61f0213dbad5dfe94e539260b966f3873bd9a1277855277e9f3f1f9263b856e78625fee7e87733b783421adaf6cf87def2abee8dfc10855fe4e297be934bc2fd54526a2606f2aa71c8a86216f1adfc02cdf051b94996d3991c0159fc88aa2fab2c4bee7a4465b724c2d4fe06a67890e2f8533adef92d47331d333aec6e952600fec068276041f7764802a07e7fff889d2f72820cf2861690a92ed0125d4be27644e0ecb48ca731742cf2b264ea8b21fe388e525514df5e1e17bc799d58105a432693990cd7614c548bb8e0d6310089e6c21ab109bfda65c2ae0a7c27337bd34b0636974771b3a274fc9080b2553ff452f86e260
+  signature-algorithm: SHA256-RSA
+  public-key-algorithm: RSA
+  public-key: 30820122300d06092a864886f70d01010105000382010f003082010a0282010100ba9564c7cfa702acec00d2b034f7826257f6ab45a017891250c34976998c7a5aebee187b10e9c0534853010c7d04a4c46c4c5e0b31fa380ac53468dec235955f068ea428caf0532f2bafe51951299a81cd17d5ee890566690e1b243eab0bbdd88e980d20f78be4fca814b119bfe5f671104fa5371245c7fceed93c1cbeefd1eca4d4906191e28aebc498756c1994769ad63ab09a58965af54c907547de5c7454e810c16b4e82cd0ad73a5c674b07e4c1a961140e8a27484598f73e429e4cf41ed83e95410b6fdb20ecf5d59f0b12493fd42259c94bdab17fc6a94548d1087cd66966193a2350c7429036bb225fcd11fada915ab09b810958794ebd040e856b790203010001
+  subject:
+    common-name: Kernel Test CA
+    organization:
+      - MongoDB
+    organizational-unit:
+      - Kernel
+    country:
+      - US
+    locality:
+      - New York City
+    province:
+      - New York
+  issuer:
+    common-name: Kernel Test CA
+    organization:
+      - MongoDB
+    organizational-unit:
+      - Kernel
+    country:
+      - US
+    locality:
+      - New York City
+    province:
+      - New York
+  serial-number: 428942098
+  extensions: []
+  extra-extensions: []
+  not-before: Wednesday, 25-Sep-19 23:27:39 UTC
+  not-after: Tuesday, 27-Sep-39 23:27:39 UTC
+  basic-constraints-valid: false
+  is-ca: false
+  max-path-len: 0
+  max-path-len-zero: false
+  email-addresses: []
+  crldistributionpoints: []

@@ -1,13 +1,27 @@
 package templates
 
-import "pempal/resources"
+import "pempal/pemtypes"
 
 type Template interface {
-	Type() resources.ResourceType
 }
 
-type EmptyTemplate map[string]interface{}
+type BlankTemplate map[string]interface{}
 
-func (e EmptyTemplate) Type() resources.ResourceType {
-	return resources.Unknown
+func NewTemplate(pt pemtypes.PEMType) Template {
+	switch pt {
+	case pemtypes.Certificate:
+		return &CertificateTemplate{}
+	case pemtypes.Request:
+		return &CSRTemplate{}
+	case pemtypes.PrivateKey:
+		return &KeyTemplate{}
+	case pemtypes.PrivateKeyEncrypted:
+		return &KeyTemplate{}
+	case pemtypes.RevocationList:
+		return &CRLTemplate{}
+	case pemtypes.Name:
+		return &NameTemplate{}
+	default:
+		return BlankTemplate{}
+	}
 }

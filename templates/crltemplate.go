@@ -2,7 +2,6 @@ package templates
 
 import (
 	"crypto/x509/pkix"
-	"pempal/resources"
 )
 
 type CRLTemplate struct {
@@ -34,8 +33,4 @@ type CRLTemplate struct {
 	// ExtraExtensions contains any additional extensions to add directly to
 	// the CRL.
 	ExtraExtensions []pkix.Extension
-}
-
-func (C CRLTemplate) Type() resources.ResourceType {
-	return resources.Request
 }

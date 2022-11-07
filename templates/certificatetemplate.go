@@ -1,7 +1,5 @@
 package templates
 
-import "pempal/resources"
-
 type CertificateTemplate struct {
 	Version               int           `yaml:"version"`
 	Signature             string        `yaml:"signature,omitempty"`
@@ -44,8 +42,4 @@ type CertificateTemplate struct {
 	// CRL Distribution Points
 	CRLDistributionPoints []string
 	//PolicyIdentifiers []asn1.ObjectIdentifier
-}
-
-func (c CertificateTemplate) Type() resources.ResourceType {
-	return resources.Certificate
 }

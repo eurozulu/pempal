@@ -1,17 +1,15 @@
 package templates
 
-import "pempal/resources"
-
 type NameTemplate struct {
-	SerialNumber       string   `yaml:"serial-number"`
-	CommonName         string   `yaml:"common-name"`
-	Organization       []string `yaml:"organization"`
-	OrganizationalUnit []string `yaml:"organizational-unit"`
-	Country            []string `yaml:"country"`
-	Locality           []string `yaml:"locality"`
-	Province           []string `yaml:"province"`
-	StreetAddress      []string `yaml:"street-address"`
-	PostalCode         []string `yaml:"postal-code"`
+	SerialNumber       string   `yaml:"serial-number,omitempty"`
+	CommonName         string   `yaml:"common-name,omitempty"`
+	Organization       []string `yaml:"organization,omitempty"`
+	OrganizationalUnit []string `yaml:"organizational-unit,omitempty"`
+	Country            []string `yaml:"country,omitempty"`
+	Locality           []string `yaml:"locality,omitempty"`
+	Province           []string `yaml:"province,omitempty"`
+	StreetAddress      []string `yaml:"street-address,omitempty"`
+	PostalCode         []string `yaml:"postal-code,omitempty"`
 }
 
 func (nt NameTemplate) IsEmpty() bool {
@@ -24,8 +22,4 @@ func (nt NameTemplate) IsEmpty() bool {
 		len(nt.Province) == 0 &&
 		len(nt.StreetAddress) == 0 &&
 		len(nt.PostalCode) == 0
-}
-
-func (nt NameTemplate) Type() resources.ResourceType {
-	return resources.Name
 }
