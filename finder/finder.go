@@ -15,6 +15,7 @@ type Location interface {
 
 type Finder interface {
 	Find(ctx context.Context, path ...string) <-chan Location
+	FindAll(ctx context.Context, path ...string) []Location
 }
 
 type finder struct {
@@ -22,6 +23,14 @@ type finder struct {
 	scanner       FileScanner
 	parser        LocationParser
 	filter        LocationFilter
+}
+
+func (rs finder) FindAll(ctx context.Context, path ...string) []Location {
+	var locs []Location
+	for l := range rs.Find(ctx, path...) {
+		locs = append(locs, l)
+	}
+	return locs
 }
 
 func (rs finder) Find(ctx context.Context, path ...string) <-chan Location {

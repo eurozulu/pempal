@@ -2,6 +2,7 @@ package finder
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/pem"
 	"fmt"
 )
@@ -40,4 +41,21 @@ func (r pemLocation) MarshalBinary() (data []byte, err error) {
 		}
 	}
 	return buf.Bytes(), nil
+}
+
+func ReadLocationPems(l Location) ([]*pem.Block, error) {
+	data, err := l.(encoding.BinaryMarshaler).MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	var blocks []*pem.Block
+	var blk *pem.Block
+	for len(data) > 0 {
+		blk, data = pem.Decode(data)
+		if blk == nil {
+			break
+		}
+		blocks = append(blocks, blk)
+	}
+	return blocks, nil
 }

@@ -7,10 +7,10 @@ import (
 	"pempal/templates"
 )
 
-type nameEncoder struct {
+type NameEncoder struct {
 }
 
-func (ne nameEncoder) Encode(p *pem.Block) (templates.Template, error) {
+func (ne NameEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	var n pkix.Name
 	if _, err := asn1.Unmarshal(p.Bytes, &n); err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func (ne nameEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	return t, nil
 }
 
-func (ne nameEncoder) ApplyPem(name *pkix.Name, t *templates.NameTemplate) {
+func (ne NameEncoder) ApplyPem(name *pkix.Name, t *templates.NameTemplate) {
 	t.CommonName = name.CommonName
 	t.SerialNumber = name.SerialNumber
 	t.Organization = name.Organization

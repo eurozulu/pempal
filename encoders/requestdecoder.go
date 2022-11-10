@@ -8,10 +8,10 @@ import (
 	"pempal/templates"
 )
 
-type requestDecoder struct {
+type RequestDecoder struct {
 }
 
-func (r requestDecoder) Decode(t templates.Template) (*pem.Block, error) {
+func (r RequestDecoder) Decode(t templates.Template) (*pem.Block, error) {
 	ct, ok := t.(*templates.CSRTemplate)
 	if !ok {
 		return nil, fmt.Errorf("template is not a request template")
@@ -24,7 +24,7 @@ func (r requestDecoder) Decode(t templates.Template) (*pem.Block, error) {
 	}, nil
 }
 
-func (r requestDecoder) ApplyTemplate(t *templates.CSRTemplate, csr *x509.CertificateRequest) {
+func (r RequestDecoder) ApplyTemplate(t *templates.CSRTemplate, csr *x509.CertificateRequest) {
 	if t.Version != 0 {
 		csr.Version = t.Version
 	}
@@ -35,7 +35,7 @@ func (r requestDecoder) ApplyTemplate(t *templates.CSRTemplate, csr *x509.Certif
 		csr.PublicKeyAlgorithm = ParsePublicKeyAlgorithm(t.PublicKeyAlgorithm)
 	}
 	if t.Subject != nil {
-		nameDecoder{}.ApplyTemplate(t.Subject, &csr.Subject)
+		NameDecoder{}.ApplyTemplate(t.Subject, &csr.Subject)
 	}
 
 	//TODO:

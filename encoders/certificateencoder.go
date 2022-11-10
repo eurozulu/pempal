@@ -9,10 +9,10 @@ import (
 	"pempal/templates"
 )
 
-type certificateEncoder struct {
+type CertificateEncoder struct {
 }
 
-func (ce certificateEncoder) Encode(p *pem.Block) (templates.Template, error) {
+func (ce CertificateEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	pt := pemtypes.ParsePEMType(p.Type)
 	if pt != pemtypes.Certificate {
 		return nil, fmt.Errorf("%s cannot be encoded into a certificate", p.Type)
@@ -26,7 +26,7 @@ func (ce certificateEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	return &t, nil
 }
 
-func (ce certificateEncoder) ApplyPem(cert *x509.Certificate, t *templates.CertificateTemplate) {
+func (ce CertificateEncoder) ApplyPem(cert *x509.Certificate, t *templates.CertificateTemplate) {
 	t.Signature = hex.EncodeToString(cert.Signature)
 	t.SignatureAlgorithm = cert.SignatureAlgorithm.String()
 
@@ -40,7 +40,7 @@ func (ce certificateEncoder) ApplyPem(cert *x509.Certificate, t *templates.Certi
 	t.Version = cert.Version
 	t.SerialNumber = cert.SerialNumber.Int64()
 
-	nc := nameEncoder{}
+	nc := NameEncoder{}
 	t.Issuer = &templates.NameTemplate{}
 	nc.ApplyPem(&cert.Issuer, t.Issuer)
 	t.Subject = &templates.NameTemplate{}

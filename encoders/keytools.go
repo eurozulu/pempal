@@ -40,3 +40,25 @@ func PublicKeyAlgorithmFromKey(puk crypto.PublicKey) x509.PublicKeyAlgorithm {
 		return x509.UnknownPublicKeyAlgorithm
 	}
 }
+
+func ParsePrivateKey(der []byte) (crypto.PrivateKey, error) {
+	prk, err := x509.ParsePKCS8PrivateKey(der)
+	if err != nil {
+		prk, err = x509.ParsePKCS1PrivateKey(der)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return prk, nil
+}
+
+func ParsePublicKey(der []byte) (crypto.PublicKey, error) {
+	prk, err := x509.ParsePKIXPublicKey(der)
+	if err != nil {
+		prk, err = x509.ParsePKCS1PublicKey(der)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return prk, nil
+}

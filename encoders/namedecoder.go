@@ -9,10 +9,10 @@ import (
 	"pempal/templates"
 )
 
-type nameDecoder struct {
+type NameDecoder struct {
 }
 
-func (nd nameDecoder) Decode(t templates.Template) (*pem.Block, error) {
+func (nd NameDecoder) Decode(t templates.Template) (*pem.Block, error) {
 	nt, ok := t.(*templates.NameTemplate)
 	if !ok {
 		return nil, fmt.Errorf("template is not for a Name")
@@ -29,7 +29,7 @@ func (nd nameDecoder) Decode(t templates.Template) (*pem.Block, error) {
 	}, nil
 }
 
-func (nd nameDecoder) ApplyTemplate(t *templates.NameTemplate, name *pkix.Name) {
+func (nd NameDecoder) ApplyTemplate(t *templates.NameTemplate, name *pkix.Name) {
 	if t.CommonName != "" {
 		name.CommonName = t.CommonName
 	}

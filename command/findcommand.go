@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"pempal/finder"
+	"pempal/indexer"
 	"pempal/pemtypes"
 	"strings"
 )
@@ -17,14 +18,25 @@ type findCommand struct {
 
 	Query    string `flag:"query,q"`
 	PemTypes string `flag:"type,t"`
+
+	indexr indexer.Indexer
 }
 
 type outputFunc func(l finder.Location) ([]byte, error)
 
 func (fc findCommand) Run(ctx context.Context, args Arguments, out io.Writer) error {
-	locs := args.Parameters()
-	if len(locs) == 0 {
+	prms := args.Parameters()
+	if len(prms) == 0 {
 		return fmt.Errorf("no location to search given")
+	}
+	locs, plusNames := splitPlusParams(prms)
+
+	if len(plusNames) > 0 {
+		pts, err := parsePemTypes(strings.Join(plusNames, ","))
+		if err != nil {
+			return fmt.Errorf("Resource indexing failed  +%v", err)
+		}
+		fc.startIndex(pts)
 	}
 
 	pts, err := parsePemTypes(fc.PemTypes)
@@ -75,6 +87,21 @@ func (fc findCommand) writeAsText(l finder.Location) ([]byte, error) {
 	} else {
 		return tr.MarshalText()
 	}
+}
+
+func (fc findCommand) startIndex(types []pemtypes.PEMType) error {
+
+}
+
+func splitPlusParams(prms []string) (nonplus, plus []string) {
+	for _, p := range prms {
+		if strings.HasPrefix(p, "+") {
+			plus = append(plus, strings.TrimLeft(p, "+"))
+			continue
+		}
+		nonplus = append(nonplus, p)
+	}
+	return nonplus, plus
 }
 
 func parsePemTypes(types string) ([]pemtypes.PEMType, error) {

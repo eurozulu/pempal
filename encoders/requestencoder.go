@@ -8,10 +8,10 @@ import (
 	"pempal/templates"
 )
 
-type requestEncoder struct {
+type RequestEncoder struct {
 }
 
-func (r requestEncoder) Encode(p *pem.Block) (templates.Template, error) {
+func (r RequestEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	pt := pemtypes.ParsePEMType(p.Type)
 	if pt != pemtypes.Request {
 		return nil, fmt.Errorf("%s cannot be encoded into a request", p.Type)
@@ -25,13 +25,13 @@ func (r requestEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	return &t, nil
 }
 
-func (r requestEncoder) ApplyPem(csr *x509.CertificateRequest, t *templates.CSRTemplate) {
+func (r RequestEncoder) ApplyPem(csr *x509.CertificateRequest, t *templates.CSRTemplate) {
 	t.Version = csr.Version
 	t.SignatureAlgorithm = csr.SignatureAlgorithm.String()
 	t.PublicKeyAlgorithm = csr.PublicKeyAlgorithm.String()
 
 	t.Subject = &templates.NameTemplate{}
-	nameEncoder{}.ApplyPem(&csr.Subject, t.Subject)
+	NameEncoder{}.ApplyPem(&csr.Subject, t.Subject)
 
 	if len(csr.DNSNames) > 0 {
 		t.DNSNames = csr.DNSNames

@@ -7,17 +7,17 @@ import (
 	"pempal/templates"
 )
 
-type privateKeyEncoder struct {
+type PrivateKeyEncoder struct {
 }
 
-func (pke privateKeyEncoder) Encode(p *pem.Block) (templates.Template, error) {
+func (pke PrivateKeyEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	if x509.IsEncryptedPEMBlock(p) {
 		t := &templates.KeyTemplate{}
 		t.IsEncrypted = true
 		return t, nil
 	}
 
-	prk, err := x509.ParsePKCS8PrivateKey(p.Bytes)
+	prk, err := ParsePrivateKey(p.Bytes)
 	if err != nil {
 		prk, err = x509.ParsePKCS1PrivateKey(p.Bytes)
 		if err != nil {
@@ -28,8 +28,9 @@ func (pke privateKeyEncoder) Encode(p *pem.Block) (templates.Template, error) {
 	pke.ApplyPem(prk, t)
 	return t, nil
 }
-func (pke privateKeyEncoder) ApplyPem(prk crypto.PrivateKey, t *templates.KeyTemplate) {
+
+func (pke PrivateKeyEncoder) ApplyPem(prk crypto.PrivateKey, t *templates.KeyTemplate) {
 	puk := PublicKeyFromPrivate(prk)
 	t.PublicKey = &templates.PublicKeyTemplate{}
-	publicKeyEncoder{}.ApplyPem(puk, t.PublicKey)
+	PublicKeyEncoder{}.ApplyPem(puk, t.PublicKey)
 }
