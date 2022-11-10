@@ -1,12 +1,13 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"encoding"
 	"fmt"
 	"io"
+	"log"
 	"pempal/finder"
-	"pempal/indexer"
 	"pempal/pemtypes"
 	"strings"
 )
@@ -19,22 +20,30 @@ type findCommand struct {
 	Query    string `flag:"query,q"`
 	PemTypes string `flag:"type,t"`
 
-	indexr indexer.Indexer
+	//indexr indexer.Indexer
 }
 
-type outputFunc func(l finder.Location) ([]byte, error)
+type outputFunc func(l finder.PemLocation) ([]byte, error)
 
 func (fc findCommand) Run(ctx context.Context, args Arguments, out io.Writer) error {
 	prms := args.Parameters()
+	// Add any ENV paths, filtered by types being sought
+	if finder.PPPath != "" {
+		pathParms, err := finder.CleanPPPath()
+		if err != nil {
+			log.Printf("Warning.  %s contains an invalid entry: %v", finder.ENV_PATH, err)
+		}
+		prms = append(prms, pathParms...)
+	}
+
 	if len(prms) == 0 {
-		return fmt.Errorf("no location to search given")
+		return fmt.Errorf("no location to search given or no $%s set", finder.ENV_PATH)
 	}
 	locs, plusNames := splitPlusParams(prms)
-
 	if len(plusNames) > 0 {
 		pts, err := parsePemTypes(strings.Join(plusNames, ","))
 		if err != nil {
-			return fmt.Errorf("Resource indexing failed  +%v", err)
+			return fmt.Errorf("Resource indexing failed, +%v", err)
 		}
 		fc.startIndex(pts)
 	}
@@ -44,17 +53,26 @@ func (fc findCommand) Run(ctx context.Context, args Arguments, out io.Writer) er
 		return err
 	}
 
-	write, err := fc.outputFormat()
+	outputWrite, err := fc.outputFormat()
 	if err != nil {
 		return err
 	}
-	res := finder.NewTransformerFinder(&fc.Query, fc.RecursiveSearch, fc.VerboseOutput, pts...)
 
-	for l := range res.Find(ctx, locs...) {
-		data, err := write(l)
+	finder := finder.NewFinder(nil, fc.RecursiveSearch, fc.VerboseOutput, pts...)
+	foundCh, err := finder.Find(ctx, locs...)
+
+	if err != nil {
+		return fmt.Errorf("invalid parameter  %v", err)
+	}
+
+	for pl := range foundCh {
+		// format the location into output
+		data, err := outputWrite(pl)
 		if err != nil {
 			return err
 		}
+
+		// write formatted output to final output
 		_, err = out.Write(data)
 		if err != nil {
 			return err
@@ -74,23 +92,30 @@ func (fc findCommand) outputFormat() (outputFunc, error) {
 	return nil, fmt.Errorf("%s is not a know output format. use 'pem' or 'text'", of)
 }
 
-func (fc findCommand) writeAsPem(l finder.Location) ([]byte, error) {
-	if br, ok := l.(encoding.BinaryMarshaler); !ok {
-		return nil, fmt.Errorf("%s is not a binary resource", l.Path())
+func (fc findCommand) writeAsPem(pl finder.PemLocation) ([]byte, error) {
+	if br, ok := pl.(encoding.BinaryMarshaler); !ok {
+		return nil, fmt.Errorf("%s is not a binary resource", pl.Location())
 	} else {
 		return br.MarshalBinary()
 	}
 }
-func (fc findCommand) writeAsText(l finder.Location) ([]byte, error) {
-	if tr, ok := l.(encoding.TextMarshaler); !ok {
-		return nil, fmt.Errorf("%s is not a text resource", l.Path())
-	} else {
-		return tr.MarshalText()
+func (fc findCommand) writeAsText(pl finder.PemLocation) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	buf.WriteString(pl.Location())
+	buf.WriteRune('\n')
+	for _, r := range pl.Resources() {
+		buf.WriteRune('\t')
+		buf.WriteString(r.String())
+		buf.WriteRune('\n')
 	}
+	return buf.Bytes(), nil
 }
 
 func (fc findCommand) startIndex(types []pemtypes.PEMType) error {
-
+	log.Println("Index not yet functioning")
+	log.Printf("types: %v", types)
+	log.Printf(" will NOT be indexed")
+	return nil
 }
 
 func splitPlusParams(prms []string) (nonplus, plus []string) {

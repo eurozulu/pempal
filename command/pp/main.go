@@ -71,7 +71,7 @@ func main() {
 }
 
 func writeError(err error) {
-	_, e := fmt.Fprintf(os.Stderr, "%v", err)
+	_, e := fmt.Fprintf(os.Stderr, "%v\n", err)
 	if e != nil {
 		log.Println(err)
 	}

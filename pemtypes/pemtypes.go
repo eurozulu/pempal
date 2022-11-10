@@ -13,6 +13,7 @@ ATTRIBUTE CERTIFICATE [RFC5755]
 */
 
 import (
+	"encoding/pem"
 	"log"
 	"regexp"
 	"strings"
@@ -33,6 +34,9 @@ const (
 
 var PemTypeNames = [...]string{"", "PRIVATE KEY", "ENCRYPTED PRIVATE KEY", "CERTIFICATE REQUEST", "CERTIFICATE", "X509 CRL", "PUBLIC KEY", "DISTINGUISHED NAME"}
 
+var AllPemTypes = [...]PEMType{PrivateKey, PrivateKeyEncrypted, Request, Certificate, RevocationList, PublicKey, Name}
+var AllKeyPemTypes = [...]PEMType{PrivateKey, PrivateKeyEncrypted, PublicKey}
+
 func (r PEMType) String() string {
 	return PemTypeNames[r]
 }
@@ -51,6 +55,7 @@ var resourceTypePatterns = map[string]PEMType{
 	".*CRL.*":                  RevocationList,
 }
 
+// ParsePEMType attemps to parse the given string into a known Pem type
 func ParsePEMType(s string) PEMType {
 	su := strings.ToUpper(s)
 	// look for direct match first
@@ -78,4 +83,35 @@ func strIndex(s string, ss []string) int {
 		}
 	}
 	return -1
+}
+
+func isInType(pt PEMType, pts []PEMType) bool {
+	for _, p := range pts {
+		if pt == p {
+			return true
+		}
+	}
+	return false
+}
+
+// ReadPEMBlocks reads all the PEM encoded blocks from the given data
+// If any optional pemtypes are given, only blocks of that/those types are returned.
+// If no type is given ALL blocks are returned
+func ReadPEMBlocks(data []byte, pemType ...PEMType) []*pem.Block {
+	var blocks []*pem.Block
+	isFiltered := len(pemType) > 0
+
+	for len(data) > 0 {
+		blk, rest := pem.Decode(data)
+		if blk == nil {
+			break
+		}
+		data = rest
+
+		if isFiltered && !isInType(ParsePEMType(blk.Type), pemType) {
+			continue
+		}
+		blocks = append(blocks, blk)
+	}
+	return blocks
 }

@@ -9,11 +9,11 @@ import (
 )
 
 var commandsMap = map[string]Command{
-	"find":      &findCommand{},
-	"f":         &findCommand{},
-	"template":  &templateCommand{},
-	"t":         &templateCommand{},
-	"templates": &templatesCommand{},
+	"find": &findCommand{},
+	"f":    &findCommand{},
+	//"template":  &templateCommand{},
+	//"t":         &templateCommand{},
+	//"templates": &templatesCommand{},
 }
 
 // Command represents a single operation

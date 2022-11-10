@@ -2,104 +2,155 @@ package finder
 
 import (
 	"context"
-	"encoding"
-	"log"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"pempal/pemtypes"
+	"strings"
 	"sync"
 )
 
-type Location interface {
-	encoding.TextMarshaler
-	Path() string
+const ENV_PATH = "PP_PATH"
+
+var PPPath = os.ExpandEnv(os.Getenv(ENV_PATH))
+
+type FileFilter interface {
+	Accept(path string, d fs.DirEntry) bool
 }
 
 type Finder interface {
-	Find(ctx context.Context, path ...string) <-chan Location
-	FindAll(ctx context.Context, path ...string) []Location
+	Find(ctx context.Context, path ...string) (<-chan PemLocation, error)
 }
 
 type finder struct {
-	verboseOutput bool
-	scanner       FileScanner
-	parser        LocationParser
-	filter        LocationFilter
+	parser    PemParser
+	recursive bool
+	filter    FileFilter
+
+	scanHidden   bool
+	reportErrors bool
 }
 
-func (rs finder) FindAll(ctx context.Context, path ...string) []Location {
-	var locs []Location
-	for l := range rs.Find(ctx, path...) {
-		locs = append(locs, l)
+func (f finder) Find(ctx context.Context, path ...string) (<-chan PemLocation, error) {
+	cp, err := cleanPath(path)
+	if err != nil {
+		return nil, err
 	}
-	return locs
-}
-
-func (rs finder) Find(ctx context.Context, path ...string) <-chan Location {
-	ch := make(chan Location)
-	go func(ch chan<- Location) {
+	ch := make(chan PemLocation)
+	go func() {
+		defer close(ch)
 		var wg sync.WaitGroup
-		wg.Add(len(path))
-		go func(wg *sync.WaitGroup) {
-			defer close(ch)
-			wg.Wait()
-		}(&wg)
-
-		for _, p := range path {
-			go rs.find(ctx, p, ch, &wg)
+		wg.Add(len(cp))
+		for _, p := range cp {
+			go f.searchPath(ctx, p, &wg, ch)
 		}
-
-	}(ch)
-	return ch
+		wg.Wait()
+	}()
+	return ch, nil
 }
 
-func (rs finder) find(ctx context.Context, path string, out chan<- Location, wg *sync.WaitGroup) {
+func (fd finder) searchPath(ctx context.Context, path string, wg *sync.WaitGroup, ch chan<- PemLocation) {
 	defer wg.Done()
-	hasFilter := rs.filter != nil
-	for l := range rs.scanner.Scan(ctx, rs.filter, path) {
-		fl := l.(*fileLocation)
-		if fl.err != nil {
-			if rs.verboseOutput {
-				log.Println(fl.err)
-			}
-			continue
+	hasFilter := fd.filter != nil
+
+	err := filepath.WalkDir(path, func(entryPath string, d fs.DirEntry, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		rl, err := rs.parser.Parse(fl.Path(), fl.data)
+		if d == nil {
+			// invalid file
+			return fmt.Errorf("invalid entry in path! %s", entryPath)
+		}
+		// avoid 'hidden' (filenames preceeded with a dot)
+		if !fd.scanHidden && entryPath != path && strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		if d.IsDir() {
+			// if not 'root path' skip it
+			if !fd.recursive && entryPath != path {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		// skip loading files which don't comply
+		if hasFilter && !fd.filter.Accept(entryPath, d) {
+			return nil
+		}
+
+		data, err := os.ReadFile(entryPath)
 		if err != nil {
-			if rs.verboseOutput {
-				log.Println(err)
+			if fd.reportErrors {
+				fmt.Fprintln(os.Stderr, "failed to read %s  %v", entryPath, err)
 			}
-			continue
+			return nil
 		}
-		if hasFilter {
-			rl = rs.filter.FilterLocation(rl)
-			if rl == nil {
-				continue
+
+		res, err := fd.parser.Parse(data)
+		if err != nil {
+			if fd.reportErrors {
+				fmt.Fprintln(os.Stderr, "failed to read %s  %v", entryPath, err)
 			}
+			return nil
 		}
+		if len(res) == 0 {
+			return nil
+		}
+		// Finally has something to shout about!
+		// post the entry path with the resources found
 		select {
 		case <-ctx.Done():
-			return
-		case out <- rl:
+			return nil
+		case ch <- &pemLocation{
+			location:  entryPath,
+			resources: res,
+		}:
 		}
+		return nil
+	})
+	if fd.reportErrors && err != nil {
+		fmt.Fprintln(os.Stderr, "%v", err)
 	}
 }
 
-func newResources(p LocationParser, recursive, verbose bool) Finder {
+func CleanPPPath() ([]string, error) {
+	return cleanPath(strings.Split(PPPath, ":"))
+}
+
+func cleanPath(path []string) ([]string, error) {
+	var paths []string
+	for _, s := range path {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		// Ensure it exists
+		fi, err := os.Stat(s)
+		if err != nil {
+			return nil, fmt.Errorf("invalid path %s  %v", s, err)
+		}
+		// Check if trailing slash missing from dir
+		if fi.IsDir() && !strings.HasSuffix(s, "/") {
+			s = strings.Join([]string{s, "/"}, "")
+		}
+		paths = append(paths, s)
+	}
+	if len(path) == 0 {
+		return nil, fmt.Errorf("no search path found")
+	}
+	return paths, nil
+}
+
+func NewFinder(filter FileFilter, recursive, reportErrors bool, pemtype ...pemtypes.PEMType) Finder {
 	return &finder{
-		scanner:       &fileScanner{recursive: recursive},
-		parser:        p,
-		filter:        p.(LocationFilter),
-		verboseOutput: verbose,
+		parser:       &pemParser{types: pemtype},
+		recursive:    recursive,
+		reportErrors: reportErrors,
+		filter:       filter,
 	}
-}
-
-func NewPemFinderResources(recursive, verbose bool, types ...pemtypes.PEMType) Finder {
-	return newResources(newPemParser(types...), recursive, verbose)
-}
-
-func NewTransformerFinder(query PemQuery, recursive, verbose bool, types ...pemtypes.PEMType) Finder {
-	return newResources(newPemTransformerParser(query, types...), recursive, verbose)
-}
-
-func NewTemplateFinder(recursive, verbose bool) Finder {
-	return newResources(newTemplateParser(), recursive, verbose)
 }

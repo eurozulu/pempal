@@ -1,12 +1,14 @@
-package encoders
+package misc
 
 import (
 	"crypto"
 	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
+	"strconv"
 )
 
 func PublicKeyFromPrivate(prk crypto.PrivateKey) crypto.PublicKey {
@@ -61,4 +63,43 @@ func ParsePublicKey(der []byte) (crypto.PublicKey, error) {
 		}
 	}
 	return prk, nil
+}
+
+func SizeFromKey(prk crypto.PublicKey) string {
+	if prk == nil {
+		return ""
+	}
+	switch v := prk.(type) {
+	case rsa.PublicKey:
+		return strconv.Itoa(v.Size())
+	case *rsa.PublicKey:
+		return strconv.Itoa(v.Size())
+	case rsa.PrivateKey:
+		return strconv.Itoa(v.Size())
+	case *rsa.PrivateKey:
+		return strconv.Itoa(v.Size())
+	case *ecdsa.PublicKey:
+		return marshalCurve(v.Curve)
+	case *ecdsa.PrivateKey:
+		return marshalCurve(v.Curve)
+	case *ed25519.PrivateKey, *dsa.PrivateKey:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func marshalCurve(c elliptic.Curve) string {
+	switch c {
+	case elliptic.P224():
+		return "p224"
+	case elliptic.P256():
+		return "p256"
+	case elliptic.P384():
+		return "p384"
+	case elliptic.P521():
+		return "p521"
+	default:
+		return ""
+	}
 }
