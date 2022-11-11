@@ -88,7 +88,7 @@ func (pt publicKeyType) applyToTemplate(t *templates.PublicKeyTemplate) error {
 		return err
 	}
 	t.KeyType = misc.PublicKeyAlgorithmFromKey(pt.puk).String()
-	t.Size = misc.SizeFromKey(pt.puk)
+	//t.Size = misc.SizeFromKey(pt.puk)
 	t.PublicKey = string(der)
 	return nil
 }

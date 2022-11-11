@@ -22,7 +22,7 @@ func main() {
 
 	// First parse any global flags from the command line args
 	var gFlags globalFlags
-	args, err := command.ApplyArguments(gFlags, os.Args[1:])
+	args, err := command.ApplyArguments(&gFlags, os.Args[1:])
 	if err != nil {
 		writeError(err)
 		return

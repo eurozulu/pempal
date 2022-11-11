@@ -19,7 +19,11 @@ type FileFilter interface {
 	Accept(path string, d fs.DirEntry) bool
 }
 
+// Finder scans one or more filepaths to locate the Pemresources within it.
 type Finder interface {
+	// Find the resources in the given path(s).
+	// path may be a file or directory.  directories have all the qualifying files scanned.
+	// Optionaly path may be "-" to indicate to read reqources from the standard input.
 	Find(ctx context.Context, path ...string) (<-chan PemLocation, error)
 }
 
@@ -90,7 +94,10 @@ func (fd finder) searchPath(ctx context.Context, path string, wg *sync.WaitGroup
 			}
 			return nil
 		}
-
+		if len(data) == 0 {
+			// empty file
+			return nil
+		}
 		res, err := fd.parser.Parse(data)
 		if err != nil {
 			if fd.reportErrors {

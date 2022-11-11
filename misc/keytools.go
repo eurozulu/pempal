@@ -17,13 +17,13 @@ func PublicKeyFromPrivate(prk crypto.PrivateKey) crypto.PublicKey {
 	}
 	switch v := prk.(type) {
 	case *rsa.PrivateKey:
-		return v.PublicKey
+		return &v.PublicKey
 	case *ecdsa.PrivateKey:
-		return v.PublicKey
+		return &v.PublicKey
 	case *ed25519.PrivateKey:
 		return v.Public()
 	case *dsa.PrivateKey:
-		return v.PublicKey
+		return &v.PublicKey
 	default:
 		return nil
 	}

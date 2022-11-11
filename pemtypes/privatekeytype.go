@@ -39,12 +39,15 @@ func (pt privateKeyType) MarshalBinary() (data []byte, err error) {
 	return x509.MarshalPKCS8PrivateKey(pt.prk)
 }
 
-func (pt privateKeyType) UnmarshalBinary(data []byte) error {
+func (pt *privateKeyType) UnmarshalBinary(data []byte) error {
 	k, err := x509.ParsePKCS8PrivateKey(data)
 	if err != nil {
 		k, err = x509.ParsePKCS1PrivateKey(data)
 		if err != nil {
-			return err
+			k, err = x509.ParseECPrivateKey(data)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	pt.prk = k
@@ -89,7 +92,7 @@ func (pt privateKeyType) MarshalText() (text []byte, err error) {
 	return buf.Bytes(), nil
 }
 
-func (pt privateKeyType) UnmarshalText(text []byte) error {
+func (pt *privateKeyType) UnmarshalText(text []byte) error {
 	privateKeyBlocks := ReadPEMBlocks(text, PrivateKey, PrivateKeyEncrypted)
 	if len(privateKeyBlocks) == 0 {
 		return fmt.Errorf("no private key pems found")
@@ -97,27 +100,22 @@ func (pt privateKeyType) UnmarshalText(text []byte) error {
 	ty := ParsePEMType(privateKeyBlocks[0].Type)
 	if ty == PrivateKeyEncrypted || x509.IsEncryptedPEMBlock(privateKeyBlocks[0]) {
 		pt.encrypted = privateKeyBlocks[0]
-		// If encrypted, look for a public key in the same data
-		pkt := &publicKeyType{}
-		if err := pkt.UnmarshalBinary(text); err == nil {
-			pt.puk = pkt.puk
-		}
 		return nil
 	}
 	return pt.UnmarshalBinary(privateKeyBlocks[0].Bytes)
 }
 
 func (pt privateKeyType) MarshalYAML() (interface{}, error) {
-	t := templates.KeyTemplate{}
+	t := templates.PrivateKeyTemplate{}
 	if pt.puk != nil {
 		t.PublicKey = pt.publicKeyTemplate()
 	}
 	t.IsEncrypted = pt.encrypted != nil
-	return yaml.Marshal(&t)
+	return &t, nil
 }
 
 func (pt privateKeyType) UnmarshalYAML(value *yaml.Node) error {
-	t := templates.KeyTemplate{}
+	t := templates.PrivateKeyTemplate{}
 	if err := value.Decode(&t); err != nil {
 		return err
 	}

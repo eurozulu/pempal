@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// commandsMap is the available commands, mapped to the string command(s)
 var commandsMap = map[string]Command{
 	"find": &findCommand{},
 	"f":    &findCommand{},

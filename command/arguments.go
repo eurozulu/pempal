@@ -4,6 +4,7 @@ import (
 	"strings"
 )
 
+// Arguments represents the command line arguments
 type Arguments interface {
 	Parameters() []string
 	ContainsFlag(name string) bool

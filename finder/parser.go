@@ -8,6 +8,9 @@ import (
 	"pempal/pemtypes"
 )
 
+// PemParser parses a given block of bytes as one or more x509 resources
+// Parser may be limited by PemType as to which resources it will parse.
+// By default it will parse all known pem types, providing one ore more types will lijmit it to parsing resources of those types
 type PemParser interface {
 	Parse(data []byte) ([]pemtypes.PemResource, error)
 }
@@ -61,6 +64,8 @@ func (pp pemParser) parseResource(data []byte) (pemtypes.PemResource, error) {
 		pr := pemtypes.NewPemResource(pt)
 		if err := pr.UnmarshalBinary(data); err == nil {
 			return pr, nil
+		} else if pp.reportErrors {
+			fmt.Fprintln(os.Stderr, "%v", err)
 		}
 	}
 	return nil, fmt.Errorf("unknown format")

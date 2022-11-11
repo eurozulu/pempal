@@ -4,7 +4,7 @@ import (
 	"pempal/pemtypes"
 )
 
-// PemLocation represents a single data source (such as a file) and all the PemResources found in it.
+// PemLocation represents a single data source (such as a file) and any PemResources found in it.
 type PemLocation interface {
 	Location() string
 	Resources() []pemtypes.PemResource
