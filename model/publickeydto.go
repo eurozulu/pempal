@@ -14,6 +14,7 @@ type PublicKeyDTO struct {
 	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
 	PublicKey          string `yaml:"public-key,omitempty"`
 	Identity           string `yaml:"identity"`
+	ResourceType       string `yaml:"resource-type"`
 }
 
 func (p PublicKeyDTO) String() string {
@@ -58,6 +59,7 @@ func (pkr *PublicKeyDTO) UnmarshalBinary(data []byte) error {
 	}
 	pkr.PublicKeyAlgorithm = utils.PublicKeyAlgorithmFromKey(puk).String()
 	pkr.Identity = pkr.String()
+	pkr.ResourceType = PublicKey.String()
 	return nil
 }
 
