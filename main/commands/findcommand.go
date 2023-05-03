@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"pempal/logger"
 	"pempal/model"
 	"pempal/resourceio"
 	"strings"
@@ -16,6 +17,7 @@ type FindCommand struct {
 	Query        string `flag:"query, q"`
 	Format       string `flag:"format,f"`
 	Recursive    bool   `flag:"r,recursive"`
+	ShowTitles   bool   `flag:"show-titles,titles"`
 }
 
 func (fc FindCommand) Execute(args []string, out io.Writer) error {
@@ -45,6 +47,13 @@ func (fc FindCommand) Execute(args []string, out io.Writer) error {
 		return err
 	}
 	printOut := resourceio.NewResourcePrinter(out, format)
+	if fc.ShowTitles {
+		po, ok := printOut.(*resourceio.ResourceListPrinter)
+		if !ok {
+			logger.Log(logger.Warning, "titles can only be shown in list format")
+		}
+		po.ShowTitles = fc.ShowTitles
+	}
 
 	rs := resourceio.NewResourceScanner(fc.Recursive, filters...)
 	var count int

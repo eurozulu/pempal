@@ -11,15 +11,20 @@ import (
 
 const defaultFields = "resource-type,identity,subject.common-name"
 
-type resourceListPrinter struct {
-	Titles []string
-	Fields []string
-
-	out io.Writer
+type ResourceListPrinter struct {
+	Titles     []string
+	Fields     []string
+	ShowTitles bool
+	out        io.Writer
 }
 
-func (prn resourceListPrinter) Write(location ResourceLocation) error {
+func (prn *ResourceListPrinter) Write(location ResourceLocation) error {
 	buf := bytes.NewBuffer(nil)
+	if prn.ShowTitles {
+		prn.writeFields(prn.TitleNames(), prn.out)
+		fmt.Fprintf(prn.out, "\n")
+		prn.ShowTitles = false
+	}
 	for _, r := range location.Resources {
 		dto, err := model.DTOForResource(r)
 		if err != nil {
@@ -32,20 +37,31 @@ func (prn resourceListPrinter) Write(location ResourceLocation) error {
 		if err = prn.writeFields(values, buf); err != nil {
 			return err
 		}
+		fmt.Fprintf(buf, "\t%s\n", location.Path)
 	}
-	fmt.Fprintf(buf, "\t%s\n", location.Path)
-
 	_, err := prn.out.Write(buf.Bytes())
 	return err
 }
 
-func (prn resourceListPrinter) writeFields(values []string, out io.Writer) error {
-	for i, _ := range prn.Fields {
+func (prn ResourceListPrinter) TitleNames() []string {
+	names := make([]string, len(prn.Fields)+1)
+	for i, n := range prn.Fields {
+		if i < len(prn.Titles) && prn.Titles[i] != "" {
+			n = prn.Titles[i]
+		}
+		names[i] = n
+	}
+	names[len(names)-1] = "location"
+	return names
+}
+
+func (prn ResourceListPrinter) writeFields(values []string, out io.Writer) error {
+	for i, title := range prn.TitleNames() {
 		if i >= len(values) {
 			break
 		}
 		v := values[i]
-		w := prn.columnWidth(i)
+		w := len(title)
 		if len(v) > w {
 			// truncate value to fit
 			v = v[:w+1]
@@ -56,7 +72,7 @@ func (prn resourceListPrinter) writeFields(values []string, out io.Writer) error
 				strings.Repeat(" ", w-len(v))}, "")
 		}
 		if i > 0 {
-			if _, err := fmt.Fprint(out, " "); err != nil {
+			if _, err := fmt.Fprint(out, "\t"); err != nil {
 				return err
 			}
 		}
@@ -67,20 +83,7 @@ func (prn resourceListPrinter) writeFields(values []string, out io.Writer) error
 	return nil
 }
 
-func (prn resourceListPrinter) columnWidth(index int) int {
-	if index < 0 {
-		return 0
-	}
-	if index >= len(prn.Titles) {
-		if index < len(prn.Fields) {
-			return len(prn.Fields[index])
-		}
-		return 0
-	}
-	return len(prn.Titles)
-}
-
-func (prn resourceListPrinter) valuesFromDTO(dto model.DTO) ([]string, error) {
+func (prn ResourceListPrinter) valuesFromDTO(dto model.DTO) ([]string, error) {
 	m, err := dtoToMap(dto)
 	if err != nil {
 		return nil, err
@@ -95,7 +98,7 @@ func (prn resourceListPrinter) valuesFromDTO(dto model.DTO) ([]string, error) {
 	return flds, nil
 }
 
-func (prn resourceListPrinter) valueFromMap(key string, m map[string]interface{}) interface{} {
+func (prn ResourceListPrinter) valueFromMap(key string, m map[string]interface{}) interface{} {
 	var val interface{}
 	keys := strings.Split(key, ".")
 	for i, k := range keys {
@@ -149,11 +152,11 @@ func dtoToMap(dto model.DTO) (map[string]interface{}, error) {
 	return m, nil
 }
 
-func NewResourceListPrinter(out io.Writer, fields ...string) *resourceListPrinter {
+func NewResourceListPrinter(out io.Writer, fields ...string) *ResourceListPrinter {
 	if len(fields) == 0 {
 		fields = strings.Split(defaultFields, ",")
 	}
-	return &resourceListPrinter{
+	return &ResourceListPrinter{
 		Fields: fields,
 		out:    out,
 	}
