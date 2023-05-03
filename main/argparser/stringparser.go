@@ -1,0 +1,20 @@
+package argparser
+
+import (
+	"fmt"
+	"reflect"
+	"strings"
+)
+
+type stringParser struct {
+	args []string
+}
+
+func (sd stringParser) Apply(v interface{}) ([]string, error) {
+	stringValue := reflect.ValueOf(v)
+	if stringValue.Kind() != reflect.String {
+		return nil, fmt.Errorf("can not decode string into %s", stringValue.Kind().String())
+	}
+	stringValue.Set(reflect.ValueOf(strings.Join(sd.args, " ")))
+	return nil, nil
+}
