@@ -1,30 +1,22 @@
 package resourceio
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/go-yaml/yaml"
 	"io"
 	"pempal/model"
+	"pempal/utils"
 	"strings"
 )
 
 const defaultFields = "resource-type,identity,subject.common-name,not-after"
 
 type ResourceListPrinter struct {
-	Titles     []string
-	Fields     []string
-	ShowTitles bool
-	out        io.Writer
+	Fields []string
+	out    *utils.ColumnOutput
 }
 
 func (prn *ResourceListPrinter) Write(location ResourceLocation) error {
-	buf := bytes.NewBuffer(nil)
-	if prn.ShowTitles {
-		prn.writeFields(prn.TitleNames(), prn.out)
-		fmt.Fprintf(prn.out, "\n")
-		prn.ShowTitles = false
-	}
 	for _, r := range location.Resources {
 		dto, err := model.DTOForResource(r)
 		if err != nil {
@@ -34,53 +26,22 @@ func (prn *ResourceListPrinter) Write(location ResourceLocation) error {
 		if err != nil {
 			return err
 		}
-		if err = prn.writeFields(values, buf); err != nil {
+		values = append(values, location.Path)
+		if _, err := prn.out.WriteSlice(values); err != nil {
 			return err
 		}
-		fmt.Fprintf(buf, "\t%s\n", location.Path)
+		fmt.Fprintln(prn.out)
 	}
-	_, err := prn.out.Write(buf.Bytes())
-	return err
+	return nil
 }
 
 func (prn ResourceListPrinter) TitleNames() []string {
-	names := make([]string, len(prn.Fields)+1)
-	for i, n := range prn.Fields {
-		if i < len(prn.Titles) && prn.Titles[i] != "" {
-			n = prn.Titles[i]
-		}
-		names[i] = n
-	}
-	names[len(names)-1] = "location"
-	return names
+	return append(prn.Fields, "location")
 }
-
-func (prn ResourceListPrinter) writeFields(values []string, out io.Writer) error {
-	for i, title := range prn.TitleNames() {
-		if i >= len(values) {
-			break
-		}
-		v := values[i]
-		w := len(title)
-		if len(v) > w {
-			// truncate value to fit
-			v = v[:w+1]
-
-		} else if len(v) < w {
-			// padout with spaces
-			v = strings.Join([]string{v,
-				strings.Repeat(" ", w-len(v))}, "")
-		}
-		if i > 0 {
-			if _, err := fmt.Fprint(out, "\t"); err != nil {
-				return err
-			}
-		}
-		if _, err := fmt.Fprint(out, v); err != nil {
-			return err
-		}
-	}
-	return nil
+func (prn ResourceListPrinter) WriteTitles() error {
+	_, err := prn.out.WriteSlice(prn.TitleNames())
+	fmt.Fprintln(prn.out)
+	return err
 }
 
 func (prn ResourceListPrinter) valuesFromDTO(dto model.DTO) ([]string, error) {
@@ -156,8 +117,9 @@ func NewResourceListPrinter(out io.Writer, fields ...string) *ResourceListPrinte
 	if len(fields) == 0 {
 		fields = strings.Split(defaultFields, ",")
 	}
+
 	return &ResourceListPrinter{
 		Fields: fields,
-		out:    out,
+		out:    utils.NewColumnOutput(out),
 	}
 }

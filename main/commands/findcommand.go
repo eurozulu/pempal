@@ -51,7 +51,9 @@ func (fc FindCommand) Execute(args []string, out io.Writer) error {
 		if !ok {
 			logger.Log(logger.Warning, "titles can only be shown in list format")
 		}
-		po.ShowTitles = fc.ShowTitles
+		if err = po.WriteTitles(); err != nil {
+			return err
+		}
 	}
 
 	rs := resourceio.NewResourceScanner(fc.Recursive, filters...)
