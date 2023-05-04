@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"pempal/config"
+	"pempal/utils"
 )
 
 type ConfigCommand struct {
@@ -12,30 +13,35 @@ type ConfigCommand struct {
 
 func (c ConfigCommand) Execute(args []string, out io.Writer) error {
 	cfg := config.NewConfig()
-	if _, err := fmt.Fprintln(out, "Pempal configuration:\n"); err != nil {
+
+	colOut := utils.NewColumnOutput(out)
+	colOut.Delimiter = ":"
+	colOut.ColumnWidths = []int{16}
+	colOut.ColumnDelimiter = " "
+	if _, err := fmt.Fprintln(colOut, "Pempal configuration:\n"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "Root path: %s\n", cfg.RootPath); err != nil {
+	if _, err := fmt.Fprintf(colOut, "Root path: %s\n", cfg.RootPath); err != nil {
 		return err
 	}
 	if cfg.RootCertificate != "" {
-		if _, err := fmt.Fprintf(out, "Root certificate: %s\n", cfg.RootCertificate); err != nil {
+		if _, err := fmt.Fprintf(colOut, "Root certificate: %s\n", cfg.RootCertificate); err != nil {
 			return err
 		}
 	}
-	if _, err := fmt.Fprintf(out, "certificates: %s\n", cfg.CertPath); err != nil {
+	if _, err := fmt.Fprintf(colOut, "certificates: %s\n", cfg.CertPath); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "keys: %s\n", cfg.KeyPath); err != nil {
+	if _, err := fmt.Fprintf(colOut, "keys: %s\n", cfg.KeyPath); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "requests: %s\n", cfg.CsrPath); err != nil {
+	if _, err := fmt.Fprintf(colOut, "requests: %s\n", cfg.CsrPath); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "revoked: %s\n", cfg.CrlPath); err != nil {
+	if _, err := fmt.Fprintf(colOut, "revoked: %s\n", cfg.CrlPath); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "templates: %s\n", cfg.TemplatePath); err != nil {
+	if _, err := fmt.Fprintf(colOut, "templates: %s\n", cfg.TemplatePath); err != nil {
 		return err
 	}
 	return nil
