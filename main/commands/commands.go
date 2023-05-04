@@ -3,13 +3,17 @@ package commands
 import (
 	"fmt"
 	"io"
+	"pempal/config"
 	"strings"
 )
 
 var commands = map[string]Command{
-	"find":   &FindCommand{},
-	"config": &ConfigCommand{},
+	"find":      &FindCommand{},
+	"config":    &ConfigCommand{},
+	"templates": &TemplatesCommand{},
 }
+
+var configuration = config.NewConfig()
 
 // CommonFlags are flags which all command can use without the need to declare them in the command class.
 var CommonFlags CommonFlagArgument

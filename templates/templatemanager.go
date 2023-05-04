@@ -3,6 +3,8 @@ package templates
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 type TemplateManager interface {
@@ -31,6 +33,8 @@ type TemplateManager interface {
 	// RemoveTemplate removes a named template from the store.
 	//  returns error if the name is not known
 	RemoveTemplate(name string) error
+
+	AddDefaultTemplate(name string, data []byte)
 }
 
 type templateManager struct {
@@ -54,15 +58,20 @@ func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
 func (tm templateManager) TemplatesByName(names ...string) ([]Template, error) {
 	temps := make([]Template, len(names))
 	for i, name := range names {
-		by, err := tm.store.Read(name)
+		fname := name
+		if filepath.Ext(fname) == "" {
+			fname = strings.Join([]string{name, "yaml"}, ".")
+		}
+		by, err := tm.store.Read(fname)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, fmt.Errorf("failed to open template '%s'  %v", name, err)
 			}
+			// not exits as 'real' template, check if it's a default
 			if len(tm.defaults) > 0 {
-				b, ok := tm.defaults[name]
+				b, ok := tm.defaults[strings.ToLower(name)]
 				if !ok {
-					return nil, os.ErrNotExist
+					return nil, fmt.Errorf("template %s is not known", name)
 				}
 				by = b
 			}
@@ -84,6 +93,10 @@ func (tm templateManager) RemoveTemplate(name string) error {
 	return tm.store.Delete(name)
 }
 
+func (tm *templateManager) AddDefaultTemplate(name string, data []byte) {
+	tm.defaults[strings.ToLower(name)] = data
+}
+
 func (tm templateManager) namedTemplatesMap(names []string) (map[string]interface{}, error) {
 	imports := map[string]interface{}{}
 	importTemplates, err := tm.TemplatesByName(names...)
@@ -101,13 +114,13 @@ func (tm templateManager) namedTemplatesMap(names []string) (map[string]interfac
 	return imports, nil
 }
 
-func NewTemplateManager(rootpath string, defaults map[string][]byte) (TemplateManager, error) {
+func NewTemplateManager(rootpath string) (TemplateManager, error) {
 	store, err := NewFileBlobStore(rootpath, "yaml", "template")
 	if err != nil {
 		return nil, err
 	}
 	return &templateManager{
 		store:    store,
-		defaults: defaults,
+		defaults: map[string][]byte{},
 	}, nil
 }
