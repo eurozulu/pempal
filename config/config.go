@@ -36,7 +36,25 @@ var defaultConfig = Config{
 }
 
 func (cfg Config) ResolveWithRootPath(p string) string {
-	return filepath.Join(os.ExpandEnv(cfg.RootPath), p)
+	return filepath.Join(cfg.RootPath, p)
+}
+
+func resolvePaths(cfg *Config) {
+	cfg.RootPath = resolvePath("", cfg.RootPath)
+	cfg.RootCertificate = resolvePath(cfg.RootPath, cfg.RootCertificate)
+	cfg.CertPath = resolvePath(cfg.RootPath, cfg.CertPath)
+	cfg.KeyPath = resolvePath(cfg.RootPath, cfg.KeyPath)
+	cfg.CsrPath = resolvePath(cfg.RootPath, cfg.CsrPath)
+	cfg.CrlPath = resolvePath(cfg.RootPath, cfg.CrlPath)
+	cfg.TemplatePath = resolvePath(cfg.RootPath, cfg.TemplatePath)
+}
+
+func resolvePath(base, path string) string {
+	path = os.ExpandEnv(path)
+	if filepath.IsLocal(path) {
+		path = filepath.Join(base, path)
+	}
+	return path
 }
 
 func applyENVValues(cfg *Config) {
@@ -61,5 +79,6 @@ func NewConfig() Config {
 	cfg := &Config{}
 	*cfg = defaultConfig
 	applyENVValues(cfg)
+	resolvePaths(cfg)
 	return *cfg
 }

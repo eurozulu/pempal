@@ -7,7 +7,8 @@ import (
 )
 
 var commands = map[string]Command{
-	"find": &FindCommand{},
+	"find":   &FindCommand{},
+	"config": &ConfigCommand{},
 }
 
 // CommonFlags are flags which all command can use without the need to declare them in the command class.
