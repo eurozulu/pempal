@@ -68,7 +68,7 @@ func applyENVValues(cfg *Config) {
 }
 
 func envOrDefault(name string, def string) string {
-	s, ok := os.LookupEnv(ENV_CA_ROOT)
+	s, ok := os.LookupEnv(name)
 	if !ok {
 		return def
 	}
