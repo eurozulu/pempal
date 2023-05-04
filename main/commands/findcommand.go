@@ -26,7 +26,6 @@ func (fc FindCommand) Execute(args []string, out io.Writer) error {
 	}
 
 	var filters []resourceio.LocationFilter
-
 	typeFilter, err := fc.parseResourceType()
 	if err != nil {
 		return err

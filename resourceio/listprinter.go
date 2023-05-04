@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const defaultFields = "resource-type,identity,subject.common-name"
+const defaultFields = "resource-type,identity,subject.common-name,not-after"
 
 type ResourceListPrinter struct {
 	Titles     []string
