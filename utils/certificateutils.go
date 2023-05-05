@@ -20,20 +20,6 @@ func CertificateFingerprint(c *x509.Certificate) string {
 	return buf.String()
 }
 
-// Issuers finds all the issuers in the given slice of certificates and maps them to the certificate(s) they have issued.
-// The result is a map of DN keymanager of issuers, mapped to a slice of the certificates issued.
-func Issuers(certs []*x509.Certificate) map[string][]*x509.Certificate {
-	issuers := map[string][]*x509.Certificate{}
-	for _, c := range certs {
-		idn := c.Issuer.String()
-		if c.Subject.String() == idn {
-			idn = "self"
-		}
-		issuers[idn] = append(issuers[idn], c)
-	}
-	return issuers
-}
-
 func IsRootCertificate(c *x509.Certificate) bool {
 	return c != nil && c.IsCA && (c.Subject.String() == c.Issuer.String())
 }
