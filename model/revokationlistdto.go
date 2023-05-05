@@ -33,7 +33,7 @@ func (rvl *RevocationListDTO) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	rvl.Issuer = NewDistinguishedNameDTO(rlist.Issuer)
+	rvl.Issuer = newDistinguishedNameDTO(rlist.Issuer)
 	rvl.Signature = hex.EncodeToString(rlist.Signature)
 	rvl.SignatureAlgorithm = rlist.SignatureAlgorithm.String()
 
@@ -44,6 +44,5 @@ func (rvl *RevocationListDTO) UnmarshalBinary(data []byte) error {
 	rvl.ExtraExtensions = newExtentionsDTOs(rlist.Extensions)
 	rvl.ExtraExtensions = newExtentionsDTOs(rlist.ExtraExtensions)
 
-	rvl.ResourceType = RevokationList.String()
 	return nil
 }

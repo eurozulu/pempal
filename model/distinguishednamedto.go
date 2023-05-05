@@ -14,21 +14,21 @@ type DistinguishedNameDTO struct {
 	SerialNumber       string   `yaml:"serial.txt-number,omitempty"`
 }
 
-func (d DistinguishedNameDTO) ToName() pkix.Name {
+func (dn DistinguishedNameDTO) ToName() pkix.Name {
 	return pkix.Name{
-		Country:            d.Country,
-		Organization:       d.Organization,
-		OrganizationalUnit: d.OrganizationalUnit,
-		Locality:           d.Locality,
-		Province:           d.Province,
-		StreetAddress:      d.StreetAddress,
-		PostalCode:         d.PostalCode,
-		SerialNumber:       d.SerialNumber,
-		CommonName:         d.CommonName,
+		Country:            dn.Country,
+		Organization:       dn.Organization,
+		OrganizationalUnit: dn.OrganizationalUnit,
+		Locality:           dn.Locality,
+		Province:           dn.Province,
+		StreetAddress:      dn.StreetAddress,
+		PostalCode:         dn.PostalCode,
+		SerialNumber:       dn.SerialNumber,
+		CommonName:         dn.CommonName,
 	}
 }
 
-func NewDistinguishedNameDTO(n pkix.Name) *DistinguishedNameDTO {
+func newDistinguishedNameDTO(n pkix.Name) *DistinguishedNameDTO {
 	return &DistinguishedNameDTO{
 		Country:            n.Country,
 		Organization:       n.Organization,

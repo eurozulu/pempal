@@ -11,20 +11,23 @@ import (
 )
 
 type CertificateDTO struct {
-	Version            int                   `yaml:"version"`
-	SerialNumber       SerialNumber          `yaml:"serial.txt-number"`
-	Signature          string                `yaml:"signature"`
-	SignatureAlgorithm string                `yaml:"signature-algorithm"`
-	PublicKeyAlgorithm string                `yaml:"public-key-algorithm"`
-	PublicKey          *PublicKeyDTO         `yaml:"public-key"`
-	Issuer             *DistinguishedNameDTO `yaml:"issuer"`
-	Subject            *DistinguishedNameDTO `yaml:"subject"`
-	NotBefore          time.Time             `yaml:"not-before"`
-	NotAfter           time.Time             `yaml:"not-after"`
-	IsCA               bool                  `yaml:"is-certauth"`
-	Der                []byte                `yaml:"-"`
-	Identity           string                `yaml:"identity"`
-	ResourceType       string                `yaml:"resource-type"`
+	Version               int                   `yaml:"version"`
+	SerialNumber          SerialNumber          `yaml:"serial-number"`
+	Signature             string                `yaml:"signature"`
+	SignatureAlgorithm    string                `yaml:"signature-algorithm"`
+	PublicKeyAlgorithm    string                `yaml:"public-key-algorithm"`
+	PublicKey             *PublicKeyDTO         `yaml:"public-key"`
+	Issuer                *DistinguishedNameDTO `yaml:"issuer"`
+	Subject               *DistinguishedNameDTO `yaml:"subject"`
+	NotBefore             time.Time             `yaml:"not-before"`
+	NotAfter              time.Time             `yaml:"not-after"`
+	IsCA                  bool                  `yaml:"is-certauth,omitempty"`
+	BasicConstraintsValid bool                  `yaml:"basic-constraints-valid,omitempty"`
+	MaxPathLen            int                   `yaml:"max-path-len,omitempty"`
+	MaxPathLenZero        bool                  `yaml:"max-path-len-zero,omitempty"`
+
+	Der      []byte `yaml:"-"`
+	Identity string `yaml:"identity"`
 }
 
 func (cd CertificateDTO) String() string {
@@ -82,10 +85,10 @@ func (cd CertificateDTO) ToCertificate() (*x509.Certificate, error) {
 		ExtKeyUsage:                 nil,
 		UnknownExtKeyUsage:          nil,
 
-		BasicConstraintsValid:       false,
+		BasicConstraintsValid:       cd.BasicConstraintsValid,
 		IsCA:                        cd.IsCA,
-		MaxPathLen:                  0,
-		MaxPathLenZero:              false,
+		MaxPathLen:                  cd.MaxPathLen,
+		MaxPathLenZero:              cd.MaxPathLenZero,
 		SubjectKeyId:                nil,
 		AuthorityKeyId:              nil,
 		OCSPServer:                  nil,
@@ -140,13 +143,16 @@ func (cd *CertificateDTO) UnmarshalBinary(data []byte) error {
 	cd.SignatureAlgorithm = cert.SignatureAlgorithm.String()
 	cd.PublicKeyAlgorithm = cert.PublicKeyAlgorithm.String()
 	cd.PublicKey = pukTemplate
-	cd.Issuer = NewDistinguishedNameDTO(cert.Issuer)
-	cd.Subject = NewDistinguishedNameDTO(cert.Subject)
+	cd.Issuer = newDistinguishedNameDTO(cert.Issuer)
+	cd.Subject = newDistinguishedNameDTO(cert.Subject)
 	cd.NotBefore = cert.NotBefore
 	cd.NotAfter = cert.NotAfter
 	cd.IsCA = cert.IsCA
+	cd.BasicConstraintsValid = cert.BasicConstraintsValid
+	cd.MaxPathLen = cert.MaxPathLen
+	cd.MaxPathLenZero = cert.MaxPathLenZero
+
 	cd.Der = cert.Raw
 	cd.Identity = cd.String()
-	cd.ResourceType = Certificate.String()
 	return nil
 }

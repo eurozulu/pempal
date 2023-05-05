@@ -18,7 +18,6 @@ type CertificateRequestDTO struct {
 	Subject            *DistinguishedNameDTO `yaml:"subject"`
 	Der                []byte                `yaml:"-"`
 	Identity           string                `yaml:"identity"`
-	ResourceType       string                `yaml:"resource-type"`
 }
 
 func (cd CertificateRequestDTO) String() string {
@@ -90,10 +89,9 @@ func (crd *CertificateRequestDTO) UnmarshalBinary(data []byte) error {
 	crd.SignatureAlgorithm = csr.SignatureAlgorithm.String()
 	crd.PublicKeyAlgorithm = csr.PublicKeyAlgorithm.String()
 	crd.PublicKey = pukTemplate
-	crd.Subject = NewDistinguishedNameDTO(csr.Subject)
+	crd.Subject = newDistinguishedNameDTO(csr.Subject)
 	crd.Der = csr.Raw
 	crd.Identity = crd.String()
-	crd.ResourceType = CertificateRequest.String()
 
 	return nil
 }
