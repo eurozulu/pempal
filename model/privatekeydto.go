@@ -14,7 +14,6 @@ type PrivateKeyDTO struct {
 	PublicKey          string `yaml:"public-key,omitempty"`
 	IsEncrypted        bool   `yaml:"is-encrypted,omitempty"`
 	Identity           string `yaml:"identity"`
-	ResourceType       string `yaml:"resource-type"`
 }
 
 func (pkr PrivateKeyDTO) String() string {
@@ -36,6 +35,14 @@ func (pkr PrivateKeyDTO) ToPrivateKey() (crypto.PrivateKey, error) {
 	return x509.ParsePKCS8PrivateKey(der)
 }
 
+func (pkr PrivateKeyDTO) ToPublicKey() (crypto.PublicKey, error) {
+	der, err := hex.DecodeString(pkr.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("private-key is invalid hex or empty %v", err)
+	}
+	return x509.ParsePKIXPublicKey(der)
+}
+
 func (pkr *PrivateKeyDTO) UnmarshalBinary(data []byte) error {
 	pkr.PublicKey = ""
 	pkr.IsEncrypted = false
@@ -55,6 +62,5 @@ func (pkr *PrivateKeyDTO) UnmarshalBinary(data []byte) error {
 	}
 	pkr.PublicKey = hex.EncodeToString(pukder)
 	pkr.Identity = pkr.String()
-	pkr.ResourceType = PrivateKey.String()
 	return nil
 }
