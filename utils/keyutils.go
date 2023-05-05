@@ -5,13 +5,41 @@ import (
 	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
 	"pempal/logger"
 	"reflect"
+	"strconv"
 	"strings"
 )
+
+func CreatePrivateKey(keyAlgorithm x509.PublicKeyAlgorithm, param ...string) (crypto.PrivateKey, error) {
+	switch keyAlgorithm {
+	case x509.RSA:
+		bits, err := paramToBits(param)
+		if err != nil {
+			return nil, err
+		}
+		return rsa.GenerateKey(rand.Reader, bits)
+
+	case x509.ECDSA:
+		cv, err := paramToCurve(param)
+		if err != nil {
+			return nil, err
+		}
+		return ecdsa.GenerateKey(cv, rand.Reader)
+
+	case x509.Ed25519:
+		prk, _, err := ed25519.GenerateKey(rand.Reader)
+		return prk, err
+
+	default:
+		return nil, fmt.Errorf("%s is not a supported key type", keyAlgorithm.String())
+	}
+}
 
 func PublicKeyFromPrivate(key crypto.PrivateKey) (crypto.PublicKey, error) {
 	switch v := key.(type) {
@@ -71,4 +99,68 @@ var PublicKeyAlgorithms = []string{
 	x509.DSA.String(),
 	x509.ECDSA.String(),
 	x509.Ed25519.String(),
+}
+
+func paramToBits(params []string) (int, error) {
+	if len(params) == 0 {
+		return 0, fmt.Errorf("no bit length given for rsa key")
+	}
+	i, err := strconv.Atoi(params[0])
+	if err != nil {
+		return 0, fmt.Errorf("Failed to parse rsa key bitsize as integer  %v", err)
+	}
+	return i, nil
+}
+
+func paramToCurve(params []string) (elliptic.Curve, error) {
+	if len(params) == 0 {
+		return nil, fmt.Errorf("no curve given for ecdsa key")
+	}
+	cv := ParseECDSACurve(params[0])
+	if cv == Unknown {
+		return nil, fmt.Errorf("%s is not a known curve, use one of %v", params[0], ECDSACurveNames)
+	}
+	return cv.ToCurve(), nil
+}
+
+const (
+	Unknown ECDSACurve = iota
+	P224
+	P256
+	P384
+	P521
+)
+
+type ECDSACurve int
+
+var ECDSACurveNames = []string{
+	"Unknown",
+	"P224",
+	"P256",
+	"P384",
+	"P521",
+}
+
+func (curve ECDSACurve) ToCurve() elliptic.Curve {
+	switch curve {
+	case P224:
+		return elliptic.P224()
+	case P256:
+		return elliptic.P256()
+	case P384:
+		return elliptic.P384()
+	case P521:
+		return elliptic.P521()
+	default:
+		return nil
+	}
+}
+
+func ParseECDSACurve(s string) ECDSACurve {
+	for i, n := range ECDSACurveNames {
+		if strings.EqualFold(s, n) {
+			return ECDSACurve(i)
+		}
+	}
+	return Unknown
 }

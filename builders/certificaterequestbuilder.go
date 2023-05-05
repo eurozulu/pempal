@@ -3,6 +3,7 @@ package builders
 import (
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"pempal/keymanager"
 	"pempal/model"
@@ -14,54 +15,84 @@ type CertificateRequestBuilder struct {
 	keys keymanager.KeyManager
 }
 
-func (c CertificateRequestBuilder) ApplyTemplate(tp ...templates.Template) error {
+func (cb CertificateRequestBuilder) ApplyTemplate(tp ...templates.Template) error {
 	for _, t := range tp {
-		if err := t.Apply(&c.dto); err != nil {
+		if err := t.Apply(&cb.dto); err != nil {
 			return err
 		}
 	}
+	return nil
 }
 
-func (c CertificateRequestBuilder) Validate() []error {
+func (cb CertificateRequestBuilder) Validate() []error {
 	var errs []error
-	cert, err := c.dto.ToCertificate()
-	if err != nil {
-		errs = append(errs, err)
+	m := cb.RequiredValues()
+	for k := range m {
+		errs = append(errs, fmt.Errorf("%s invalid", k))
 	}
-	if cert.PublicKey == nil {
-		errs = append(errs, fmt.Errorf("public-key is missing"))
-	}
-	if cert.Subject.CommonName == "" {
-		errs = append(errs, fmt.Errorf("subject.common-name is missing"))
-	}
-	if cert.Issuer.String() == "" || cert.Issuer.CommonName == "" {
-		errs = append(errs, fmt.Errorf("issuerID.common-name is missing"))
-	}
-
+	return errs
 }
 
-func (c CertificateRequestBuilder) Build() (resources.Resource, error) {
-	cert, err := c.dto.ToCertificate()
+func (cb CertificateRequestBuilder) RequiredValues() map[string]interface{} {
+	m := map[string]interface{}{}
+	if cb.dto.Version == 0 {
+		m["version"] = 0
+	}
+	if cb.dto.Signature == "" {
+		m["signature"] = 0
+	}
+	if cb.dto.SignatureAlgorithm == "" {
+		m["signature-algorithm"] = x509.UnknownSignatureAlgorithm
+	}
+	if cb.dto.PublicKeyAlgorithm == "" {
+		if cb.dto.PublicKey == nil || cb.dto.PublicKey.PublicKeyAlgorithm == "" {
+			m["public-key-algorithm"] = x509.UnknownPublicKeyAlgorithm
+		}
+	}
+	if cb.dto.PublicKey == nil || cb.dto.PublicKey.PublicKey == "" {
+		m["public-key"] = nil
+	}
+	if cb.dto.Subject != nil {
+		missing := newDistinguishedNameBuilder(cb.dto.Subject).RequiredValues()
+		if len(missing) > 0 {
+			m["subject"] = missing
+		}
+	} else {
+		m["subject"] = nil
+	}
+	return m
+}
+
+func (cb CertificateRequestBuilder) Build() (model.PEMResource, error) {
+	if errs := cb.Validate(); len(errs) > 0 {
+		return nil, fmt.Errorf("%s", collectErrorList(errs, ", "))
+	}
+
+	csr, err := cb.dto.ToCertificateRequest()
 	if err != nil {
 		return nil, err
 	}
-	if cert.PublicKey == nil {
+	puk := csr.PublicKey
+	if puk == nil {
 		return nil, fmt.Errorf("public-key is missing")
 	}
-	if cert.Subject.CommonName == "" {
-		return nil, fmt.Errorf("subject.common-name is missing")
-	}
-	if cert.Issuer.String() == "" || cert.Issuer.CommonName == "" {
-		return nil, fmt.Errorf("issuerID.common-name is missing")
-	}
-
-	der, err := x509.CreateCertificate(rand.Reader, cert, issuerID, puk, prk)
+	id, err := keymanager.NewIdentity(puk)
 	if err != nil {
 		return nil, err
 	}
-	cr := &resources.CertificateResource{}
-	if err = cr.UnmarshalBinary(der); err != nil {
+
+	prk, err := cb.keys.PrivateKey(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to locate requester %s private key  %v", id.String(), err)
+	}
+
+	der, err := x509.CreateCertificateRequest(rand.Reader, csr, prk)
+	if err != nil {
 		return nil, err
 	}
-	return cr, nil
+
+	return model.NewPemResourceFromBlock(&pem.Block{
+		Type:  model.CertificateRequest.PEMString(),
+		Bytes: der,
+	}), nil
 }

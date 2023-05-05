@@ -12,8 +12,12 @@ type DistinguishedNameBuilder struct {
 }
 
 func (db DistinguishedNameBuilder) ApplyTemplate(tp ...templates.Template) error {
-	//TODO implement me
-	panic("implement me")
+	for _, t := range tp {
+		if err := t.Apply(&db.dto); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (db DistinguishedNameBuilder) Validate() []error {

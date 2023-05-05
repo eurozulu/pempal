@@ -29,7 +29,7 @@ func (cb CertificateBuilder) Validate() []error {
 	var errs []error
 	m := cb.RequiredValues()
 	for k := range m {
-		errs = append(errs, fmt.Errorf("%s missing", k))
+		errs = append(errs, fmt.Errorf("%s invalid", k))
 	}
 	return errs
 }
@@ -67,10 +67,10 @@ func (cb CertificateBuilder) RequiredValues() map[string]interface{} {
 	if cb.dto.Issuer != nil {
 		missing := newDistinguishedNameBuilder(cb.dto.Issuer).RequiredValues()
 		if len(missing) > 0 {
-			m["issuerID"] = missing
+			m["issuer"] = missing
 		}
 	} else {
-		m["issuerID"] = nil
+		m["issuer"] = nil
 	}
 	now := time.Now()
 	if cb.dto.NotBefore.Before(now) {
@@ -86,13 +86,14 @@ func (cb CertificateBuilder) Build() (model.PEMResource, error) {
 	if errs := cb.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s", collectErrorList(errs, ", "))
 	}
+
 	cert, err := cb.dto.ToCertificate()
 	if err != nil {
 		return nil, err
 	}
 	issuer, err := cb.keys.User(cert.Issuer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to locate issuer  %v", err)
 	}
 	puk := cert.PublicKey
 	if puk == nil {
