@@ -23,7 +23,7 @@ func main() {
 	}
 
 	// Apply common flags
-	args, err := argparser.ApplyArguments(os.Args[2:], &commands.CommonFlags)
+	args, err := commands.ApplyCommonFlags(os.Args[2:])
 	if err != nil {
 		logger.Log(logger.Error, "%v", err)
 		return
