@@ -42,8 +42,9 @@ type TemplateManager interface {
 }
 
 type templateManager struct {
-	store    BlobStore
-	defaults map[string][]byte
+	store          BlobStore
+	defaults       map[string][]byte
+	typedTemplates map[string][]byte
 }
 
 func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
