@@ -6,6 +6,7 @@ import (
 	"pempal/builders"
 	"pempal/logger"
 	"pempal/model"
+	"pempal/templates"
 )
 
 const TAG_TYPE = "type"
@@ -18,14 +19,6 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("must provide one or more template names to build")
 	}
-	rt, err := cmd.establishResourceType(args)
-	if err != nil {
-		return err
-	}
-	if rt == model.Unknown {
-		return fmt.Errorf("no resource type was detected. Ensure either one template has a '#%s' tag or the '-type' command line flag specifies the type", TAG_TYPE)
-	}
-	logger.Log(logger.Debug, "Make is building a new %s resource", rt.String())
 	temps, err := ResourceTemplates.TemplatesByName(args...)
 	if err != nil {
 		return err
@@ -33,7 +26,17 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	pl := isPlural(args)
 	logger.Log(logger.Debug, "using template%s: %v", pl, args)
 
-	builder := builders.NewResourceBuilder(rt)
+	rt, err := cmd.establishResourceType(temps)
+	if err != nil {
+		return err
+	}
+	logger.Log(logger.Debug, "Make is building a new %s resource", rt.String())
+
+	builder, err := builders.NewResourceBuilder(rt)
+	if err != nil {
+		return err
+	}
+
 	if err = builder.ApplyTemplate(temps...); err != nil {
 		return err
 	}
@@ -51,25 +54,17 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	return err
 }
 
-func (cmd MakeCommand) establishResourceType(names []string) (model.ResourceType, error) {
-	if cmd.Resource_Type == "" {
-		// no forced type, detect type from template
-		rt, err := findResourceTypeInTemplates(names)
-		if err != nil {
-			return model.Unknown, fmt.Errorf("failed to detect the resource type %v", err)
+func (cmd MakeCommand) establishResourceType(temps []templates.Template) (model.ResourceType, error) {
+	if cmd.Resource_Type != "" {
+		rt := model.ParseResourceType(cmd.Resource_Type)
+		if rt == model.Unknown {
+			return 0, fmt.Errorf("resource type %s is not known", cmd.Resource_Type)
 		}
-		cmd.Resource_Type = rt.String()
+		return rt, nil
 	}
-	rt := model.ParseResourceType(cmd.Resource_Type)
-	return rt, nil
-}
 
-func findResourceTypeInTemplates(names []string) (model.ResourceType, error) {
-	// Collect named templates and search for the first one with a Tag named TAG_TYPE
-	temps, err := ResourceTemplates.TemplatesByName(names...)
-	if err != nil {
-		return 0, err
-	}
+	// no forced type, detect type from template
+	// search for the first template with a Tag named TAG_TYPE
 	for _, t := range temps {
 		tags := t.Tags().TagsByName(TAG_TYPE)
 		if len(tags) == 0 {

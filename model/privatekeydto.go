@@ -9,10 +9,11 @@ import (
 )
 
 type PrivateKeyDTO struct {
-	PublicKeyAlgorithm string `yaml:"private-key-algorithm"`
+	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
 	PrivateKey         string `yaml:"private-key,omitempty"`
 	PublicKey          string `yaml:"public-key,omitempty"`
 	IsEncrypted        bool   `yaml:"is-encrypted,omitempty"`
+	KeyParam           string `yaml:"key-param"`
 	Identity           string `yaml:"identity"`
 }
 

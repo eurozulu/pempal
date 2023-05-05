@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-func CreatePrivateKey(keyAlgorithm x509.PublicKeyAlgorithm, param ...string) (crypto.PrivateKey, error) {
+func CreatePrivateKey(keyAlgorithm x509.PublicKeyAlgorithm, param string) (crypto.PrivateKey, error) {
 	switch keyAlgorithm {
 	case x509.RSA:
 		bits, err := paramToBits(param)
@@ -101,24 +101,24 @@ var PublicKeyAlgorithms = []string{
 	x509.Ed25519.String(),
 }
 
-func paramToBits(params []string) (int, error) {
-	if len(params) == 0 {
+func paramToBits(param string) (int, error) {
+	if param == "" {
 		return 0, fmt.Errorf("no bit length given for rsa key")
 	}
-	i, err := strconv.Atoi(params[0])
+	i, err := strconv.Atoi(param)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to parse rsa key bitsize as integer  %v", err)
 	}
 	return i, nil
 }
 
-func paramToCurve(params []string) (elliptic.Curve, error) {
-	if len(params) == 0 {
+func paramToCurve(param string) (elliptic.Curve, error) {
+	if param == "" {
 		return nil, fmt.Errorf("no curve given for ecdsa key")
 	}
-	cv := ParseECDSACurve(params[0])
+	cv := ParseECDSACurve(param)
 	if cv == Unknown {
-		return nil, fmt.Errorf("%s is not a known curve, use one of %v", params[0], ECDSACurveNames)
+		return nil, fmt.Errorf("%s is not a known curve, use one of %v", param[0], ECDSACurveNames)
 	}
 	return cv.ToCurve(), nil
 }

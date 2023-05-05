@@ -97,13 +97,13 @@ func (tm templateManager) Names(s ...string) []string {
 		if strings.EqualFold(filepath.Ext(n), ".yaml") {
 			n = n[:len(n)-len(filepath.Ext(n))]
 		}
-		if hasQuery && !constainsString(n, s) {
+		if hasQuery && !constainsString(n, s, false) {
 			continue
 		}
 		names = append(names, n)
 	}
 	for k := range tm.defaults {
-		if constainsString(k, names) || (hasQuery && !constainsString(k, s)) {
+		if constainsString(k, names, true) || (hasQuery && !constainsString(k, s, false)) {
 			continue
 		}
 		names = append(names, k)
@@ -153,8 +153,14 @@ func (tm templateManager) namedTemplatesMap(names []string) (map[string]interfac
 	return imports, nil
 }
 
-func constainsString(s string, ss []string) bool {
+func constainsString(s string, ss []string, exact bool) bool {
 	for _, sz := range ss {
+		if exact {
+			if sz == s {
+				return true
+			}
+			continue
+		}
 		if strings.Contains(s, sz) {
 			return true
 		}

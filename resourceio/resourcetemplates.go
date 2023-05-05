@@ -16,10 +16,14 @@ func NewResourceTemplateManager(root string) (templates.TemplateManager, error) 
 	addDefaultForResourceType(model.Certificate, tm)
 	addDefaultForResourceType(model.CertificateRequest, tm)
 	addDefaultForResourceType(model.RevokationList, tm)
+
+	for name, data := range standardTemplates {
+		tm.AddDefaultTemplate(name, data)
+	}
 	return tm, nil
 }
 
 func addDefaultForResourceType(r model.ResourceType, tm templates.TemplateManager) {
-	p := strings.Join([]string{"resource-type: ", r.String()}, "")
+	p := strings.Join([]string{"#type", r.String()}, " ")
 	tm.AddDefaultTemplate(r.String(), []byte(p))
 }

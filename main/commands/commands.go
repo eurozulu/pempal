@@ -12,6 +12,7 @@ import (
 
 var commands = map[string]Command{
 	"find":      &FindCommand{},
+	"make":      &MakeCommand{},
 	"config":    &ConfigCommand{},
 	"templates": &TemplatesCommand{},
 	"template":  &TemplateCommand{},

@@ -40,8 +40,26 @@ func (t yamlTemplate) Tags() Tags {
 }
 
 // Apply applies this template to the given object
-func (t yamlTemplate) Apply(out interface{}) error {
+func (t *yamlTemplate) Apply(out interface{}) error {
 	return yaml.Unmarshal(t.parsed, out)
+}
+
+func mergeTags(tags Tags, templates []Template) Tags {
+	for _, temp := range templates {
+		tags = append(tags, temp.Tags()...)
+	}
+	// Ensure no repeated tags found
+	unique := map[string]bool{}
+	var utags Tags
+	for _, tg := range tags {
+		k := tg.String()
+		if unique[k] {
+			continue
+		}
+		unique[k] = true
+		utags = append(utags, tg)
+	}
+	return utags
 }
 
 func mergeTemplatesToYaml(templates []Template) ([]byte, error) {
@@ -77,6 +95,7 @@ func containsGoTemplates(text string) bool {
 
 func newYamlTemplate(raw []byte, extends []Template, imports map[string]interface{}) (Template, error) {
 	tags, base := parseTags(raw)
+	tags = mergeTags(tags, extends)
 	t := &yamlTemplate{
 		raw:    raw,
 		parsed: base,

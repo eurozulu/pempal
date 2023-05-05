@@ -13,7 +13,7 @@ type PrivateKeyBuilder struct {
 	dto model.PrivateKeyDTO
 }
 
-func (kb PrivateKeyBuilder) ApplyTemplate(tp ...templates.Template) error {
+func (kb *PrivateKeyBuilder) ApplyTemplate(tp ...templates.Template) error {
 	for _, t := range tp {
 		if err := t.Apply(&kb.dto); err != nil {
 			return err
@@ -45,7 +45,8 @@ func (kb PrivateKeyBuilder) Build() (model.PEMResource, error) {
 	}
 
 	keyAlgo := utils.ParsePublicKeyAlgorithm(kb.dto.PublicKeyAlgorithm)
-	key, err := utils.CreatePrivateKey(keyAlgo)
+
+	key, err := utils.CreatePrivateKey(keyAlgo, kb.dto.KeyParam)
 	if err != nil {
 		return nil, err
 	}

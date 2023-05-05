@@ -21,7 +21,7 @@ type CertificateDTO struct {
 	Subject               *DistinguishedNameDTO `yaml:"subject"`
 	NotBefore             time.Time             `yaml:"not-before"`
 	NotAfter              time.Time             `yaml:"not-after"`
-	IsCA                  bool                  `yaml:"is-certauth,omitempty"`
+	IsCA                  bool                  `yaml:"is-ca,omitempty"`
 	BasicConstraintsValid bool                  `yaml:"basic-constraints-valid,omitempty"`
 	MaxPathLen            int                   `yaml:"max-path-len,omitempty"`
 	MaxPathLenZero        bool                  `yaml:"max-path-len-zero,omitempty"`

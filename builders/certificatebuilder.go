@@ -16,7 +16,7 @@ type CertificateBuilder struct {
 	keys keymanager.KeyManager
 }
 
-func (cb CertificateBuilder) ApplyTemplate(tp ...templates.Template) error {
+func (cb *CertificateBuilder) ApplyTemplate(tp ...templates.Template) error {
 	for _, t := range tp {
 		if err := t.Apply(&cb.dto); err != nil {
 			return err
@@ -84,7 +84,7 @@ func (cb CertificateBuilder) RequiredValues() map[string]interface{} {
 
 func (cb CertificateBuilder) Build() (model.PEMResource, error) {
 	if errs := cb.Validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s", collectErrorList(errs, ", "))
+		return nil, fmt.Errorf("Failed to build certificate:\t%s", collectErrorList(errs, ", "))
 	}
 
 	cert, err := cb.dto.ToCertificate()
