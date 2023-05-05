@@ -28,6 +28,8 @@ type TemplateManager interface {
 
 	Names(s ...string) []string
 
+	MergeTemplatesInto(dst interface{}, names ...string) error
+
 	// AddTemplate adds a new template to the store under the given name.
 	// returns error if the name already exists.
 	AddTemplate(name string, t Template) error
@@ -45,7 +47,7 @@ type templateManager struct {
 }
 
 func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
-	tags, raw := parseTags(data)
+	tags, _ := parseTags(data)
 	extendTemplates, err := tm.TemplatesByName(tagValues(tags.TagsByName(TAG_EXTENDS))...)
 	if err != nil {
 		return nil, err
@@ -54,7 +56,7 @@ func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newYamlTemplate(tags, raw, extendTemplates, imports)
+	return newYamlTemplate(data, extendTemplates, imports)
 }
 
 func (tm templateManager) TemplatesByName(names ...string) ([]Template, error) {
@@ -106,6 +108,19 @@ func (tm templateManager) Names(s ...string) []string {
 		names = append(names, k)
 	}
 	return names
+}
+
+func (tm templateManager) MergeTemplatesInto(dst interface{}, names ...string) error {
+	tps, err := tm.TemplatesByName(names...)
+	if err != nil {
+		return err
+	}
+	for _, t := range tps {
+		if err = t.Apply(dst); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (tm templateManager) AddTemplate(name string, t Template) error {

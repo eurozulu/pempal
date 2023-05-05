@@ -75,10 +75,11 @@ func containsGoTemplates(text string) bool {
 	return strings.Index(text[i+2:], "}}") >= 0
 }
 
-func newYamlTemplate(tags Tags, raw []byte, extends []Template, imports map[string]interface{}) (Template, error) {
+func newYamlTemplate(raw []byte, extends []Template, imports map[string]interface{}) (Template, error) {
+	tags, base := parseTags(raw)
 	t := &yamlTemplate{
 		raw:    raw,
-		parsed: raw,
+		parsed: base,
 		tags:   tags,
 	}
 	parsed, err := mergeTemplatesToYaml(append(extends, t))

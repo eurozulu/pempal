@@ -23,20 +23,3 @@ func addDefaultForResourceType(r model.ResourceType, tm templates.TemplateManage
 	p := strings.Join([]string{"resource-type: ", r.String()}, "")
 	tm.AddDefaultTemplate(r.String(), []byte(p))
 }
-
-func MergeTemplatesInto(dst interface{}, templatesroot string, names ...string) error {
-	tm, err := NewResourceTemplateManager(templatesroot)
-	if err != nil {
-		return err
-	}
-	tps, err := tm.TemplatesByName(names...)
-	if err != nil {
-		return err
-	}
-	for _, t := range tps {
-		if err = t.Apply(dst); err != nil {
-			return err
-		}
-	}
-	return nil
-}
