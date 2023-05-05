@@ -6,7 +6,6 @@ import (
 )
 
 const TAG_TOKEN = "#"
-const TAG_DELIMIT = ":"
 const TAG_EXTENDS = "extends"
 const TAG_IMPORTS = "imports"
 
@@ -18,7 +17,7 @@ type Tag struct {
 }
 
 func (tag Tag) String() string {
-	return strings.Join([]string{TAG_TOKEN, tag.Name, TAG_DELIMIT, tag.Value}, "")
+	return strings.Join([]string{TAG_TOKEN, tag.Name, " ", tag.Value}, "")
 }
 
 func (tag Tag) ParseAsImport() (name string, alias string) {
@@ -53,7 +52,7 @@ func tagValues(tags []Tag) []string {
 }
 
 func parseTag(s string) Tag {
-	ss := strings.SplitN(s, TAG_DELIMIT, 2)
+	ss := strings.SplitN(s, " ", 2)
 	n := strings.TrimSpace(strings.TrimLeft(ss[0], TAG_TOKEN)) // Trim off the tag token
 	var v string
 	if len(ss) > 1 {

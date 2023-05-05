@@ -26,6 +26,8 @@ type TemplateManager interface {
 	// TemplateByName retrieves a named template or an error if the given name is not known
 	TemplatesByName(name ...string) ([]Template, error)
 
+	Names(s ...string) []string
+
 	// AddTemplate adds a new template to the store under the given name.
 	// returns error if the name already exists.
 	AddTemplate(name string, t Template) error
@@ -85,6 +87,27 @@ func (tm templateManager) TemplatesByName(names ...string) ([]Template, error) {
 	return temps, nil
 }
 
+func (tm templateManager) Names(s ...string) []string {
+	var names []string
+	hasQuery := len(s) > 0
+	for _, n := range tm.store.Names() {
+		if strings.EqualFold(filepath.Ext(n), ".yaml") {
+			n = n[:len(n)-len(filepath.Ext(n))]
+		}
+		if hasQuery && !constainsString(n, s) {
+			continue
+		}
+		names = append(names, n)
+	}
+	for k := range tm.defaults {
+		if constainsString(k, names) || (hasQuery && !constainsString(k, s)) {
+			continue
+		}
+		names = append(names, k)
+	}
+	return names
+}
+
 func (tm templateManager) AddTemplate(name string, t Template) error {
 	return tm.store.Write(name, t.Raw())
 }
@@ -112,6 +135,15 @@ func (tm templateManager) namedTemplatesMap(names []string) (map[string]interfac
 		imports[name] = m
 	}
 	return imports, nil
+}
+
+func constainsString(s string, ss []string) bool {
+	for _, sz := range ss {
+		if strings.Contains(s, sz) {
+			return true
+		}
+	}
+	return false
 }
 
 func NewTemplateManager(rootpath string) (TemplateManager, error) {

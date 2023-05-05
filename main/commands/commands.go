@@ -11,6 +11,7 @@ var commands = map[string]Command{
 	"find":      &FindCommand{},
 	"config":    &ConfigCommand{},
 	"templates": &TemplatesCommand{},
+	"template":  &TemplateCommand{},
 }
 
 var configuration = config.NewConfig()

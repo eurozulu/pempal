@@ -1,9 +1,10 @@
 package commands
 
 import (
-	"github.com/go-yaml/yaml"
+	"fmt"
 	"io"
 	"pempal/resourceio"
+	"sort"
 )
 
 type TemplatesCommand struct {
@@ -16,15 +17,14 @@ func (t TemplatesCommand) Execute(args []string, out io.Writer) error {
 		t.TemplatePath = configuration.TemplatePath
 	}
 
-	m := map[string]interface{}{}
-	if err := resourceio.MergeTemplatesInto(&m, t.TemplatePath, args...); err != nil {
-		return err
-	}
-	by, err := yaml.Marshal(m)
+	tm, err := resourceio.NewResourceTemplateManager(t.TemplatePath)
 	if err != nil {
 		return err
 	}
-	by = append(by, '\n')
-	_, err = out.Write(by)
+	names := tm.Names(args...)
+	sort.Strings(names)
+	for _, n := range names {
+		fmt.Fprintln(out, n)
+	}
 	return err
 }

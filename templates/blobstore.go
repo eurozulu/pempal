@@ -11,6 +11,7 @@ import (
 const defaultPermission = 0640
 
 type BlobStore interface {
+	Names() []string
 	Contains(name string) bool
 	Read(name string) ([]byte, error)
 	Write(name string, blob []byte) error
@@ -48,6 +49,10 @@ func (b fileBlobStore) Write(name string, blob []byte) error {
 
 func (b fileBlobStore) Delete(name string) error {
 	return os.Remove(b.resolveName(name))
+}
+
+func (b fileBlobStore) Names() []string {
+	return b.fileNames()
 }
 
 func (b fileBlobStore) fileNames(findFirst ...string) []string {
