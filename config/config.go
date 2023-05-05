@@ -1,8 +1,10 @@
 package config
 
 import (
+	"github.com/go-yaml/yaml"
 	"os"
 	"path/filepath"
+	"pempal/logger"
 )
 
 const (
@@ -13,6 +15,7 @@ const (
 	ENV_CA_REQUESTS         = "CA_REQUESTS"
 	ENV_CA_REVOKELISTS      = "CA_REVOKELISTS"
 	ENV_CA_TEMPLATES        = "CA_TEMPLATES"
+	ENV_CA_CONFIG           = "CA_CONFIG"
 )
 
 type Config struct {
@@ -23,6 +26,7 @@ type Config struct {
 	CsrPath         string `yaml:"csr-path"`
 	CrlPath         string `yaml:"crl-path"`
 	TemplatePath    string `yaml:"template-path"`
+	ConfigPath      string `yaml:"-"`
 }
 
 var defaultConfig = Config{
@@ -33,6 +37,7 @@ var defaultConfig = Config{
 	CsrPath:         "requests",
 	CrlPath:         "revoked",
 	TemplatePath:    "templates",
+	ConfigPath:      "$HOME/.pempal/.config",
 }
 
 func (cfg Config) ResolveWithRootPath(p string) string {
@@ -47,6 +52,7 @@ func resolvePaths(cfg *Config) {
 	cfg.CsrPath = resolvePath(cfg.RootPath, cfg.CsrPath)
 	cfg.CrlPath = resolvePath(cfg.RootPath, cfg.CrlPath)
 	cfg.TemplatePath = resolvePath(cfg.RootPath, cfg.TemplatePath)
+	cfg.ConfigPath = resolvePath(cfg.RootPath, cfg.ConfigPath)
 }
 
 func resolvePath(base, path string) string {
@@ -65,6 +71,7 @@ func applyENVValues(cfg *Config) {
 	cfg.CsrPath = envOrDefault(ENV_CA_REQUESTS, cfg.CsrPath)
 	cfg.CrlPath = envOrDefault(ENV_CA_REVOKELISTS, cfg.CrlPath)
 	cfg.TemplatePath = envOrDefault(ENV_CA_TEMPLATES, cfg.TemplatePath)
+	cfg.ConfigPath = envOrDefault(ENV_CA_CONFIG, cfg.ConfigPath)
 }
 
 func envOrDefault(name string, def string) string {
@@ -75,10 +82,40 @@ func envOrDefault(name string, def string) string {
 	return s
 }
 
-func NewConfig() Config {
+func LoadConfig(name string, cfg *Config) error {
+	f, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err = yaml.NewDecoder(f).Decode(cfg); err != nil {
+		return err
+	}
+	return nil
+}
+
+func SaveConfig(name string, cfg Config) error {
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0640)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return yaml.NewEncoder(f).Encode(&cfg)
+}
+
+func NewConfig(path string) Config {
 	cfg := &Config{}
 	*cfg = defaultConfig
 	applyENVValues(cfg)
+
+	if path != "" {
+		cfg.ConfigPath = path
+	}
 	resolvePaths(cfg)
+	if err := LoadConfig(cfg.ConfigPath, cfg); err != nil {
+		if path != "" {
+			logger.Log(logger.Error, "Failed to load config %s  %v", path, err)
+		}
+	}
 	return *cfg
 }
