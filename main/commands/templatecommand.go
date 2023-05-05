@@ -7,25 +7,17 @@ import (
 	"github.com/go-yaml/yaml"
 	"io"
 	"os"
-	"pempal/resourceio"
-	"pempal/templates"
 )
 
-var templateManager templates.TemplateManager
-
 type TemplateCommand struct {
-	TemplatePath string `flag:"template-path,path"`
-	Raw          bool   `flag:"raw"`
-	Add          string `flag:"add"`
-	Remove       string `flag:"remove"`
+	Raw    bool   `flag:"raw"`
+	Add    string `flag:"add"`
+	Remove string `flag:"remove"`
 }
 
 func (cmd TemplateCommand) Execute(args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("must provide one or more template names")
-	}
-	if err := cmd.setTemplateManager(); err != nil {
-		return err
 	}
 
 	if cmd.Remove != "" {
@@ -51,44 +43,32 @@ func (cmd TemplateCommand) Execute(args []string, out io.Writer) error {
 }
 
 func (cmd TemplateCommand) addTemplate(name string, data []byte) error {
-	t, err := templateManager.ParseTemplate(data)
+	t, err := ResourceTemplates.ParseTemplate(data)
 	if err != nil {
 		return err
 	}
-	return templateManager.AddTemplate(name, t)
+	return ResourceTemplates.AddTemplate(name, t)
 }
 
 func (cmd TemplateCommand) removeTemplates(names []string) error {
 	for _, name := range names {
-		if err := templateManager.RemoveTemplate(name); err != nil {
+		if err := ResourceTemplates.RemoveTemplate(name); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (cmd TemplateCommand) setTemplateManager() error {
-	if cmd.TemplatePath == "" {
-		cmd.TemplatePath = configuration.TemplatePath
-	}
-	tm, err := resourceio.NewResourceTemplateManager(cmd.TemplatePath)
-	if err != nil {
-		return err
-	}
-	templateManager = tm
-	return nil
-}
-
 func mergeNamedTemplates(names []string) ([]byte, error) {
 	m := map[string]interface{}{}
-	if err := templateManager.MergeTemplatesInto(&m, names...); err != nil {
+	if err := ResourceTemplates.MergeTemplatesInto(&m, names...); err != nil {
 		return nil, err
 	}
 	return yaml.Marshal(m)
 }
 
 func rawNamedTemplates(names []string) ([]byte, error) {
-	temps, err := templateManager.TemplatesByName(names...)
+	temps, err := ResourceTemplates.TemplatesByName(names...)
 	if err != nil {
 		return nil, err
 	}
