@@ -4,6 +4,8 @@ import (
 	"encoding"
 )
 
+const ResourceTypeName = "resource-type"
+
 type DTO interface {
 	encoding.BinaryUnmarshaler
 }

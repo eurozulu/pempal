@@ -26,19 +26,7 @@ type TemplateManager interface {
 	// TemplateByName retrieves a named template or an error if the given name is not known
 	TemplatesByName(name ...string) ([]Template, error)
 
-	Names(s ...string) []string
-
-	MergeTemplatesInto(dst interface{}, names ...string) error
-
-	// AddTemplate adds a new template to the store under the given name.
-	// returns error if the name already exists.
-	AddTemplate(name string, t Template) error
-
-	// RemoveTemplate removes a named template from the store.
-	//  returns error if the name is not known
-	RemoveTemplate(name string) error
-
-	AddDefaultTemplate(name string, data []byte)
+	AddTemplate(name string, data []byte)
 }
 
 type templateManager struct {
@@ -48,38 +36,37 @@ type templateManager struct {
 }
 
 func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
-	tags, _ := parseTags(data)
-	extendTemplates, err := tm.TemplatesByName(tagValues(tags.TagsByName(TAG_EXTENDS))...)
-	if err != nil {
-		return nil, err
+	tags, parsed := parseTags(data)
+
+	if containsGoTemplates(data) {
+		importData, err := tm.buildImportData(tags.TagsByName(TAG_IMPORTS))
+		if err != nil {
+			return nil, err
+		}
+		parsed, err = executeGoTemplate(data, importData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute templates  %v", err)
+		}
 	}
-	imports, err := tm.namedTemplatesMap(tagValues(tags.TagsByName(TAG_IMPORTS)))
-	if err != nil {
-		return nil, err
+
+	extTags := tags.TagsByName(TAG_EXTENDS)
+	var extends []Template
+	if len(extTags) > 0 {
+		ext, err := tm.TemplatesByName(tagValues(extTags)...)
+		if err != nil {
+			return nil, err
+		}
+		extends = ext
 	}
-	return newYamlTemplate(data, extendTemplates, imports)
+	return newYamlTemplate(data, tags, parsed, extends)
 }
 
 func (tm templateManager) TemplatesByName(names ...string) ([]Template, error) {
 	temps := make([]Template, len(names))
 	for i, name := range names {
-		fname := name
-		if filepath.Ext(fname) == "" {
-			fname = strings.Join([]string{name, "yaml"}, ".")
-		}
-		by, err := tm.store.Read(fname)
+		by, err := tm.readTemplate(name)
 		if err != nil {
-			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("failed to open template '%s'  %v", name, err)
-			}
-			// not exits as 'real' template, check if it's a default
-			if len(tm.defaults) > 0 {
-				b, ok := tm.defaults[strings.ToLower(name)]
-				if !ok {
-					return nil, fmt.Errorf("template %s is not known", name)
-				}
-				by = b
-			}
+			return nil, err
 		}
 		t, err := tm.ParseTemplate(by)
 		if err != nil {
@@ -111,46 +98,55 @@ func (tm templateManager) Names(s ...string) []string {
 	return names
 }
 
-func (tm templateManager) MergeTemplatesInto(dst interface{}, names ...string) error {
-	tps, err := tm.TemplatesByName(names...)
-	if err != nil {
-		return err
-	}
-	for _, t := range tps {
-		if err = t.Apply(dst); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (tm templateManager) AddTemplate(name string, t Template) error {
+func (tm templateManager) SaveTemplate(name string, t Template) error {
 	return tm.store.Write(name, t.Raw())
 }
 
-func (tm templateManager) RemoveTemplate(name string) error {
+func (tm templateManager) DeleteTemplate(name string) error {
 	return tm.store.Delete(name)
 }
 
-func (tm *templateManager) AddDefaultTemplate(name string, data []byte) {
+func (tm *templateManager) AddTemplate(name string, data []byte) {
 	tm.defaults[strings.ToLower(name)] = data
 }
 
-func (tm templateManager) namedTemplatesMap(names []string) (map[string]interface{}, error) {
-	imports := map[string]interface{}{}
-	importTemplates, err := tm.TemplatesByName(names...)
-	if err != nil {
-		return nil, err
+func (tm templateManager) readTemplate(name string) ([]byte, error) {
+	fname := name
+	if filepath.Ext(fname) == "" {
+		fname = strings.Join([]string{name, "yaml"}, ".")
 	}
-	for i, name := range names {
-		// place map of each template into the root map
-		m := map[string]interface{}{}
-		if err = importTemplates[i].Apply(&m); err != nil {
+	by, err := tm.store.Read(fname)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to open template '%s'  %v", name, err)
+		}
+		// not exits as 'real' template, check if it's a default
+		if len(tm.defaults) > 0 {
+			b, ok := tm.defaults[strings.ToLower(name)]
+			if !ok {
+				return nil, fmt.Errorf("template %s is not known", name)
+			}
+			by = b
+		}
+	}
+	return by, nil
+}
+
+func (tm templateManager) buildImportData(tags Tags) (map[string]interface{}, error) {
+	mapped := map[string]interface{}{}
+	for _, tag := range tags {
+		name, key := tag.ParseAsImport()
+		imported, err := tm.TemplatesByName(name)
+		if err != nil {
 			return nil, err
 		}
-		imports[name] = m
+		m := map[string]interface{}{}
+		if err = imported[0].Apply(&m); err != nil {
+			return nil, err
+		}
+		mapped[key] = m
 	}
-	return imports, nil
+	return mapped, nil
 }
 
 func constainsString(s string, ss []string, exact bool) bool {
@@ -166,6 +162,15 @@ func constainsString(s string, ss []string, exact bool) bool {
 		}
 	}
 	return false
+}
+
+func ApplyTemplatesTo(dst interface{}, templates []Template) error {
+	for _, t := range templates {
+		if err := t.Apply(dst); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func NewTemplateManager(rootpath string) (TemplateManager, error) {

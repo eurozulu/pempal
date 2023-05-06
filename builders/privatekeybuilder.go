@@ -41,7 +41,7 @@ func (kb PrivateKeyBuilder) RequiredValues() map[string]interface{} {
 
 func (kb PrivateKeyBuilder) Build() (model.PEMResource, error) {
 	if errs := kb.Validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s", collectErrorList(errs, ", "))
+		return nil, fmt.Errorf("%s", collectErrorList(errs))
 	}
 
 	keyAlgo := utils.ParsePublicKeyAlgorithm(kb.dto.PublicKeyAlgorithm)

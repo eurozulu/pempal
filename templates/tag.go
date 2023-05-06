@@ -2,6 +2,7 @@ package templates
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 )
 
@@ -11,6 +12,13 @@ const TAG_IMPORTS = "imports"
 
 type Tags []Tag
 
+// Tag represents a single key/value pair which optionally appears at the start of a template.
+// Every tag starts with the tag token '"' followed directly by the tag name.
+// Following the name a space delimits the value to assign to the tag.
+// e.g.. #extend mytemplate
+// Valid tags are:
+// #extends
+// #imports
 type Tag struct {
 	Name  string
 	Value string
@@ -22,11 +30,15 @@ func (tag Tag) String() string {
 
 func (tag Tag) ParseAsImport() (name string, alias string) {
 	names := strings.SplitN(tag.Value, " ", 2)
-	alias = strings.TrimSpace(names[0])
+	name = strings.TrimSpace(names[0])
 	if len(names) > 1 {
-		name = strings.TrimSpace(names[1])
+		a, err := strconv.Unquote(strings.TrimSpace(names[1]))
+		if err != nil {
+			a = strings.TrimSpace(names[1])
+		}
+		alias = a
 	} else {
-		name = alias
+		alias = name
 	}
 	return name, alias
 }

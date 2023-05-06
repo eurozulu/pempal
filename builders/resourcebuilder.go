@@ -28,11 +28,11 @@ func NewResourceBuilder(t model.ResourceType) (ResourceBuilder, error) {
 	}
 }
 
-func collectErrorList(errs []error, delimit string) string {
+func collectErrorList(errs []error) string {
 	buf := bytes.NewBuffer(nil)
 	for i, err := range errs {
 		if i > 0 {
-			buf.WriteString(delimit)
+			buf.WriteString("\n")
 		}
 		buf.WriteString(err.Error())
 	}

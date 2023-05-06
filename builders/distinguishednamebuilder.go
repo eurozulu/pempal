@@ -38,7 +38,7 @@ func (db DistinguishedNameBuilder) RequiredValues() map[string]interface{} {
 
 func (db DistinguishedNameBuilder) BuildName() (pkix.Name, error) {
 	if errs := db.Validate(); len(errs) > 0 {
-		return pkix.Name{}, fmt.Errorf("%s", collectErrorList(errs, ", "))
+		return pkix.Name{}, fmt.Errorf("%s", collectErrorList(errs))
 	}
 	return db.dto.ToName(), nil
 }

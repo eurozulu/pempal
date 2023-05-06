@@ -3,16 +3,25 @@ package commands
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/go-yaml/yaml"
 	"io"
 	"os"
+	"pempal/templates"
+	"strings"
 )
 
+const (
+	formatYAML = "yaml"
+	formatJSON = "json"
+	formatRAW  = "raw"
+)
+
+var formats = []string{formatYAML, formatJSON, formatRAW}
+
 type TemplateCommand struct {
-	Raw    bool   `flag:"raw"`
-	Add    string `flag:"add"`
-	Remove string `flag:"remove"`
+	Format string `flag:"format"`
 }
 
 func (cmd TemplateCommand) Execute(args []string, out io.Writer) error {
@@ -20,58 +29,52 @@ func (cmd TemplateCommand) Execute(args []string, out io.Writer) error {
 		return fmt.Errorf("must provide one or more template names")
 	}
 
-	if cmd.Remove != "" {
-		return cmd.removeTemplates(args)
-	}
-	var data []byte
-	var err error
-	if !cmd.Raw {
-		data, err = mergeNamedTemplates(args)
-	} else {
-		data, err = rawNamedTemplates(args)
-	}
-	if cmd.Add != "" {
-		return cmd.addTemplate(cmd.Add, data)
-	}
-
+	temps, err := ResourceTemplates.TemplatesByName(args...)
 	if err != nil {
 		return err
 	}
-	data = append(data, '\n')
-	_, err = out.Write(data)
-	return err
-}
 
-func (cmd TemplateCommand) addTemplate(name string, data []byte) error {
-	t, err := ResourceTemplates.ParseTemplate(data)
-	if err != nil {
-		return err
+	switch cmd.resolveFormat() {
+	case formatYAML:
+		return outputAsYaml(temps, out)
+	case formatJSON:
+		return outputAsJson(temps, out)
+	case formatRAW:
+		return outputAsRaw(temps, out)
+	default:
+		return fmt.Errorf("%s is an unknown format. Use one of %v", cmd.Format, formats)
 	}
-	return ResourceTemplates.AddTemplate(name, t)
 }
 
-func (cmd TemplateCommand) removeTemplates(names []string) error {
-	for _, name := range names {
-		if err := ResourceTemplates.RemoveTemplate(name); err != nil {
-			return err
+func (cmd TemplateCommand) resolveFormat() string {
+	if cmd.Format == "" {
+		return formats[0]
+	}
+	for _, f := range formats {
+		if strings.EqualFold(f, cmd.Format) {
+			return f
 		}
 	}
-	return nil
+	return cmd.Format
 }
 
-func mergeNamedTemplates(names []string) ([]byte, error) {
+func outputAsYaml(temps []templates.Template, out io.Writer) error {
 	m := map[string]interface{}{}
-	if err := ResourceTemplates.MergeTemplatesInto(&m, names...); err != nil {
-		return nil, err
+	if err := templates.ApplyTemplatesTo(&m, temps); err != nil {
+		return err
 	}
-	return yaml.Marshal(m)
+	return yaml.NewEncoder(out).Encode(m)
 }
 
-func rawNamedTemplates(names []string) ([]byte, error) {
-	temps, err := ResourceTemplates.TemplatesByName(names...)
-	if err != nil {
-		return nil, err
+func outputAsJson(temps []templates.Template, out io.Writer) error {
+	m := map[string]interface{}{}
+	if err := templates.ApplyTemplatesTo(&m, temps); err != nil {
+		return err
 	}
+	return json.NewEncoder(out).Encode(m)
+}
+
+func outputAsRaw(temps []templates.Template, out io.Writer) error {
 	buf := bytes.NewBuffer(nil)
 	for i, t := range temps {
 		if i > 0 {
@@ -79,7 +82,8 @@ func rawNamedTemplates(names []string) ([]byte, error) {
 		}
 		buf.Write(t.Raw())
 	}
-	return buf.Bytes(), nil
+	_, err := out.Write(buf.Bytes())
+	return err
 }
 
 func readStdIn() ([]byte, error) {

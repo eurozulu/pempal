@@ -84,7 +84,7 @@ func (cb CertificateBuilder) RequiredValues() map[string]interface{} {
 
 func (cb CertificateBuilder) Build() (model.PEMResource, error) {
 	if errs := cb.Validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("Failed to build certificate:\t%s", collectErrorList(errs, ", "))
+		return nil, fmt.Errorf("Failed to build certificate:\n%s", collectErrorList(errs))
 	}
 
 	cert, err := cb.dto.ToCertificate()

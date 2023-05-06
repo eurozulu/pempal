@@ -16,9 +16,10 @@ type CertificateRequestDTO struct {
 	PublicKeyAlgorithm string                `yaml:"public-key-algorithm"`
 	PublicKey          *PublicKeyDTO         `yaml:"public-key"`
 	Subject            *DistinguishedNameDTO `yaml:"subject"`
-	Der                []byte                `yaml:"-"`
-	Identity           string                `yaml:"identity"`
-	ResourceType       string                `yaml:"resource-type"`
+
+	Der          []byte `yaml:"-"`
+	Identity     string `yaml:"identity"`
+	ResourceType string `yaml:"resource-type"`
 }
 
 func (cd CertificateRequestDTO) String() string {
