@@ -1,3 +1,18 @@
+Source Certificate Format
+OpenSSL Conversion Command
+X509/.cer
+openssl x509 -in certificatename.cer -outform PEM -out certificatename.pem
+DER/.der
+openssl x509 -inform der -in certificatename.der -out certificatename.pem
+PFX/.pkx
+openssl pkcs12 -in certificatename.pfx -out certificatename.pem
+PKCS#12/.p12
+openssl pkcs12 -in certificatename.p12 -out certificatename.pem
+PKCS7/.p7b
+openssl pkcs7 -print_certs -in certificatename.p7b -out certificatename.pem
+
+
+
 pempal
 Concept
 All x509 resources are treated as PEM's.  The original file may not be in the pem format, but will be 'converted' withint he application.
