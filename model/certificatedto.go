@@ -26,8 +26,9 @@ type CertificateDTO struct {
 	MaxPathLen            int                   `yaml:"max-path-len,omitempty"`
 	MaxPathLenZero        bool                  `yaml:"max-path-len-zero,omitempty"`
 
-	Der      []byte `yaml:"-"`
-	Identity string `yaml:"identity"`
+	Der          []byte `yaml:"-"`
+	Identity     string `yaml:"identity"`
+	ResourceType string `yaml:"resource-type"`
 }
 
 func (cd CertificateDTO) String() string {
@@ -154,5 +155,6 @@ func (cd *CertificateDTO) UnmarshalBinary(data []byte) error {
 
 	cd.Der = cert.Raw
 	cd.Identity = cd.String()
+	cd.ResourceType = Certificate.String()
 	return nil
 }

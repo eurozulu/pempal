@@ -24,6 +24,8 @@ type RevocationListDTO struct {
 	// ExtraExtensions contains any additional extensions to add directly to
 	// the CRL.
 	ExtraExtensions []ExtensionDTO `yaml:"extraExtensions"`
+
+	ResourceType string `yaml:"resource-type"`
 }
 
 func (rvl *RevocationListDTO) UnmarshalBinary(data []byte) error {
@@ -43,5 +45,6 @@ func (rvl *RevocationListDTO) UnmarshalBinary(data []byte) error {
 	rvl.ExtraExtensions = newExtentionsDTOs(rlist.Extensions)
 	rvl.ExtraExtensions = newExtentionsDTOs(rlist.ExtraExtensions)
 
+	rvl.ResourceType = RevokationList.String()
 	return nil
 }
