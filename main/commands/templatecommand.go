@@ -1,13 +1,11 @@
 package commands
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/go-yaml/yaml"
 	"io"
-	"os"
 	"pempal/templates"
 	"strings"
 )
@@ -125,16 +123,4 @@ func parseInlineTemplate(s string) (templates.Template, error) {
 func isInlineTemplate(s string) bool {
 	s = strings.TrimSpace(s)
 	return strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}")
-}
-
-func readStdIn() ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	scan := bufio.NewScanner(os.Stdin)
-	for scan.Scan() {
-		buf.Write(scan.Bytes())
-	}
-	if scan.Err() != nil && scan.Err() != io.EOF {
-		return nil, scan.Err()
-	}
-	return buf.Bytes(), nil
 }

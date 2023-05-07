@@ -1,25 +1,36 @@
 package commands
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"pempal/templates"
 	"sort"
 )
 
+var ResourceTemplatesStore templates.TemplateStore
+
 type TemplatesCommand struct {
 	Name   string `flag:"name"`
 	Add    string `flag:"add"`
-	Remove string `flag:"remove"`
+	Remove bool   `flag:"remove"`
 }
 
 func (cmd TemplatesCommand) Execute(args []string, out io.Writer) error {
-	if cmd.Remove != "" {
-		return cmd.removeTemplates(args)
+	ResourceTemplatesStore = ResourceTemplates.(templates.TemplateStore)
+	if cmd.Remove {
+		if err := cmd.removeTemplates(args); err != nil {
+			return err
+		}
 	}
-
-	store := ResourceTemplates.(templates.TemplateStore)
-	names := store.Names(args...)
+	if cmd.Add != "" {
+		if err := cmd.addTemplate(args); err != nil {
+			return err
+		}
+	}
+	names := ResourceTemplatesStore.Names(args...)
 	sort.Strings(names)
 	for _, n := range names {
 		fmt.Fprintln(out, n)
@@ -27,12 +38,28 @@ func (cmd TemplatesCommand) Execute(args []string, out io.Writer) error {
 	return nil
 }
 
-func (cmd TemplatesCommand) addTemplate(name string, data []byte) error {
+func (cmd TemplatesCommand) addTemplate(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("must provide a unique name for the new template")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("multiple names can not be specified for a new template")
+	}
+	var data []byte
+	var err error
+	if cmd.Add == "-" {
+		data, err = readStdIn()
+	} else {
+		data, err = os.ReadFile(cmd.Add)
+	}
+	if err != nil {
+		return err
+	}
 	t, err := ResourceTemplates.ParseTemplate(data)
 	if err != nil {
 		return err
 	}
-	return ResourceTemplates.(templates.TemplateStore).SaveTemplate(name, t)
+	return ResourceTemplatesStore.SaveTemplate(args[0], t)
 }
 
 func (cmd TemplatesCommand) removeTemplates(names []string) error {
@@ -42,4 +69,16 @@ func (cmd TemplatesCommand) removeTemplates(names []string) error {
 		}
 	}
 	return nil
+}
+
+func readStdIn() ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	scan := bufio.NewScanner(os.Stdin)
+	for scan.Scan() {
+		buf.Write(scan.Bytes())
+	}
+	if scan.Err() != nil && scan.Err() != io.EOF {
+		return nil, scan.Err()
+	}
+	return buf.Bytes(), nil
 }
