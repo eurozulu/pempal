@@ -30,7 +30,7 @@ func (db DistinguishedNameBuilder) Validate() []error {
 
 func (db DistinguishedNameBuilder) RequiredValues() map[string]interface{} {
 	m := map[string]interface{}{}
-	if db.dto.CommonName == "" {
+	if db.dto.CommonName == "" || db.dto.CommonName == "<no value>" {
 		m["common-name"] = ""
 	}
 	return m

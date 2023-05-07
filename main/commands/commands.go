@@ -42,8 +42,9 @@ type CommandWithFlags interface {
 type CommonFlagsStruct struct {
 	Out        string `flag:"out"`
 	ForceOut   bool   `flag:"force,f"`
-	Verbose    bool   `flag:"v"`
 	ConfigPath string `flag:"config"`
+	Verbose    bool   `flag:"v"`
+	Debug      bool   `flag:"vv"`
 }
 
 func ApplyCommonFlags(args []string) ([]string, error) {

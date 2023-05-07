@@ -72,6 +72,13 @@ func main() {
 		}(f)
 	}
 
+	if commands.CommonFlags.Verbose {
+		logger.DefaultLogger.SetLevel(logger.Warning)
+	}
+	if commands.CommonFlags.Debug {
+		logger.DefaultLogger.SetLevel(logger.Debug)
+	}
+
 	if err = cmd.Execute(params, out); err != nil {
 		logger.Log(logger.Error, "%v\n", err)
 	}

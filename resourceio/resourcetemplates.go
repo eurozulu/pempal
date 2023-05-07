@@ -1,12 +1,15 @@
 package resourceio
 
-import "pempal/templates"
+import (
+	"crypto/x509"
+	"pempal/templates"
+)
 
 var standardTemplates = map[string][]byte{
 	"privatekey":               []byte(PrivateKey),
 	"certificaterequest":       []byte(CertificateRequest),
 	"certificate":              []byte(Certificate),
-	"basic-certificate":        []byte(BasicCertificate),
+	"basic-certificate":        []byte(DefaultCertificate),
 	"revokationlist":           []byte(RevokationList),
 	"privatekey-rsa":           []byte(PrivateKeyRSA),
 	"privatekey-ecdsa":         []byte(PrivateKeyECDSA),
@@ -54,20 +57,36 @@ postal-code: []
 serial-number:
 `
 
-const BasicCertificate = `
+var a x509.PublicKeyAlgorithm
+
+const DefaultCertificate = `
 #extends certificate
 #imports DN "subject"
 #imports DN "issuer"
 
+version: 1
 subject: {{ range $key, $value := .subject }}
   {{ $key }}: {{ $value }}{{ end }}
   
 issuer: {{ range $key, $value := .issuer }}
   {{ $key }}: {{ $value }}{{ end }}
-  
+
+signature-algorithm: SHA256WithRSA
+public-key-algorithm: RSA
+
 not-before: {{ now }}
 not-after: {{ nowPlusDays 365 }}
 `
+const CertificateCA = `#extends certificate
+is-ca: true
+basic-constraints-valid: true
+max-path-len: -1
+max-path-len-zero: false
+`
+const CertificateIntermediate = `#extends certificate-ca
+max-path-len: 1
+`
+
 const RevokationList = `#revokationliste
 `
 
@@ -78,15 +97,6 @@ key-param: 2048
 const PrivateKeyECDSA = `#extends privatekey
 public-key-algorithm: ECDSA
 key-param: P256
-`
-const CertificateCA = `#extends certificate
-is-ca: true
-basic-constraints-valid: true
-max-path-len: -1
-max-path-len-zero: false
-`
-const CertificateIntermediate = `#extends certificate-ca
-max-path-len: 1
 `
 
 func NewResourceTemplateManager(root string) (templates.TemplateManager, error) {

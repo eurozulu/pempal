@@ -32,10 +32,10 @@ func executeGoTemplate(text []byte, data map[string]interface{}) ([]byte, error)
 
 func buildFuncMap() gotemplate.FuncMap {
 	return gotemplate.FuncMap{
-		"now": time.Now,
-		"nowPlusDays": func(days int) time.Time {
+		"now": func() string { return time.Now().Format(time.RFC3339) },
+		"nowPlusDays": func(days int) string {
 			day := time.Hour * 24
-			return time.Now().Add(day * time.Duration(days))
+			return time.Now().Add(day * time.Duration(days)).Format(time.RFC3339)
 		},
 	}
 }

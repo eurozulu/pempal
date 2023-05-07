@@ -6,8 +6,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"pempal/keymanager"
+	"pempal/logger"
 	"pempal/model"
 	"pempal/templates"
+	"strings"
 	"time"
 )
 
@@ -58,21 +60,21 @@ func (cb CertificateBuilder) RequiredValues() map[string]interface{} {
 	}
 	if cb.dto.Subject != nil {
 		missing := newDistinguishedNameBuilder(cb.dto.Subject).RequiredValues()
-		if len(missing) > 0 {
-			m["subject"] = missing
+		for k := range missing {
+			m[strings.Join([]string{"subject", k}, ".")] = missing
 		}
 	} else {
 		m["subject"] = nil
 	}
 	if cb.dto.Issuer != nil {
 		missing := newDistinguishedNameBuilder(cb.dto.Issuer).RequiredValues()
-		if len(missing) > 0 {
-			m["issuer"] = missing
+		for k := range missing {
+			m[strings.Join([]string{"issuer", k}, ".")] = missing
 		}
 	} else {
 		m["issuer"] = nil
 	}
-	now := time.Now()
+	now := time.Now().Add(-time.Hour)
 	if cb.dto.NotBefore.Before(now) {
 		m["not-before"] = cb.dto.NotBefore
 	}
@@ -83,6 +85,7 @@ func (cb CertificateBuilder) RequiredValues() map[string]interface{} {
 }
 
 func (cb CertificateBuilder) Build() (model.PEMResource, error) {
+	logger.Log(logger.Debug, "building certificate:  %v", cb.dto)
 	if errs := cb.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("Failed to build certificate:\n%s", collectErrorList(errs))
 	}

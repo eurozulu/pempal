@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"pempal/logger"
 	"strings"
 )
 
@@ -36,13 +37,17 @@ type templateManager struct {
 }
 
 func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
+	logger.Log(logger.Debug, "Parsing template %s", string(data))
 	tags, parsed := parseTags(data)
+	logger.Log(logger.Debug, "Parsed template: Tags: %v", tags)
 
 	if containsGoTemplates(data) {
+		logger.Log(logger.Debug, "go template detected.  executing template engine")
 		importData, err := tm.buildImportData(tags.TagsByName(TAG_IMPORTS))
 		if err != nil {
 			return nil, err
 		}
+		logger.Log(logger.Debug, "imported %d templates", len(importData))
 		parsed, err = executeGoTemplate(data, importData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute templates  %v", err)
@@ -50,6 +55,7 @@ func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
 	}
 
 	extTags := tags.TagsByName(TAG_EXTENDS)
+	logger.Log(logger.Debug, "found %d extends templates", len(extTags))
 	var extends []Template
 	if len(extTags) > 0 {
 		ext, err := tm.TemplatesByName(tagValues(extTags)...)
