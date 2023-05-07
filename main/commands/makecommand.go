@@ -17,10 +17,11 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("must provide one or more template names to build")
 	}
-	temps, err := ResourceTemplates.TemplatesByName(args...)
+	temps, err := parseArgumentsToTemplates(args)
 	if err != nil {
 		return err
 	}
+
 	pl := isPlural(args)
 	logger.Log(logger.Debug, "using template%s: %v", pl, args)
 

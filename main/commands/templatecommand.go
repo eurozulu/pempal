@@ -29,7 +29,7 @@ func (cmd TemplateCommand) Execute(args []string, out io.Writer) error {
 		return fmt.Errorf("must provide one or more template names")
 	}
 
-	temps, err := ResourceTemplates.TemplatesByName(args...)
+	temps, err := parseArgumentsToTemplates(args)
 	if err != nil {
 		return err
 	}
@@ -84,6 +84,47 @@ func outputAsRaw(temps []templates.Template, out io.Writer) error {
 	}
 	_, err := out.Write(buf.Bytes())
 	return err
+}
+
+func parseArgumentsToTemplates(args []string) ([]templates.Template, error) {
+	var temps []templates.Template
+	for _, arg := range args {
+		if !isInlineTemplate(arg) {
+			t, err := ResourceTemplates.TemplatesByName(arg)
+			if err != nil {
+				return nil, err
+			}
+			temps = append(temps, t...)
+		} else {
+			// An inline template, attempt to parse into template
+			t, err := parseInlineTemplate(arg)
+			if err != nil {
+				return nil, err
+			}
+			temps = append(temps, t)
+		}
+	}
+	return temps, nil
+}
+
+func parseInlineTemplate(s string) (templates.Template, error) {
+	templateStrings := strings.Split(strings.Trim(s, "{}"), ",")
+	buf := bytes.NewBuffer(nil)
+	for _, ts := range templateStrings {
+		ss := strings.SplitN(ts, ":", 2)
+		if len(ss) < 2 {
+			return nil, fmt.Errorf("failed to parse inline template.  %s has no colon", ts)
+		}
+		k := strings.Replace(strings.TrimSpace(ss[0]), ".", ":\n  ", -1)
+		buf.WriteString(strings.Join([]string{k, strings.TrimSpace(ss[1])}, ": "))
+		buf.WriteRune('\n')
+	}
+	return ResourceTemplates.ParseTemplate(buf.Bytes())
+}
+
+func isInlineTemplate(s string) bool {
+	s = strings.TrimSpace(s)
+	return strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}")
 }
 
 func readStdIn() ([]byte, error) {
