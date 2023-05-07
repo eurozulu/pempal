@@ -15,6 +15,9 @@ type MakeCommand struct {
 
 func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	if len(args) == 0 {
+		if err := showTemplateNames(out); err != nil {
+			return err
+		}
 		return fmt.Errorf("must provide one or more template names to build")
 	}
 	temps, err := parseArgumentsToTemplates(args)
@@ -82,6 +85,11 @@ func (cmd MakeCommand) resolveResourceType(temps []templates.Template) (model.Re
 		return rt, nil
 	}
 	return model.Unknown, nil
+}
+
+func showTemplateNames(out io.Writer) error {
+	tc := &TemplatesCommand{}
+	return tc.Execute(nil, out)
 }
 
 func isPlural(args []string) string {

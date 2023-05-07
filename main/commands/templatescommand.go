@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"pempal/logger"
 	"pempal/templates"
 	"sort"
 )
@@ -29,6 +30,7 @@ func (cmd TemplatesCommand) Execute(args []string, out io.Writer) error {
 		if err := cmd.addTemplate(args); err != nil {
 			return err
 		}
+		logger.Log(logger.Info, "added new template: ")
 	}
 	names := ResourceTemplatesStore.Names(args...)
 	sort.Strings(names)
@@ -64,7 +66,7 @@ func (cmd TemplatesCommand) addTemplate(args []string) error {
 
 func (cmd TemplatesCommand) removeTemplates(names []string) error {
 	for _, name := range names {
-		if err := ResourceTemplates.(templates.TemplateStore).DeleteTemplate(name); err != nil {
+		if err := ResourceTemplatesStore.DeleteTemplate(name); err != nil {
 			return err
 		}
 	}

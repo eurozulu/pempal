@@ -7,14 +7,14 @@ import (
 
 var standardTemplates = map[string][]byte{
 	"privatekey":               []byte(PrivateKey),
-	"certificaterequest":       []byte(CertificateRequest),
-	"certificate":              []byte(Certificate),
-	"basic-certificate":        []byte(DefaultCertificate),
-	"revokationlist":           []byte(RevokationList),
 	"privatekey-rsa":           []byte(PrivateKeyRSA),
 	"privatekey-ecdsa":         []byte(PrivateKeyECDSA),
+	"certificaterequest":       []byte(CertificateRequest),
+	"certificate":              []byte(Certificate),
+	"certificate-default":      []byte(DefaultCertificate),
 	"certificate-ca":           []byte(CertificateCA),
 	"certificate-intermediate": []byte(CertificateIntermediate),
+	"revokationlist":           []byte(RevokationList),
 	"dn":                       []byte(DN),
 }
 

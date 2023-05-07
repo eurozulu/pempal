@@ -105,10 +105,16 @@ func (tm templateManager) Names(s ...string) []string {
 }
 
 func (tm templateManager) SaveTemplate(name string, t Template) error {
+	if filepath.Ext(name) == "" {
+		name = strings.Join([]string{name, "yaml"}, ".")
+	}
 	return tm.store.Write(name, t.Raw())
 }
 
 func (tm templateManager) DeleteTemplate(name string) error {
+	if filepath.Ext(name) == "" {
+		name = strings.Join([]string{name, "yaml"}, ".")
+	}
 	return tm.store.Delete(name)
 }
 

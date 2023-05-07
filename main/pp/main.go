@@ -75,12 +75,14 @@ func main() {
 		}(f)
 	}
 
+	level := logger.Info
 	if commands.CommonFlags.Verbose {
-		logger.DefaultLogger.SetLevel(logger.Warning)
+		level = logger.Warning
 	}
 	if commands.CommonFlags.Debug {
-		logger.DefaultLogger.SetLevel(logger.Debug)
+		level = logger.Debug
 	}
+	logger.DefaultLogger.SetLevel(level)
 
 	if err = cmd.Execute(params, out); err != nil {
 		logger.Log(logger.Error, "%v\n", err)

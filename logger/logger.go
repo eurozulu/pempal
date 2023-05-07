@@ -10,6 +10,7 @@ import (
 const (
 	Error LogLevel = iota
 	Warning
+	Info
 	Debug
 )
 
