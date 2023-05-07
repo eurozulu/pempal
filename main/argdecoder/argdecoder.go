@@ -1,4 +1,4 @@
-package argparser
+package argdecoder
 
 import (
 	"fmt"
@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-type ArgumentParser interface {
-	// Apply will apply the parser arguments to the given object.
+type ArgumentDecoder interface {
+	// Apply will apply the arguments to the given object.
 	// Arguments are parsed into flags, args beginning with '-', with the remaining arg value defining the flag name.
 	// this name is matched to a public field in the given value either directly by name or via a `flag` tag.
 	// If the arguments has another arg following the flag, and not starting with -, this is used as the value for that flag
-	// which is assigned to the Field, assuming it can be coersed into the relevant type.
-	// Any arguments not matched to fields are returned.
+	// which is assigned to the Field, assuming it can be coerced into the relevant type, otherwise an error is thrown.
+	// Any arguments not matched to fields are returned.  As such, multiple objects may be passed to the same decoder, each "consuming" their flags.
 	Apply(v interface{}) ([]string, error)
 }
 
@@ -28,16 +28,20 @@ func ApplyArguments(args []string, v interface{}) ([]string, error) {
 	case reflect.Struct:
 		return structParser{args: args}.Apply(v)
 	case reflect.Map:
-		return mapParser{args: args}.Apply(v)
+		return mapDecoder{args: args}.Apply(v)
 	case reflect.Slice:
-		return stringSliceParser{args: args}.Apply(v)
+		return stringSliceDecoder{args: args}.Apply(v)
 	case reflect.String:
-		return stringParser{args: args}.Apply(v)
+		return stringDecoder{args: args}.Apply(v)
 	default:
 		return nil, fmt.Errorf("%s is not ap supported type", vv.Type().String())
 	}
 }
 
+// ParseArgs parses the given args slice into flags and parameters.
+// Flags are any argument beginning with a dash '-'. Any argument following a flag argument is treated as that flags value,
+// unless it is a flag itself.
+// parameters are all other arguments, not flags and not treated as a flag value.
 func ParseArgs(args []string) (params []string, flags map[string]*string) {
 	flags = map[string]*string{}
 	for index := 0; index < len(args); index++ {

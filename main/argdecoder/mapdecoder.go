@@ -1,15 +1,15 @@
-package argparser
+package argdecoder
 
 import (
 	"fmt"
 	"reflect"
 )
 
-type mapParser struct {
+type mapDecoder struct {
 	args []string
 }
 
-func (md mapParser) Apply(v interface{}) ([]string, error) {
+func (md mapDecoder) Apply(v interface{}) ([]string, error) {
 	mapValue := reflect.ValueOf(v)
 	if mapValue.Kind() != reflect.Map {
 		return nil, fmt.Errorf("can not decode into non map value")

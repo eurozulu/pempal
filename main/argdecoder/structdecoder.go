@@ -1,4 +1,4 @@
-package argparser
+package argdecoder
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 const TagKey = "flag"
 
-var boolFailedToParse = fmt.Errorf("can not parse as bool")
+var boolFailedToDecoder = fmt.Errorf("can not parse as bool")
 
 type structParser struct {
 	args []string
@@ -38,7 +38,7 @@ func (sd structParser) Apply(v interface{}) ([]string, error) {
 		v, err := stringAsValue(sv, fld.Type)
 		if err != nil {
 			// Handel bool as optional values.
-			if err != boolFailedToParse {
+			if err != boolFailedToDecoder {
 				return nil, err
 			}
 			// bool value not bool, so treat as param.
@@ -121,7 +121,7 @@ func stringAsValue(svalue *string, vtype reflect.Type) (reflect.Value, error) {
 		if s != "" {
 			bl, err := strconv.ParseBool(s)
 			if err != nil {
-				return reflect.Value{}, boolFailedToParse
+				return reflect.Value{}, boolFailedToDecoder
 			}
 			b = bl
 		}

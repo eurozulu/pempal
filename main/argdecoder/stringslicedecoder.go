@@ -1,15 +1,15 @@
-package argparser
+package argdecoder
 
 import (
 	"fmt"
 	"reflect"
 )
 
-type stringSliceParser struct {
+type stringSliceDecoder struct {
 	args []string
 }
 
-func (sd stringSliceParser) Apply(v interface{}) ([]string, error) {
+func (sd stringSliceDecoder) Apply(v interface{}) ([]string, error) {
 	stringValue := reflect.ValueOf(v)
 	if stringValue.Kind() != reflect.Slice {
 		return nil, fmt.Errorf("can not decode arguments into non string slice")
