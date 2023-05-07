@@ -41,8 +41,8 @@ func (sd structParser) Apply(v interface{}) ([]string, error) {
 			if err != boolFailedToDecoder {
 				return nil, err
 			}
-			// bool value not bool, so treat as param.
-			params = append(params, *sv)
+			// bool value not bool, so treat as param, prepend into parameters
+			params = append([]string{*sv}, params...)
 			v = reflect.ValueOf(true)
 
 		}
