@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"io"
 	"pempal/config"
-	"pempal/main/argparser"
+	"pempal/main/argdecoder"
 	"pempal/resourceio"
 	"pempal/templates"
 	"strings"
 )
 
-var commands = map[string]Command{
+var Commands = map[string]Command{
 	"find":      &FindCommand{},
 	"make":      &MakeCommand{},
 	"config":    &ConfigCommand{},
@@ -21,13 +21,13 @@ var commands = map[string]Command{
 // CommonFlags are flags which all command can use without the need to declare them in the command class.
 var CommonFlags CommonFlagsStruct
 
-// Configuration contains the shared config for all commands
+// Configuration contains the shared config for all Commands
 var Configuration config.Config
 
 // ResourceTemplates is the shared TemplateManager
 var ResourceTemplates templates.TemplateManager
 
-// Command executes a single operation using the given arguments and any flags assigned to the commands public fields.
+// Command executes a single operation using the given arguments and any flags assigned to the Commands public fields.
 type Command interface {
 	Execute(args []string, out io.Writer) error
 }
@@ -38,17 +38,18 @@ type CommandWithFlags interface {
 	SetFlags(flags map[string]*string) error
 }
 
-// CommonFlagsStruct contains the flags used by all commands
+// CommonFlagsStruct contains the flags used by all Commands
 type CommonFlagsStruct struct {
 	Out        string `flag:"out"`
 	ForceOut   bool   `flag:"force,f"`
 	ConfigPath string `flag:"config"`
 	Verbose    bool   `flag:"v"`
 	Debug      bool   `flag:"vv"`
+	Help       bool   `flag:"help"`
 }
 
 func ApplyCommonFlags(args []string) ([]string, error) {
-	args, err := argparser.ApplyArguments(args, &CommonFlags)
+	args, err := argdecoder.ApplyArguments(args, &CommonFlags)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse common flags  %v", err)
 	}
@@ -61,7 +62,7 @@ func ApplyCommonFlags(args []string) ([]string, error) {
 }
 
 func NewCommand(name string) (Command, error) {
-	cmd, ok := commands[strings.ToLower(name)]
+	cmd, ok := Commands[strings.ToLower(name)]
 	if !ok {
 		return nil, fmt.Errorf("%s is an unknown command", name)
 	}
