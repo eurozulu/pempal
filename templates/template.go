@@ -6,7 +6,7 @@ import (
 )
 
 // Template represents a raw byte slice of data in a specific format.
-// In addition a Template may optionally be preceeded with #tags, named tags specifying
+// Template may optionally be preceeded with #tags, named tags specifying
 // which other resources are related to this template.
 type Template interface {
 	// Raw returns the original, raw bytes of the template, prior to any parsing and attribution
@@ -18,6 +18,10 @@ type Template interface {
 	// Tags returns any #tags found in this template
 	Tags() Tags
 
+	// Apply this template to the given object.
+	// This unmarshalls the template int the given object.
+	// Object can be a map with string/interface key/values or
+	// a struct with public fields matching the properties in the template
 	Apply(in interface{}) error
 }
 

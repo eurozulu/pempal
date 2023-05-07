@@ -13,7 +13,7 @@ const TAG_IMPORTS = "imports"
 type Tags []Tag
 
 // Tag represents a single key/value pair which optionally appears at the start of a template.
-// Every tag starts with the tag token '"' followed directly by the tag name.
+// Every tag starts with the tag token '#' followed directly by the tag name.
 // Following the name a space delimits the value to assign to the tag.
 // e.g.. #extend mytemplate
 // Valid tags are:
@@ -28,6 +28,10 @@ func (tag Tag) String() string {
 	return strings.Join([]string{TAG_TOKEN, tag.Name, " ", tag.Value}, "")
 }
 
+// ParseAsImport will attempt to split the Tag value into a name and alias.
+// imports may be expressed as a simple template name or be given an alternative name, using a space delited name:
+// e.g. #imports default-certificate defcert
+// This will import the "default-certificate" and label is as 'defcert'
 func (tag Tag) ParseAsImport() (name string, alias string) {
 	names := strings.SplitN(tag.Value, " ", 2)
 	name = strings.TrimSpace(names[0])
@@ -43,6 +47,7 @@ func (tag Tag) ParseAsImport() (name string, alias string) {
 	return name, alias
 }
 
+// TagsByName gets all the tags for the given name
 func (ts Tags) TagsByName(name string) []Tag {
 	var tags []Tag
 	name = strings.TrimSpace(name)
@@ -55,7 +60,8 @@ func (ts Tags) TagsByName(name string) []Tag {
 	return tags
 }
 
-func tagValues(tags []Tag) []string {
+// tagValues gets all the values if the given tags
+func tagValues(tags Tags) []string {
 	ss := make([]string, len(tags))
 	for i, t := range tags {
 		ss[i] = strings.TrimSpace(t.Value)
