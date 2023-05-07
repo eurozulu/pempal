@@ -1,6 +1,7 @@
 package keymanager
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/x509"
@@ -9,16 +10,20 @@ import (
 	"pempal/logger"
 	"pempal/model"
 	"pempal/resourceio"
+	"pempal/utils"
 )
 
 type KeyManager interface {
 	PublicKeys() []Identity
 	PrivateKeys() map[Identity]crypto.PrivateKey
-
 	PrivateKey(id Identity) (crypto.PrivateKey, error)
+	Users() map[Identity][]User
+
 	CertificatesForIdentity(id Identity) []*x509.Certificate
-	CertificateForDN(dn pkix.Name) *x509.Certificate
-	User(dn pkix.Name) (User, error)
+	CertificateByDN(dn pkix.Name) *x509.Certificate
+
+	UsersForId(id Identity) ([]User, error)
+	UserByName(dn pkix.Name) (User, error)
 	Issuers() []User
 }
 
@@ -82,7 +87,7 @@ func (km keyManager) CertificatesForIdentity(id Identity) []*x509.Certificate {
 	return certs
 }
 
-func (km keyManager) CertificateForDN(dn pkix.Name) *x509.Certificate {
+func (km keyManager) CertificateByDN(dn pkix.Name) *x509.Certificate {
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
 
@@ -97,9 +102,31 @@ func (km keyManager) CertificateForDN(dn pkix.Name) *x509.Certificate {
 	return nil
 }
 
-func (km keyManager) User(dn pkix.Name) (User, error) {
+func (km keyManager) Users() map[Identity][]User {
+	users := map[Identity][]User{}
+	for id, key := range km.PrivateKeys() {
+		for _, cert := range km.CertificatesForIdentity(id) {
+			users[id] = append(users[id], &user{
+				id:   id,
+				cert: cert,
+				key:  key,
+			})
+		}
+	}
+	return users
+}
+
+func (km keyManager) UsersForId(id Identity) ([]User, error) {
+	u, ok := km.Users()[id]
+	if !ok {
+		return nil, fmt.Errorf("id %s not known", id.String())
+	}
+	return u, nil
+}
+
+func (km keyManager) UserByName(dn pkix.Name) (User, error) {
 	logger.Log(logger.Debug, "searching for user %s", dn.String())
-	cert := km.CertificateForDN(dn)
+	cert := km.CertificateByDN(dn)
 	if cert == nil {
 		return nil, fmt.Errorf("user %s is not known.  A certificate matching that DN could not be found", dn.String())
 	}
@@ -223,4 +250,26 @@ func caCertificates(certs []*x509.Certificate) []*x509.Certificate {
 		cas = append(cas, c)
 	}
 	return cas
+}
+
+func NewKeyManager(keypath, certpath string) (KeyManager, error) {
+	err := bytes.NewBuffer(nil)
+	if !utils.DirectoryExists(keypath) {
+		err.WriteString("keypath: ")
+		err.WriteString(keypath)
+	}
+	if !utils.DirectoryExists(certpath) {
+		if err.Len() > 0 {
+			err.WriteString(" and ")
+		}
+		err.WriteString("certpath: ")
+		err.WriteString(certpath)
+	}
+	if err.Len() > 0 {
+		return nil, fmt.Errorf("%s does not exits.", err.String())
+	}
+	return &keyManager{
+		keypath:  keypath,
+		certpath: certpath,
+	}, nil
 }

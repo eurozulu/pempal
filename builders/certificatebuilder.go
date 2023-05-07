@@ -94,7 +94,7 @@ func (cb CertificateBuilder) Build() (model.PEMResource, error) {
 	if err != nil {
 		return nil, err
 	}
-	issuer, err := cb.keys.User(cert.Issuer)
+	issuer, err := cb.keys.UserByName(cert.Issuer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to locate issuer  %v", err)
 	}

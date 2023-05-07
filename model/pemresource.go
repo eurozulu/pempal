@@ -55,10 +55,6 @@ func (r *pemResource) UnmarshalPEM(data []byte) error {
 	return nil
 }
 
-func NewPemResource() PEMResource {
-	return &pemResource{}
-}
-
 func NewPemResourceFromBlock(pemblock *pem.Block) PEMResource {
 	return &pemResource{block: pemblock}
 }

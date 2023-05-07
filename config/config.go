@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/go-yaml/yaml"
 	"os"
 	"path/filepath"
@@ -32,10 +33,10 @@ type Config struct {
 var defaultConfig = Config{
 	RootPath:        "$PWD",
 	RootCertificate: "root-certificate.pem",
-	CertPath:        "certs",
-	KeyPath:         "private",
-	CsrPath:         "requests",
-	CrlPath:         "revoked",
+	CertPath:        "",
+	KeyPath:         "",
+	CsrPath:         "",
+	CrlPath:         "",
 	TemplatePath:    "templates",
 	ConfigPath:      "$HOME/.pempal/.config",
 }
@@ -52,12 +53,11 @@ func resolvePaths(cfg *Config) {
 	cfg.CsrPath = resolvePath(cfg.RootPath, cfg.CsrPath)
 	cfg.CrlPath = resolvePath(cfg.RootPath, cfg.CrlPath)
 	cfg.TemplatePath = resolvePath(cfg.RootPath, cfg.TemplatePath)
-	cfg.ConfigPath = resolvePath(cfg.RootPath, cfg.ConfigPath)
 }
 
 func resolvePath(base, path string) string {
 	path = os.ExpandEnv(path)
-	if filepath.IsLocal(path) {
+	if path == "" || filepath.IsLocal(path) {
 		path = filepath.Join(base, path)
 	}
 	return path
@@ -80,6 +80,24 @@ func envOrDefault(name string, def string) string {
 		return def
 	}
 	return s
+}
+
+func applyGlobalValues(cfg *Config) error {
+	p := resolvePath("", cfg.ConfigPath)
+	if p == "" {
+		logger.Log(logger.Debug, "no config path set")
+		return nil
+	}
+	logger.Log(logger.Debug, "trying config at %s", p)
+	if err := LoadConfig(p, cfg); err != nil {
+		if p == resolvePath(cfg.RootPath, defaultConfig.ConfigPath) {
+			logger.Log(logger.Debug, "default config %s not found, using default config", p)
+			return nil
+		}
+		return fmt.Errorf("config path %s could not be found ", p)
+	}
+	logger.Log(logger.Warning, "applied config from %s", p)
+	return nil
 }
 
 func LoadConfig(name string, cfg *Config) error {
@@ -106,16 +124,13 @@ func SaveConfig(name string, cfg Config) error {
 func NewConfig(path string) Config {
 	cfg := &Config{}
 	*cfg = defaultConfig
-	applyENVValues(cfg)
-
 	if path != "" {
 		cfg.ConfigPath = path
 	}
-	resolvePaths(cfg)
-	if err := LoadConfig(cfg.ConfigPath, cfg); err != nil {
-		if path != "" {
-			logger.Log(logger.Error, "Failed to load config %s  %v", path, err)
-		}
+	if err := applyGlobalValues(cfg); err != nil {
+		logger.Log(logger.Error, "Config Error: %v\n", err)
 	}
+	applyENVValues(cfg)
+	resolvePaths(cfg)
 	return *cfg
 }

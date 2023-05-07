@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"pempal/config"
+	"pempal/keymanager"
+	"pempal/logger"
 	"pempal/main/argdecoder"
 	"pempal/resourceio"
 	"pempal/templates"
@@ -16,6 +18,7 @@ var Commands = map[string]Command{
 	"config":    &ConfigCommand{},
 	"templates": &TemplatesCommand{},
 	"template":  &TemplateCommand{},
+	"keys":      &KeysCommand{},
 }
 
 // CommonFlags are flags which all command can use without the need to declare them in the command class.
@@ -26,6 +29,8 @@ var Configuration config.Config
 
 // ResourceTemplates is the shared TemplateManager
 var ResourceTemplates templates.TemplateManager
+
+var Keys keymanager.KeyManager
 
 // Command executes a single operation using the given arguments and any flags assigned to the Commands public fields.
 type Command interface {
@@ -57,6 +62,11 @@ func ApplyCommonFlags(args []string) ([]string, error) {
 	ResourceTemplates, err = resourceio.NewResourceTemplateManager(Configuration.TemplatePath)
 	if err != nil {
 		return nil, err
+	}
+
+	Keys, err = keymanager.NewKeyManager(Configuration.KeyPath, Configuration.CertPath)
+	if err != nil {
+		logger.Log(logger.Error, "Failed to load key manager. %v", err)
 	}
 	return args, nil
 }

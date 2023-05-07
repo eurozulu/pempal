@@ -10,7 +10,8 @@ import (
 )
 
 type PrivateKeyBuilder struct {
-	dto model.PrivateKeyDTO
+	dto    model.PrivateKeyDTO
+	passwd []byte
 }
 
 func (kb *PrivateKeyBuilder) ApplyTemplate(tp ...templates.Template) error {
@@ -28,6 +29,10 @@ func (kb PrivateKeyBuilder) Validate() []error {
 	for k := range m {
 		errs = append(errs, fmt.Errorf("%s invalid", k))
 	}
+
+	if kb.dto.IsEncrypted && len(kb.passwd) == 0 {
+		errs = append(errs, fmt.Errorf("No password provided to encrypt new key"))
+	}
 	return errs
 }
 
@@ -43,20 +48,36 @@ func (kb PrivateKeyBuilder) Build() (model.PEMResource, error) {
 	if errs := kb.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s", collectErrorList(errs))
 	}
-
 	keyAlgo := utils.ParsePublicKeyAlgorithm(kb.dto.PublicKeyAlgorithm)
 
 	key, err := utils.CreatePrivateKey(keyAlgo, kb.dto.KeyParam)
 	if err != nil {
 		return nil, err
 	}
+
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
 		return nil, err
 	}
 
-	return model.NewPemResourceFromBlock(&pem.Block{
-		Type:  model.PrivateKey.PEMString(),
-		Bytes: der,
-	}), nil
+	var blk *pem.Block
+	if !kb.dto.IsEncrypted {
+		blk = &pem.Block{
+			Type:  model.PrivateKey.PEMString(),
+			Bytes: der,
+		}
+	} else {
+		newDto := &model.PrivateKeyDTO{}
+		if err := newDto.UnmarshalBinary(der); err != nil {
+			return nil, err
+		}
+		if err := newDto.Encrypt(kb.passwd); err != nil {
+			return nil, err
+		}
+		blk, err = newDto.ToPEMBlock()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return model.NewPemResourceFromBlock(blk), nil
 }

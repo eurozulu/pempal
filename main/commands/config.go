@@ -18,6 +18,10 @@ func (c ConfigCommand) Execute(args []string, out io.Writer) error {
 	if _, err := fmt.Fprintln(colOut, "Pempal Configuration:\n"); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintf(colOut, "Config path: %s\n", Configuration.ConfigPath); err != nil {
+		return err
+	}
+
 	if _, err := fmt.Fprintf(colOut, "Root path: %s\n", Configuration.RootPath); err != nil {
 		return err
 	}
