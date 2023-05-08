@@ -85,6 +85,9 @@ func outputAsRaw(temps []templates.Template, out io.Writer) error {
 }
 
 func parseArgumentsToTemplates(args []string) ([]templates.Template, error) {
+	if ResourceTemplates == nil {
+		return nil, fmt.Errorf("template manager unavailable.")
+	}
 	var temps []templates.Template
 	for _, arg := range args {
 		if !isInlineTemplate(arg) {

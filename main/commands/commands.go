@@ -61,7 +61,7 @@ func ApplyCommonFlags(args []string) ([]string, error) {
 	Configuration = config.NewConfig(CommonFlags.ConfigPath)
 	ResourceTemplates, err = resourceio.NewResourceTemplateManager(Configuration.TemplatePath)
 	if err != nil {
-		return nil, err
+		logger.Log(logger.Error, "Failed to load template manager. %v", err)
 	}
 
 	Keys, err = keymanager.NewKeyManager(Configuration.KeyPath, Configuration.CertPath)

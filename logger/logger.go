@@ -46,6 +46,7 @@ func (l logger) Log(level LogLevel, format string, a ...any) {
 	}
 	if level == Error {
 		fmt.Fprintf(os.Stderr, format, a...)
+		fmt.Fprintln(os.Stderr)
 	} else {
 		log.Printf(format, a...)
 	}

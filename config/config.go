@@ -1,11 +1,11 @@
 package config
 
 import (
-	"fmt"
 	"github.com/go-yaml/yaml"
 	"os"
 	"path/filepath"
 	"pempal/logger"
+	"pempal/utils"
 )
 
 const (
@@ -31,22 +31,18 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	RootPath:        "$PWD",
+	RootPath:        "",
 	RootCertificate: "root-certificate.pem",
 	CertPath:        "",
 	KeyPath:         "",
 	CsrPath:         "",
 	CrlPath:         "",
-	TemplatePath:    "templates",
+	TemplatePath:    "",
 	ConfigPath:      "$HOME/.pempal/.config",
 }
 
-func (cfg Config) ResolveWithRootPath(p string) string {
-	return filepath.Join(cfg.RootPath, p)
-}
-
 func resolvePaths(cfg *Config) {
-	cfg.RootPath = resolvePath("", cfg.RootPath)
+	cfg.RootPath = resolvePath("$PWD", cfg.RootPath)
 	cfg.RootCertificate = resolvePath(cfg.RootPath, cfg.RootCertificate)
 	cfg.CertPath = resolvePath(cfg.RootPath, cfg.CertPath)
 	cfg.KeyPath = resolvePath(cfg.RootPath, cfg.KeyPath)
@@ -58,7 +54,7 @@ func resolvePaths(cfg *Config) {
 func resolvePath(base, path string) string {
 	path = os.ExpandEnv(path)
 	if path == "" || filepath.IsLocal(path) {
-		path = filepath.Join(base, path)
+		path = filepath.Join(os.ExpandEnv(base), path)
 	}
 	return path
 }
@@ -82,21 +78,12 @@ func envOrDefault(name string, def string) string {
 	return s
 }
 
-func applyGlobalValues(cfg *Config) error {
-	p := resolvePath("", cfg.ConfigPath)
-	if p == "" {
-		logger.Log(logger.Debug, "no config path set")
-		return nil
+func applyConfigFileValues(cfg *Config) error {
+	logger.Log(logger.Debug, "trying config at %s", cfg.ConfigPath)
+	if err := LoadConfig(cfg.ConfigPath, cfg); err != nil {
+		return err
 	}
-	logger.Log(logger.Debug, "trying config at %s", p)
-	if err := LoadConfig(p, cfg); err != nil {
-		if p == resolvePath(cfg.RootPath, defaultConfig.ConfigPath) {
-			logger.Log(logger.Debug, "default config %s not found, using default config", p)
-			return nil
-		}
-		return fmt.Errorf("config path %s could not be found ", p)
-	}
-	logger.Log(logger.Warning, "applied config from %s", p)
+	logger.Log(logger.Warning, "applied config from %s", cfg.ConfigPath)
 	return nil
 }
 
@@ -121,14 +108,28 @@ func SaveConfig(name string, cfg Config) error {
 	return yaml.NewEncoder(f).Encode(&cfg)
 }
 
+func resolveConfigPath(path string) string {
+	p := resolvePath("${PWD}", path)
+	logger.Log(logger.Debug, "trying config at %s", p)
+	if utils.FileExists(p) {
+		logger.Log(logger.Debug, "found config at %s", p)
+		return p
+	}
+	logger.Log(logger.Debug, "no config found at %s", p)
+	return ""
+}
+
 func NewConfig(path string) Config {
 	cfg := &Config{}
 	*cfg = defaultConfig
 	if path != "" {
 		cfg.ConfigPath = path
 	}
-	if err := applyGlobalValues(cfg); err != nil {
-		logger.Log(logger.Error, "Config Error: %v\n", err)
+	cfg.ConfigPath = resolveConfigPath(cfg.ConfigPath)
+	if cfg.ConfigPath != "" {
+		if err := applyConfigFileValues(cfg); err != nil {
+			logger.Log(logger.Error, "Config Error: %v\n", err)
+		}
 	}
 	applyENVValues(cfg)
 	resolvePaths(cfg)

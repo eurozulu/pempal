@@ -20,6 +20,9 @@ type TemplatesCommand struct {
 }
 
 func (cmd TemplatesCommand) Execute(args []string, out io.Writer) error {
+	if ResourceTemplates == nil {
+		return fmt.Errorf("template manager unavailable.")
+	}
 	ResourceTemplatesStore = ResourceTemplates.(templates.TemplateStore)
 	if cmd.Remove {
 		if err := cmd.removeTemplates(args); err != nil {
