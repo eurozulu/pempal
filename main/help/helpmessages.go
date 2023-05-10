@@ -7,11 +7,12 @@ import (
 )
 
 var helpCommands = map[string]string{
-	"find":      "locates resources based on search criteria set in its flags.",
-	"make":      "creates new resources based on the given template(s)",
-	"config":    "shows or sets the application configuration",
-	"templates": "manages the templates, displaying names and add/remove of custom templates",
-	"template":  "displays a template based on the given template name(s). Multiple names are merged into a single template.",
+	"find":      "Locates resources based on search criteria set in its flags.",
+	"make":      "Creates new resources based on the given template(s)",
+	"config":    "Shows or sets the application configuration",
+	"templates": "Manages the templates, displaying names and add/remove of custom templates",
+	"template":  "Displays a template based on the given template name(s). Multiple names are merged into a single template.",
+	"keys":      "Lists the identities of all private keys and the certificates they've signed..",
 }
 
 func HelpCommands() string {
