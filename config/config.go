@@ -1,11 +1,12 @@
 package config
 
 import (
+	"fmt"
 	"github.com/go-yaml/yaml"
 	"os"
 	"path/filepath"
-	"pempal/logger"
 	"pempal/utils"
+	"strings"
 )
 
 const (
@@ -19,55 +20,78 @@ const (
 	ENV_CA_CONFIG           = "CA_CONFIG"
 )
 
-type Config struct {
-	RootPath        string `yaml:"root-path"`
-	RootCertificate string `yaml:"root-certificate,omitempty"`
-	CertPath        string `yaml:"cert-path"`
-	KeyPath         string `yaml:"key-path"`
-	CsrPath         string `yaml:"csr-path"`
-	CrlPath         string `yaml:"crl-path"`
-	TemplatePath    string `yaml:"template-path"`
-	ConfigPath      string `yaml:"-"`
+const defaultConfigPath = "$HOME/.pempal/.config"
+
+type Config interface {
+	Root() string
+	RootCertificate() string
+	Certificates() string
+	Keys() string
+	Requests() string
+	Revokations() string
+	Templates() string
+	ConfigLocation() string
 }
 
-var defaultConfig = Config{
-	RootPath:        "",
-	RootCertificate: "root-certificate.pem",
-	CertPath:        "",
-	KeyPath:         "",
-	CsrPath:         "",
-	CrlPath:         "",
-	TemplatePath:    "",
-	ConfigPath:      "$HOME/.pempal/.config",
+type DefaultConfig struct {
+	RootPath            string `yaml:"root-path"`
+	RootCertificatePath string `yaml:"root-certificate,omitempty"`
+	CertPath            string `yaml:"cert-path"`
+	KeyPath             string `yaml:"key-path"`
+	CsrPath             string `yaml:"csr-path"`
+	CrlPath             string `yaml:"crl-path"`
+	TemplatePath        string `yaml:"template-path"`
+	configLocation      string `yaml:"-"`
 }
 
-func resolvePaths(cfg *Config) {
-	cfg.RootPath = resolvePath("$PWD", cfg.RootPath)
-	cfg.RootCertificate = resolvePath(cfg.RootPath, cfg.RootCertificate)
-	cfg.CertPath = resolvePath(cfg.RootPath, cfg.CertPath)
-	cfg.KeyPath = resolvePath(cfg.RootPath, cfg.KeyPath)
-	cfg.CsrPath = resolvePath(cfg.RootPath, cfg.CsrPath)
-	cfg.CrlPath = resolvePath(cfg.RootPath, cfg.CrlPath)
-	cfg.TemplatePath = resolvePath(cfg.RootPath, cfg.TemplatePath)
+func (cfg DefaultConfig) Root() string {
+	return cfg.RootPath
 }
 
-func resolvePath(base, path string) string {
+func (cfg DefaultConfig) RootCertificate() string {
+	return cfg.resolvePath(cfg.RootCertificatePath)
+}
+
+func (cfg DefaultConfig) Certificates() string {
+	return cfg.resolvePath(cfg.CertPath)
+}
+
+func (cfg DefaultConfig) Keys() string {
+	return cfg.resolvePath(cfg.KeyPath)
+}
+
+func (cfg DefaultConfig) Requests() string {
+	return cfg.resolvePath(cfg.CsrPath)
+}
+
+func (cfg DefaultConfig) Revokations() string {
+	return cfg.resolvePath(cfg.CrlPath)
+}
+
+func (cfg DefaultConfig) Templates() string {
+	return cfg.resolvePath(cfg.TemplatePath)
+}
+
+func (cfg DefaultConfig) ConfigLocation() string {
+	return cfg.configLocation
+}
+
+func (cfg DefaultConfig) resolvePath(path string) string {
 	path = os.ExpandEnv(path)
 	if path == "" || filepath.IsLocal(path) {
-		path = filepath.Join(os.ExpandEnv(base), path)
+		path = filepath.Join(os.ExpandEnv(cfg.RootPath), path)
 	}
 	return path
 }
 
-func applyENVValues(cfg *Config) {
+func applyENVValues(cfg *DefaultConfig) {
 	cfg.RootPath = envOrDefault(ENV_CA_ROOT, cfg.RootPath)
-	cfg.RootCertificate = envOrDefault(ENV_CA_ROOT_CERTIFICATE, cfg.RootCertificate)
+	cfg.RootCertificatePath = envOrDefault(ENV_CA_ROOT_CERTIFICATE, cfg.RootCertificatePath)
 	cfg.CertPath = envOrDefault(ENV_CA_CERTS, cfg.CertPath)
 	cfg.KeyPath = envOrDefault(ENV_CA_KEYS, cfg.KeyPath)
 	cfg.CsrPath = envOrDefault(ENV_CA_REQUESTS, cfg.CsrPath)
 	cfg.CrlPath = envOrDefault(ENV_CA_REVOKELISTS, cfg.CrlPath)
 	cfg.TemplatePath = envOrDefault(ENV_CA_TEMPLATES, cfg.TemplatePath)
-	cfg.ConfigPath = envOrDefault(ENV_CA_CONFIG, cfg.ConfigPath)
 }
 
 func envOrDefault(name string, def string) string {
@@ -78,16 +102,7 @@ func envOrDefault(name string, def string) string {
 	return s
 }
 
-func applyConfigFileValues(cfg *Config) error {
-	logger.Log(logger.Debug, "trying config at %s", cfg.ConfigPath)
-	if err := LoadConfig(cfg.ConfigPath, cfg); err != nil {
-		return err
-	}
-	logger.Log(logger.Warning, "applied config from %s", cfg.ConfigPath)
-	return nil
-}
-
-func LoadConfig(name string, cfg *Config) error {
+func LoadConfig(name string, cfg Config) error {
 	f, err := os.Open(name)
 	if err != nil {
 		return err
@@ -108,30 +123,51 @@ func SaveConfig(name string, cfg Config) error {
 	return yaml.NewEncoder(f).Encode(&cfg)
 }
 
-func resolveConfigPath(path string) string {
-	p := resolvePath("${PWD}", path)
-	logger.Log(logger.Debug, "trying config at %s", p)
-	if utils.FileExists(p) {
-		logger.Log(logger.Debug, "found config at %s", p)
-		return p
+func resolveConfigPath(path string) (string, error) {
+	cfgPath := envOrDefault(ENV_CA_CONFIG, "")
+	if path != "" {
+		cfgPath = path
 	}
-	logger.Log(logger.Debug, "no config found at %s", p)
-	return ""
+	if cfgPath == "" && utils.FileExists(os.ExpandEnv(defaultConfigPath)) {
+		cfgPath = defaultConfigPath
+	}
+	if cfgPath != "" {
+		cfgPath = os.ExpandEnv(cfgPath)
+		if filepath.IsLocal(cfgPath) {
+			cfgPath = filepath.Join(os.ExpandEnv("$PWD"), cfgPath)
+		}
+		if utils.FileExists(cfgPath) {
+			return cfgPath, nil
+		}
+		if !strings.HasSuffix(strings.ToLower(cfgPath), ".config") {
+			cfgPath = filepath.Join(cfgPath, ".config")
+			if utils.FileExists(cfgPath) {
+				return cfgPath, nil
+			}
+		}
+		return "", fmt.Errorf("config file %s not found", cfgPath)
+	}
+	return cfgPath, nil
 }
 
-func NewConfig(path string) Config {
-	cfg := &Config{}
-	*cfg = defaultConfig
-	if path != "" {
-		cfg.ConfigPath = path
+func NewConfig(path string) (Config, error) {
+	cfgPath, err := resolveConfigPath(path)
+	if err != nil {
+		return nil, err
 	}
-	cfg.ConfigPath = resolveConfigPath(cfg.ConfigPath)
-	if cfg.ConfigPath != "" {
-		if err := applyConfigFileValues(cfg); err != nil {
-			logger.Log(logger.Error, "Config Error: %v\n", err)
+	cfg := &DefaultConfig{configLocation: cfgPath}
+	if cfgPath != "" {
+		if err := LoadConfig(cfgPath, cfg); err != nil {
+			return nil, err
 		}
 	}
 	applyENVValues(cfg)
-	resolvePaths(cfg)
-	return *cfg
+	if cfg.RootPath == "" || cfg.RootPath == "." {
+		root := "$PWD"
+		if cfgPath != "" {
+			root = filepath.Dir(cfgPath)
+		}
+		cfg.RootPath = os.ExpandEnv(root)
+	}
+	return cfg, nil
 }

@@ -58,13 +58,17 @@ func ApplyCommonFlags(args []string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse common flags  %v", err)
 	}
-	Configuration = config.NewConfig(CommonFlags.ConfigPath)
-	ResourceTemplates, err = resourceio.NewResourceTemplateManager(Configuration.TemplatePath)
+	Configuration, err = config.NewConfig(CommonFlags.ConfigPath)
+	if err != nil {
+		logger.Log(logger.Error, "Failed to load config. %v", err)
+	}
+
+	ResourceTemplates, err = resourceio.NewResourceTemplateManager(Configuration.Templates())
 	if err != nil {
 		logger.Log(logger.Error, "Failed to load template manager. %v", err)
 	}
 
-	Keys, err = keymanager.NewKeyManager(Configuration.KeyPath, Configuration.CertPath)
+	Keys, err = keymanager.NewKeyManager(Configuration.Keys(), Configuration.Certificates())
 	if err != nil {
 		logger.Log(logger.Error, "Failed to load key manager. %v", err)
 	}
