@@ -2,11 +2,11 @@ package commands
 
 import (
 	"fmt"
+	"github.com/eurozulu/argdecoder"
 	"io"
 	"pempal/config"
 	"pempal/keymanager"
 	"pempal/logger"
-	"pempal/main/argdecoder"
 	"pempal/resourceio"
 	"pempal/templates"
 	"strings"

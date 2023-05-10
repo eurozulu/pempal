@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/eurozulu/argdecoder"
 	"io"
 	"os"
+
 	"pempal/logger"
-	"pempal/main/argdecoder"
 	"pempal/main/commands"
 	"pempal/main/help"
 	"pempal/utils"
