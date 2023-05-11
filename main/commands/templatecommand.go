@@ -27,7 +27,7 @@ func (cmd TemplateCommand) Execute(args []string, out io.Writer) error {
 		return fmt.Errorf("must provide one or more template names")
 	}
 
-	temps, err := parseArgumentsToTemplates(args)
+	temps, err := loadNamedTemplates(args)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func outputAsRaw(temps []templates.Template, out io.Writer) error {
 	return err
 }
 
-func parseArgumentsToTemplates(args []string) ([]templates.Template, error) {
+func loadNamedTemplates(args []string) ([]templates.Template, error) {
 	if ResourceTemplates == nil {
 		return nil, fmt.Errorf("template manager unavailable.")
 	}
