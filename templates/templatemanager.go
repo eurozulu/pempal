@@ -37,7 +37,7 @@ type templateManager struct {
 }
 
 func (tm templateManager) ParseTemplate(data []byte) (Template, error) {
-	logger.Log(logger.Debug, "Parsing template %s", string(data))
+	logger.Log(logger.Debug, "Parsing template '%s'", string(data))
 	tags, parsed := parseTags(data)
 	logger.Log(logger.Debug, "Parsed template: Tags: %v", tags)
 

@@ -2,7 +2,6 @@ package resourceio
 
 import (
 	"fmt"
-	"github.com/go-yaml/yaml"
 	"io"
 	"pempal/model"
 	"pempal/utils"
@@ -45,7 +44,7 @@ func (prn ResourceListPrinter) WriteTitles() error {
 }
 
 func (prn ResourceListPrinter) valuesFromDTO(dto model.DTO) ([]string, error) {
-	m, err := dtoToMap(dto)
+	m, err := model.DTOToMap(dto)
 	if err != nil {
 		return nil, err
 	}
@@ -99,18 +98,6 @@ func valueAsMap(v interface{}) map[string]interface{} {
 		m[sk] = val
 	}
 	return m
-}
-
-func dtoToMap(dto model.DTO) (map[string]interface{}, error) {
-	data, err := yaml.Marshal(dto)
-	if err != nil {
-		return nil, err
-	}
-	m := map[string]interface{}{}
-	if err = yaml.Unmarshal(data, &m); err != nil {
-		return nil, err
-	}
-	return m, nil
 }
 
 func NewResourceListPrinter(out io.Writer, fields ...string) *ResourceListPrinter {

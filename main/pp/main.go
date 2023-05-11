@@ -5,12 +5,10 @@ import (
 	"github.com/eurozulu/argdecoder"
 	"io"
 	"os"
-
 	"pempal/logger"
 	"pempal/main/commands"
 	"pempal/main/help"
 	"pempal/utils"
-	"strings"
 )
 
 func main() {
@@ -40,20 +38,21 @@ func main() {
 		return
 	}
 
-	// remove any remaining flags from args
-	params, flags := argdecoder.ParseArgs(args)
+	// Check if command parses custom flags
+	cmdFlag, ok := cmd.(commands.FlagsParsingCommand)
+	if ok {
+		args, err = cmdFlag.ApplyFlags(args)
+		if err != nil {
+			logger.Log(logger.Error, "%v\n", err)
+			return
+		}
+	}
+
+	// Check all flags have been consumed
+	_, flags := argdecoder.ParseArgs(args)
 	if len(flags) > 0 {
-		// Remaining flags, which command (or common) did not consume
-		// If command supports custom flags, pass them, otherwise error
-		cmdFlag, ok := cmd.(commands.CommandWithFlags)
-		if !ok {
-			logger.Log(logger.Error, "unknown flag %v\n", mapKeys(flags))
-			return
-		}
-		if err = cmdFlag.SetFlags(flags); err != nil {
-			logger.Log(logger.Error, "%v", err)
-			return
-		}
+		logger.Log(logger.Error, "unknown flag(s) %v\n", unknownFlagNames(flags))
+		return
 	}
 
 	// establish the output stream
@@ -76,6 +75,7 @@ func main() {
 		}(f)
 	}
 
+	// Set logging level output
 	level := logger.Info
 	if commands.CommonFlags.Verbose {
 		level = logger.Warning
@@ -85,17 +85,16 @@ func main() {
 	}
 	logger.DefaultLogger.SetLevel(level)
 
-	if err = cmd.Execute(params, out); err != nil {
+	if err = cmd.Execute(args, out); err != nil {
 		logger.Log(logger.Error, "%v\n", err)
 	}
 }
 
-func mapKeys(m map[string]*string) []string {
+func unknownFlagNames(m map[string]*string) []string {
+	names := make([]string, len(m))
 	var index int
-	keys := make([]string, len(m))
 	for k := range m {
-		keys[index] = strings.Join([]string{"-", k}, "")
-		index++
+		names[index] = k
 	}
-	return keys
+	return names
 }

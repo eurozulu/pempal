@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding"
+	"github.com/go-yaml/yaml"
 )
 
 const ResourceTypeName = "resource-type"
@@ -39,4 +40,16 @@ func DTOForResourceType(t ResourceType) DTO {
 	default:
 		return nil
 	}
+}
+
+func DTOToMap(dto DTO) (map[string]interface{}, error) {
+	data, err := yaml.Marshal(dto)
+	if err != nil {
+		return nil, err
+	}
+	m := map[string]interface{}{}
+	if err = yaml.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }

@@ -8,13 +8,13 @@ import (
 )
 
 type ConfigCommand struct {
-	RootPath        string `flag:"root-path,rootpath"`
-	RootCertificate string `flag:"root-certificate,rootcertificate,rootcert"`
-	CertPath        string `flag:"cert-path,certpath"`
-	KeyPath         string `flag:"key-path,keypath"`
-	CsrPath         string `flag:"csr-path,csrpath"`
-	CrlPath         string `flag:"crl-path,crlpath"`
-	TemplatePath    string `flag:"template-path,templatepath"`
+	RootPath        *string `flag:"root-path,rootpath"`
+	RootCertificate string  `flag:"root-certificate,rootcertificate,rootcert"`
+	CertPath        string  `flag:"cert-path,certpath"`
+	KeyPath         string  `flag:"key-path,keypath"`
+	CsrPath         string  `flag:"csr-path,csrpath"`
+	CrlPath         string  `flag:"crl-path,crlpath"`
+	TemplatePath    string  `flag:"template-path,templatepath"`
 }
 
 func (cmd ConfigCommand) Execute(args []string, out io.Writer) error {
@@ -63,8 +63,8 @@ func (cmd ConfigCommand) Execute(args []string, out io.Writer) error {
 }
 
 func (cmd ConfigCommand) applyFlags(cfg *config.DefaultConfig) {
-	if cmd.RootPath != "" {
-		cfg.RootPath = cmd.RootPath
+	if cmd.RootPath != nil {
+		cfg.RootPath = *cmd.RootPath
 	}
 	if cmd.RootCertificate != "" {
 		cfg.RootCertificatePath = cmd.RootCertificate

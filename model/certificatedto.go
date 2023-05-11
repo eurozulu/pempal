@@ -11,24 +11,24 @@ import (
 )
 
 type CertificateDTO struct {
-	Version               int                   `yaml:"version"`
-	SerialNumber          SerialNumber          `yaml:"serial-number"`
-	Signature             string                `yaml:"signature"`
-	SignatureAlgorithm    string                `yaml:"signature-algorithm"`
-	PublicKeyAlgorithm    string                `yaml:"public-key-algorithm"`
-	PublicKey             *PublicKeyDTO         `yaml:"public-key"`
-	Issuer                *DistinguishedNameDTO `yaml:"issuer"`
-	Subject               *DistinguishedNameDTO `yaml:"subject"`
-	NotBefore             time.Time             `yaml:"not-before"`
-	NotAfter              time.Time             `yaml:"not-after"`
-	IsCA                  bool                  `yaml:"is-ca,omitempty"`
-	BasicConstraintsValid bool                  `yaml:"basic-constraints-valid,omitempty"`
-	MaxPathLen            int                   `yaml:"max-path-len,omitempty"`
-	MaxPathLenZero        bool                  `yaml:"max-path-len-zero,omitempty"`
+	Version               int                   `yaml:"version" flag:"version,ver"`
+	SerialNumber          SerialNumber          `yaml:"serial-number" flag:"serial-number,serialnumber,sn"`
+	Signature             string                `yaml:"signature" flag:"signature,sig"`
+	SignatureAlgorithm    string                `yaml:"signature-algorithm" flag:"signature-algorithm,signaturealgorithm,sig-algo"`
+	PublicKeyAlgorithm    string                `yaml:"public-key-algorithm" flag:"public-key-algorithm,publickeyalgorithm,key-algorithm,keyalgorithm,keyalgo"`
+	PublicKey             *PublicKeyDTO         `yaml:"public-key" flag:"public-key,publickey,puk,pubkey"`
+	Issuer                *DistinguishedNameDTO `yaml:"issuer" flag:"issuer"`
+	Subject               *DistinguishedNameDTO `yaml:"subject" flag:"subject"`
+	NotBefore             time.Time             `yaml:"not-before" flag:"not-before,notbefore,before"`
+	NotAfter              time.Time             `yaml:"not-after" flag:"not-after,notafter,after"`
+	IsCA                  bool                  `yaml:"is-ca,omitempty" flag:"is-ca,isca"`
+	BasicConstraintsValid bool                  `yaml:"basic-constraints-valid,omitempty" flag:"basic-constraints-valid,basicconstraintsvalid,constraints-valid,constraintsvalid"`
+	MaxPathLen            int                   `yaml:"max-path-len,omitempty" flag:"max-path-len,maxpathlen,path-len,pathlen"`
+	MaxPathLenZero        bool                  `yaml:"max-path-len-zero,omitempty" flag:"max-path-len-zero,maxpathlenzero,path-len-zero,pathlenzero"`
 
 	Der          []byte `yaml:"-"`
-	Identity     string `yaml:"identity"`
-	ResourceType string `yaml:"resource-type"`
+	Identity     string `yaml:"identity" flag:"identity,id"`
+	ResourceType string `yaml:"resource-type" flag:"resource-type,resourcetype,type,rt"`
 }
 
 func (cd CertificateDTO) String() string {

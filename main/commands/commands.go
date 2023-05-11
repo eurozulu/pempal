@@ -37,10 +37,11 @@ type Command interface {
 	Execute(args []string, out io.Writer) error
 }
 
-// CommandWithFlags is a custom Command which processes arbitrary flags.
-type CommandWithFlags interface {
+// FlagsParsingCommand is a custom Command which processes arbitrary flags.
+type FlagsParsingCommand interface {
 	Command
-	SetFlags(flags map[string]*string) error
+	// ApplyFlags parses any given flags and returns any unnamed args (parameters) and unused flags
+	ApplyFlags(args []string) ([]string, error)
 }
 
 // CommonFlagsStruct contains the flags used by all Commands
