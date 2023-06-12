@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"github.com/eurozulu/argdecoder"
 	"github.com/eurozulu/pempal/keys"
 	"github.com/eurozulu/pempal/model"
 	"github.com/eurozulu/pempal/templates"
@@ -15,6 +16,17 @@ import (
 type certificateBuilder struct {
 	dto  model.CertificateDTO
 	keys keys.Keys
+}
+
+func (cb *certificateBuilder) UnmarshalArguments(args []string) ([]string, error) {
+	remain, err := argdecoder.ApplyArguments(args, &cb.dto)
+	if err != nil {
+		return nil, err
+	}
+	if len(remain) > 0 {
+		return nil, fmt.Errorf("unknown flags: %v", remain)
+	}
+	return nil, nil
 }
 
 func (cb *certificateBuilder) ApplyTemplate(tp ...templates.Template) error {
@@ -63,17 +75,17 @@ func (cb certificateBuilder) buildTemplateCertificate() (*x509.Certificate, erro
 	}
 	errs := bytes.NewBuffer(nil)
 	if c.PublicKey == nil {
-		fmt.Fprintln(errs, "no public key found")
+		fmt.Fprintln(errs, "public key not found")
 	}
 	if c.Subject.CommonName == "" {
-		fmt.Fprintln(errs, "no common name")
+		fmt.Fprintln(errs, "common name not found")
 	}
 
 	if c.SignatureAlgorithm == x509.UnknownSignatureAlgorithm {
-		fmt.Fprintln(errs, "unknown signature algorithm")
+		fmt.Fprintln(errs, "signature algorithm unknown")
 	}
 	if c.SerialNumber.Uint64() == 0 {
-		fmt.Fprintln(errs, "no serial number")
+		fmt.Fprintln(errs, "serial number not found")
 	}
 	if errs.Len() > 0 {
 		return nil, fmt.Errorf("%s", errs.String())

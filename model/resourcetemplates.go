@@ -76,7 +76,7 @@ func EqualsResourceTemplate(data []byte) string {
 // see #DefaultResourceTemplates
 func DetectResourceType(temps ...templates.Template) ResourceType {
 	for _, t := range temps {
-		s := EqualsResourceTemplate(t.Bytes())
+		s := EqualsResourceTemplate([]byte(t.String()))
 		if s == "" {
 			continue
 		}

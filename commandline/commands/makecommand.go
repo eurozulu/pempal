@@ -2,21 +2,22 @@ package commands
 
 import (
 	"fmt"
+	"github.com/eurozulu/argdecoder"
 	"github.com/eurozulu/pempal/builder"
 	"github.com/eurozulu/pempal/config"
+	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/model"
 	"github.com/eurozulu/pempal/resourceio"
-	"github.com/eurozulu/pempal/templates"
-	"github.com/go-yaml/yaml"
 	"io"
+	"strings"
 )
 
 const defaultResourceFormat = resourceio.FormatPEM
 
 type MakeCommand struct {
-	BuildType string             `flag:"type,resource-type,resourcetype,buildtype"`
-	Format    string             `flag:"format,fm"`
-	flags     templates.Template `flag:"-"`
+	BuildType string   `flag:"type,resource-type,resourcetype,buildtype"`
+	Format    string   `flag:"format,fm"`
+	flags     []string `flag:"-"`
 }
 
 func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
@@ -45,22 +46,26 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	var rt model.ResourceType
 	if cmd.BuildType != "" {
 		rt = model.ParseResourceType(cmd.BuildType)
+		if rt == model.Unknown {
+			return fmt.Errorf("%s is an unknown build type", cmd.BuildType)
+		}
 	} else {
 		rt = model.DetectResourceType(temps...)
-	}
-	if rt == model.Unknown {
-		return fmt.Errorf("unknown resource type")
+		if rt == model.Unknown {
+			return fmt.Errorf("failed to detect build type, ensure a template extends a resource type")
+		}
 	}
 
 	build, err := builder.NewBuilder(rt, km)
 	if err != nil {
 		return err
 	}
+
 	if err = build.ApplyTemplate(temps...); err != nil {
 		return err
 	}
-	if cmd.flags != nil {
-		if err = build.ApplyTemplate(cmd.flags); err != nil {
+	if len(cmd.flags) > 0 {
+		if _, err := argdecoder.ApplyArguments(cmd.flags, build); err != nil {
 			return err
 		}
 	}
@@ -86,16 +91,15 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 }
 
 func (cmd *MakeCommand) ApplyFlags(flags map[string]*string) error {
-	m := model.FlatMap(flags).Expand()
-	data, err := yaml.Marshal(&m)
-	if err != nil {
-		return err
+	// reassemble into commandline args
+	var args []string
+	for k, v := range flags {
+		args = append(args, strings.Join([]string{"-", k}, ""))
+		if v != nil {
+			args = append(args, *v)
+		}
 	}
-	t, err := templates.NewTemplate(data)
-	if err != nil {
-		return err
-	}
-	cmd.flags = t
+	cmd.flags = args
 	return nil
 }
 
@@ -128,5 +132,6 @@ func showTemplateNames(out io.Writer) error {
 }
 
 func processInvalidTemplate(build builder.Builder, err error) error {
+	logger.Error("make failed:\n%v", err)
 	return io.EOF
 }
