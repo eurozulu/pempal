@@ -10,23 +10,22 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
-	"pempal/logger"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
-func CreatePrivateKey(keyAlgorithm x509.PublicKeyAlgorithm, param string) (crypto.PrivateKey, error) {
+func CreatePrivateKey(keyAlgorithm x509.PublicKeyAlgorithm, length string) (crypto.PrivateKey, error) {
 	switch keyAlgorithm {
 	case x509.RSA:
-		bits, err := paramToBits(param)
+		bits, err := paramToBits(length)
 		if err != nil {
 			return nil, err
 		}
 		return rsa.GenerateKey(rand.Reader, bits)
 
 	case x509.ECDSA:
-		cv, err := paramToCurve(param)
+		cv, err := paramToCurve(length)
 		if err != nil {
 			return nil, err
 		}
@@ -58,13 +57,10 @@ func PublicKeyEquals(k1, k2 crypto.PublicKey) bool {
 	if k1 == k2 {
 		return true
 	}
-
 	type equalKey interface {
 		Equal(crypto.PublicKey) bool
 	}
-	if k1Key, ok := k1.(equalKey); !ok {
-		logger.Log(logger.Error, "x509: internal error: supported public key does not implement Equal")
-	} else {
+	if k1Key, ok := k1.(equalKey); ok {
 		return k1Key.Equal(k2)
 	}
 	return false

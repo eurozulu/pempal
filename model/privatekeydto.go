@@ -4,63 +4,80 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"pempal/utils"
+	"github.com/eurozulu/pempal/logger"
+	"github.com/eurozulu/pempal/utils"
 )
 
 const defaultEncryptCipher = x509.PEMCipherAES256
 
 type PrivateKeyDTO struct {
+	Id                 string `yaml:"identity"`
 	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
 	PrivateKey         string `yaml:"private-key,omitempty"`
 	PublicKey          string `yaml:"public-key,omitempty"`
 	IsEncrypted        bool   `yaml:"is-encrypted,omitempty"`
-	KeyParam           string `yaml:"key-param"`
+	KeyParam           string `yaml:"key-param,omitempty"`
 
-	Identity     string `yaml:"identity"`
 	ResourceType string `yaml:"resource-type"`
 }
 
-func (pkr PrivateKeyDTO) String() string {
-	if pkr.PublicKey == "" {
-		return ""
-	}
-	der, err := hex.DecodeString(pkr.PublicKey)
-	if err != nil {
-		return ""
-	}
-	return MD5PublicKey(der)
+func (p PrivateKeyDTO) String() string {
+	return p.PrivateKey
 }
 
-func (pkr PrivateKeyDTO) ToPrivateKey() (crypto.PrivateKey, error) {
-	blk, err := pkr.ToPEMBlock()
-	if err != nil {
-		return nil, err
+func (p *PrivateKeyDTO) UnmarshalPEM(data []byte) error {
+	p.reset()
+	// scan the pems looking for private AND public keys.
+	// If private is encypted and only one public key found, public is assumed to be its pair.
+	for len(data) > 0 {
+		blk, rest := pem.Decode(data)
+		if blk == nil {
+			break
+		}
+		rt := ParsePEMType(blk.Type)
+		if rt == PrivateKey {
+			if err := p.setPrivateKey(blk); err != nil {
+				return fmt.Errorf("failed to unmarshal private key  %v", err)
+			}
+		} else if rt == PublicKey {
+			if err := p.setPublicKey(blk); err != nil {
+				return fmt.Errorf("failed to unmarshal public key  %v", err)
+			}
+		}
+		data = rest
+		continue
+	}
+	return nil
+}
+
+func (p *PrivateKeyDTO) UnmarshalBinary(der []byte) error {
+	p.reset()
+	return p.setPrivateKey(&pem.Block{
+		Type:  PrivateKey.String(),
+		Bytes: der,
+	})
+}
+
+func (p PrivateKeyDTO) ToPrivateKey() (crypto.PrivateKey, error) {
+	blk, _ := pem.Decode([]byte(p.PrivateKey))
+	if blk == nil {
+		return nil, fmt.Errorf("failed to decode public key")
 	}
 	return x509.ParsePKCS8PrivateKey(blk.Bytes)
 }
 
-func (pkr PrivateKeyDTO) ToPublicKey() (crypto.PublicKey, error) {
-	blk, _ := pem.Decode([]byte(pkr.PublicKey))
+func (p PrivateKeyDTO) ToPublicKey() (crypto.PublicKey, error) {
+	blk, _ := pem.Decode([]byte(p.PublicKey))
 	if blk == nil {
 		return nil, fmt.Errorf("failed to decode public key")
 	}
 	return x509.ParsePKIXPublicKey(blk.Bytes)
 }
 
-func (pkr PrivateKeyDTO) ToPEMBlock() (*pem.Block, error) {
-	blk, _ := pem.Decode([]byte(pkr.PrivateKey))
-	//pem.Decode([]byte(strings.Trim(pkr.PrivateKey, "`")))
-	if blk == nil {
-		return nil, fmt.Errorf("failed to decode public key")
-	}
-	return blk, nil
-}
-
-func (pkr *PrivateKeyDTO) Encrypt(pwd []byte) error {
-	blk, _ := pem.Decode([]byte(pkr.PrivateKey))
+func (p *PrivateKeyDTO) Encrypt(pwd []byte) error {
+	blk, _ := pem.Decode([]byte(p.PrivateKey))
 	if blk == nil {
 		return fmt.Errorf("failed to decode public key")
 	}
@@ -68,13 +85,13 @@ func (pkr *PrivateKeyDTO) Encrypt(pwd []byte) error {
 	if err != nil {
 		return err
 	}
-	pkr.PrivateKey = string(pem.EncodeToMemory(epem))
-	pkr.IsEncrypted = true
+	p.PrivateKey = string(pem.EncodeToMemory(epem))
+	p.IsEncrypted = true
 	return nil
 }
 
-func (pkr *PrivateKeyDTO) Decrypt(pwd []byte) error {
-	blk, _ := pem.Decode([]byte(pkr.PrivateKey))
+func (p *PrivateKeyDTO) Decrypt(pwd []byte) error {
+	blk, _ := pem.Decode([]byte(p.PrivateKey))
 	if blk == nil {
 		return fmt.Errorf("failed to decode public key")
 	}
@@ -82,16 +99,29 @@ func (pkr *PrivateKeyDTO) Decrypt(pwd []byte) error {
 	if err != nil {
 		return err
 	}
-	return pkr.UnmarshalBinary(der)
+	return p.UnmarshalBinary(der)
 }
 
-func (pkr *PrivateKeyDTO) UnmarshalBinary(der []byte) error {
-	pkr.ResourceType = PrivateKey.String()
-	pkr.PublicKey = ""
-	pkr.IsEncrypted = false
-	pkr.PrivateKey = keyPem(PrivateKey, der)
+func (p *PrivateKeyDTO) reset() {
+	p.ResourceType = PrivateKey.String()
+	p.PublicKeyAlgorithm = x509.UnknownPublicKeyAlgorithm.String()
+	p.PrivateKey = ""
+	p.PublicKey = ""
+	p.IsEncrypted = false
+	p.KeyParam = ""
+}
 
-	prk, err := pkr.ToPrivateKey()
+func (p *PrivateKeyDTO) setPrivateKey(block *pem.Block) error {
+	if p.PrivateKey != "" {
+		return fmt.Errorf("multiple private keys found in same resource")
+	}
+	p.PrivateKey = string(pem.EncodeToMemory(block))
+	p.IsEncrypted = x509.IsEncryptedPEMBlock(block)
+
+	if p.IsEncrypted {
+		return nil
+	}
+	prk, err := p.ToPrivateKey()
 	if err != nil {
 		return err
 	}
@@ -99,67 +129,34 @@ func (pkr *PrivateKeyDTO) UnmarshalBinary(der []byte) error {
 	if err != nil {
 		return err
 	}
-	if err = pkr.setPublicKey(puk); err != nil {
-		return err
-	}
-	return nil
-}
 
-func (pkr *PrivateKeyDTO) UnmarshalPEM(data []byte) error {
-	pems := readPEMBlocks(data, PrivateKey)
-	if len(pems) != 1 {
-		if len(pems) == 0 {
-			return fmt.Errorf("failed to find pem private key")
-		}
-		return fmt.Errorf("multiple private keys found")
-	}
-	blk := pems[0]
-	if x509.IsEncryptedPEMBlock(blk) {
-		return pkr.unmarshalEncryptedPEM(data)
-	}
-
-	if ParsePEMType(blk.Type) != PrivateKey {
-		return fmt.Errorf("Not a %s", PrivateKey.String())
-	}
-	return pkr.UnmarshalBinary(blk.Bytes)
-}
-
-func (pkr *PrivateKeyDTO) unmarshalEncryptedPEM(data []byte) error {
-	pkr.ResourceType = PrivateKey.String()
-	pkr.PublicKey = ""
-	pkr.Identity = ""
-	pkr.IsEncrypted = true
-
-	prkBlk := readPEMBlocks(data, PrivateKey)[0] // already checked size in caller
-	pkr.PrivateKey = string(pem.EncodeToMemory(prkBlk))
-
-	// Check if the same data contains a single public key
-	pukBlks := readPEMBlocks(data, PublicKey)
-	if len(pukBlks) == 1 {
-		puk, err := x509.ParsePKCS8PrivateKey(pukBlks[0].Bytes)
-		if err != nil {
-			return err
-		}
-		return pkr.setPublicKey(puk)
-	}
-	return nil
-}
-
-func (pkr *PrivateKeyDTO) setPublicKey(puk crypto.PublicKey) error {
-	pkr.PublicKeyAlgorithm = utils.PublicKeyAlgorithmFromKey(puk).String()
 	pukder, err := x509.MarshalPKIXPublicKey(puk)
 	if err != nil {
 		return err
 	}
-	pkr.PublicKey = keyPem(PublicKey, pukder)
-	pkr.Identity = pkr.String()
-
+	if err = p.setPublicKey(&pem.Block{
+		Type:  PublicKey.PEMString(),
+		Bytes: pukder,
+	}); err != nil {
+		return err
+	}
 	return nil
+
 }
 
-func keyPem(rt ResourceType, der []byte) string {
-	return string(pem.EncodeToMemory(&pem.Block{
-		Type:  rt.PEMString(),
-		Bytes: der,
-	}))
+func (p *PrivateKeyDTO) setPublicKey(block *pem.Block) error {
+	if p.PublicKey != "" {
+		logger.Warning("multiple public keys found in private key resource.")
+		return nil
+	}
+	p.PublicKey = string(pem.EncodeToMemory(block))
+	id := Identity(p.PublicKey)
+
+	puk, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return err
+	}
+	p.PublicKeyAlgorithm = utils.PublicKeyAlgorithmFromKey(puk).String()
+	p.Id = id.String()
+	return nil
 }

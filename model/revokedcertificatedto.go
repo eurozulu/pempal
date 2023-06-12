@@ -7,7 +7,7 @@ import (
 )
 
 type RevokedCertificateDTO struct {
-	SerialNumber   SerialNumber   `yaml:"serial.txt-number"`
+	SerialNumber   uint64         `yaml:"serial.txt-number"`
 	RevocationTime time.Time      `yaml:"revocation-time"`
 	Extensions     []ExtensionDTO `yaml:"extensions"`
 }
@@ -19,9 +19,9 @@ type ExtensionDTO struct {
 }
 
 func newRevokedCertificateDTO(cert pkix.RevokedCertificate) RevokedCertificateDTO {
-	var sn SerialNumber
+	var sn uint64
 	if cert.SerialNumber != nil {
-		sn = SerialNumber(cert.SerialNumber.Uint64())
+		sn = cert.SerialNumber.Uint64()
 	}
 
 	return RevokedCertificateDTO{

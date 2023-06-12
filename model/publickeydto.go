@@ -2,31 +2,60 @@ package model
 
 import (
 	"crypto"
-	"crypto/md5"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"pempal/utils"
+	"github.com/eurozulu/pempal/utils"
 )
 
 type PublicKeyDTO struct {
+	Id                 string `yaml:"identity"`
 	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
 	PublicKey          string `yaml:"public-key,omitempty"`
 
-	Identity     string `yaml:"identity"`
 	ResourceType string `yaml:"resource-type"`
 }
 
+func (p *PublicKeyDTO) UnmarshalPEM(data []byte) error {
+	for len(data) > 0 {
+		blk, rest := pem.Decode(data)
+		if blk == nil {
+			break
+		}
+		if ParsePEMType(blk.Type) != PublicKey {
+			data = rest
+			continue
+		}
+		return p.UnmarshalBinary(blk.Bytes)
+	}
+	return fmt.Errorf("no pem encoded public key found")
+}
+
 func (p PublicKeyDTO) String() string {
-	if p.PublicKey == "" {
-		return ""
+	return p.PublicKey
+}
+
+func (p *PublicKeyDTO) MarshalBinary() (data []byte, err error) {
+	blk, _ := pem.Decode([]byte(p.PublicKey))
+	if blk == nil {
+		return nil, fmt.Errorf("failed to marshal public key.  Invalid PublicKey property")
 	}
-	der, err := hex.DecodeString(p.PublicKey)
+	return blk.Bytes, nil
+}
+
+func (pkr *PublicKeyDTO) UnmarshalBinary(data []byte) error {
+	pkr.PublicKey = string(pem.EncodeToMemory(&pem.Block{
+		Type:  PublicKey.PEMString(),
+		Bytes: data,
+	}))
+	pkr.Id = Identity(pkr.PublicKey).String()
+	puk, err := pkr.ToPublicKey()
 	if err != nil {
-		return ""
+		return err
 	}
-	return MD5PublicKey(der)
+	pkr.PublicKeyAlgorithm = utils.PublicKeyAlgorithmFromKey(puk).String()
+	pkr.ResourceType = PublicKey.String()
+	return nil
 }
 
 func (p PublicKeyDTO) ToPublicKey() (crypto.PublicKey, error) {
@@ -37,46 +66,14 @@ func (p PublicKeyDTO) ToPublicKey() (crypto.PublicKey, error) {
 	return x509.ParsePKIXPublicKey(der)
 }
 
-func (p PublicKeyDTO) ToPem() ([]byte, error) {
-	der, err := p.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("public-key is invalid hex or empty %v", err)
-	}
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  PublicKey.PEMString(),
-		Bytes: der,
-	}), nil
-}
-
-func (p *PublicKeyDTO) MarshalBinary() (data []byte, err error) {
-	return hex.DecodeString(p.PublicKey)
-}
-
-func (pkr *PublicKeyDTO) UnmarshalBinary(data []byte) error {
-	pkr.PublicKey = hex.EncodeToString(data)
-	puk, err := pkr.ToPublicKey()
-	if err != nil {
-		return err
-	}
-	pkr.PublicKeyAlgorithm = utils.PublicKeyAlgorithmFromKey(puk).String()
-	pkr.Identity = pkr.String()
-	pkr.ResourceType = PublicKey.String()
-	return nil
-}
-
-func NewPublicKeyDTO(puk crypto.PublicKey) (PublicKeyDTO, error) {
-	keydto := PublicKeyDTO{}
+func NewPublicKeyDTO(puk crypto.PublicKey) (*PublicKeyDTO, error) {
 	der, err := x509.MarshalPKIXPublicKey(puk)
 	if err != nil {
-		return keydto, err
+		return nil, err
 	}
-	return PublicKeyDTO{
-		PublicKeyAlgorithm: utils.PublicKeyAlgorithmFromKey(puk).String(),
-		PublicKey:          hex.EncodeToString(der),
-	}, err
-}
-
-func MD5PublicKey(der []byte) string {
-	hash := md5.Sum(der)
-	return hex.EncodeToString(hash[:])
+	dto := &PublicKeyDTO{}
+	if err = dto.UnmarshalBinary(der); err != nil {
+		return nil, err
+	}
+	return dto, nil
 }

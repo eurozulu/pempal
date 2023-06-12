@@ -142,7 +142,6 @@ Values can be passed as flags e.g. make -common-name "My new server certificate"
 #### Managing Templates
 Templates can be managed using two commands:  
 - `template`
-- `templates`  
 
 In singluar form it will display a formatted template.  In plural form it
 lists the names of the known templates.  

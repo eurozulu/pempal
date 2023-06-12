@@ -10,6 +10,8 @@ import (
 
 const defaultPermission = 0640
 
+var StoreFilePermission = os.FileMode(defaultPermission)
+
 type BlobStore interface {
 	Names() []string
 	Contains(name string) bool
@@ -44,7 +46,7 @@ func (b fileBlobStore) Write(name string, blob []byte) error {
 	if fileExists(p, false) {
 		return os.ErrExist
 	}
-	return os.WriteFile(p, blob, defaultPermission)
+	return os.WriteFile(p, blob, StoreFilePermission)
 }
 
 func (b fileBlobStore) Delete(name string) error {

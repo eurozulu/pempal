@@ -43,9 +43,19 @@ var pemTypeNames = []string{
 	"UNKNOWN",
 	"PUBLIC KEY",
 	"PRIVATE KEY",
-	"CERTIFICATE REQUEST",
+	"CERTIFICATE REQUEST", // Note PEMs are parsed using 'Contains' therefore 'CERTIFICATE REQUEST' MUST appear before 'CERTIFICATE'
 	"CERTIFICATE",
 	"X509 CRL",
+}
+
+var resourceTypeAliasis = map[string]ResourceType{
+	"cert":    Certificate,
+	"key":     PrivateKey,
+	"puk":     PublicKey,
+	"request": CertificateRequest,
+	"csr":     CertificateRequest,
+	"crl":     RevokationList,
+	"revoked": RevokationList,
 }
 
 func ContainsType(t ResourceType, types []ResourceType) bool {
@@ -58,6 +68,10 @@ func ContainsType(t ResourceType, types []ResourceType) bool {
 }
 
 func ParseResourceType(s string) ResourceType {
+	alias, ok := resourceTypeAliasis[s]
+	if ok {
+		return alias
+	}
 	for i, rs := range resourceTypeNames {
 		if strings.EqualFold(s, rs) {
 			return ResourceType(i)

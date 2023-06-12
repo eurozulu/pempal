@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"strings"
 )
 
@@ -57,4 +58,59 @@ var signatureAlgorithmDetails = []struct {
 	{x509.ECDSAWithSHA384, "ECDSA-SHA384", x509.ECDSA, crypto.SHA384},
 	{x509.ECDSAWithSHA512, "ECDSA-SHA512", x509.ECDSA, crypto.SHA512},
 	{x509.PureEd25519, "Ed25519", x509.Ed25519, crypto.Hash(0) /* no pre-hashing */},
+}
+
+var keyusages = []x509.KeyUsage{
+	x509.KeyUsageDigitalSignature,
+	x509.KeyUsageContentCommitment,
+	x509.KeyUsageKeyEncipherment,
+	x509.KeyUsageDataEncipherment,
+	x509.KeyUsageKeyAgreement,
+	x509.KeyUsageCertSign,
+	x509.KeyUsageCRLSign,
+	x509.KeyUsageEncipherOnly,
+	x509.KeyUsageDecipherOnly,
+}
+var keyusageNames = []string{
+	"KeyUsageDigitalSignature",
+	"KeyUsageContentCommitment",
+	"KeyUsageKeyEncipherment",
+	"KeyUsageDataEncipherment",
+	"KeyUsageKeyAgreement",
+	"KeyUsageCertSign",
+	"KeyUsageCRLSign",
+	"KeyUsageEncipherOnly",
+	"KeyUsageDecipherOnly",
+}
+
+func ParseKeyUsage(s []string) (x509.KeyUsage, error) {
+	var k x509.KeyUsage
+	for _, kun := range s {
+		ku := lookupKeyUsage(kun)
+		if ku == 0 {
+			return 0, fmt.Errorf("%s is not a known key usage", kun)
+		}
+		k |= ku
+	}
+	return k, nil
+}
+
+func lookupKeyUsage(s string) x509.KeyUsage {
+	for i, kun := range keyusageNames {
+		if strings.EqualFold(s, kun) {
+			return keyusages[i]
+		}
+	}
+	return 0
+}
+
+func KeyUsageToStrings(k x509.KeyUsage) []string {
+	var names []string
+	for _, ku := range keyusages {
+		if k&ku != ku {
+			continue
+		}
+		names = append(names)
+	}
+	return names
 }

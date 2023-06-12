@@ -3,83 +3,138 @@ package model
 import (
 	"crypto"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
-	"pempal/utils"
+	"github.com/eurozulu/pempal/logger"
+	"github.com/eurozulu/pempal/utils"
+	"math/big"
+	"strings"
 	"time"
 )
 
 type CertificateDTO struct {
-	Version               int                   `yaml:"version" flag:"version,ver"`
-	SerialNumber          SerialNumber          `yaml:"serial-number" flag:"serial-number,serialnumber,sn"`
-	Signature             string                `yaml:"signature" flag:"signature,sig"`
-	SignatureAlgorithm    string                `yaml:"signature-algorithm" flag:"signature-algorithm,signaturealgorithm,sig-algo"`
-	PublicKeyAlgorithm    string                `yaml:"public-key-algorithm" flag:"public-key-algorithm,publickeyalgorithm,key-algorithm,keyalgorithm,keyalgo"`
-	PublicKey             *PublicKeyDTO         `yaml:"public-key" flag:"public-key,publickey,puk,pubkey"`
-	Issuer                *DistinguishedNameDTO `yaml:"issuer" flag:"issuer"`
-	Subject               *DistinguishedNameDTO `yaml:"subject" flag:"subject"`
-	NotBefore             time.Time             `yaml:"not-before" flag:"not-before,notbefore,before"`
-	NotAfter              time.Time             `yaml:"not-after" flag:"not-after,notafter,after"`
-	IsCA                  bool                  `yaml:"is-ca,omitempty" flag:"is-ca,isca"`
-	BasicConstraintsValid bool                  `yaml:"basic-constraints-valid,omitempty" flag:"basic-constraints-valid,basicconstraintsvalid,constraints-valid,constraintsvalid"`
-	MaxPathLen            int                   `yaml:"max-path-len,omitempty" flag:"max-path-len,maxpathlen,path-len,pathlen"`
-	MaxPathLenZero        bool                  `yaml:"max-path-len-zero,omitempty" flag:"max-path-len-zero,maxpathlenzero,path-len-zero,pathlenzero"`
+	Id                    string               `yaml:"identity"`
+	Version               int                  `yaml:"version" flag:"version,ver"`
+	SerialNumber          uint64               `yaml:"serial-number" flag:"serial-number,serialnumber,sn"`
+	Signature             string               `yaml:"signature" flag:"signature,sig"`
+	SignatureAlgorithm    string               `yaml:"signature-algorithm" flag:"signature-algorithm,signaturealgorithm,sig-algo"`
+	PublicKeyAlgorithm    string               `yaml:"public-key-algorithm" flag:"public-key-algorithm,publickeyalgorithm,key-algorithm,keyalgorithm,keyalgo"`
+	PublicKey             string               `yaml:"public-key" flag:"public-key,publickey,puk,pubkey"`
+	Issuer                DistinguishedNameDTO `yaml:"issuer" flag:"issuer"`
+	Subject               DistinguishedNameDTO `yaml:"subject" flag:"subject"`
+	NotBefore             time.Time            `yaml:"not-before" flag:"not-before,notbefore,before"`
+	NotAfter              time.Time            `yaml:"not-after" flag:"not-after,notafter,after"`
+	IsCA                  bool                 `yaml:"is-ca,omitempty" flag:"is-ca,isca"`
+	BasicConstraintsValid bool                 `yaml:"basic-constraints-valid,omitempty" flag:"basic-constraints-valid,basicconstraintsvalid,constraints-valid,constraintsvalid"`
+	MaxPathLen            int                  `yaml:"max-path-len,omitempty" flag:"max-path-len,maxpathlen,path-len,pathlen"`
+	MaxPathLenZero        bool                 `yaml:"max-path-len-zero,omitempty" flag:"max-path-len-zero,maxpathlenzero,path-len-zero,pathlenzero"`
+	KeyUsage              string               `yaml:"key-usage,omitempty" flag:"key-usage,keyusage"`
 
-	Der          []byte `yaml:"-"`
-	Identity     string `yaml:"identity" flag:"identity,id"`
 	ResourceType string `yaml:"resource-type" flag:"resource-type,resourcetype,type,rt"`
 }
 
-func (cd CertificateDTO) String() string {
-	if cd.PublicKey == nil {
-		return ""
+func (cd *CertificateDTO) UnmarshalPEM(data []byte) error {
+	for len(data) > 0 {
+		blk, rest := pem.Decode(data)
+		if blk == nil {
+			break
+		}
+		if ParsePEMType(blk.Type) != Certificate {
+			data = rest
+			continue
+		}
+		return cd.UnmarshalBinary(blk.Bytes)
 	}
-	der, err := cd.PublicKey.MarshalBinary()
+	return fmt.Errorf("no pem encoded certificate found")
+}
+
+func (cd *CertificateDTO) UnmarshalBinary(data []byte) error {
+	cert, err := x509.ParseCertificate(data)
 	if err != nil {
-		return ""
+		return err
 	}
-	return MD5PublicKey(der)
+
+	var puk string
+	var id Identity
+	if cert.PublicKey != nil {
+		pukt, err := NewPublicKeyDTO(cert.PublicKey)
+		if err != nil {
+			return fmt.Errorf("Failed to parse certificates public key  %v", err)
+		} else {
+			puk = pukt.String()
+		}
+		id = Identity([]byte(puk))
+		if err != nil {
+			return err
+		}
+	}
+	subject := newDistinguishedNameDTO(cert.Subject)
+	issuer := newDistinguishedNameDTO(cert.Issuer)
+
+	cd.Id = id.String()
+	cd.Version = cert.Version
+	cd.SerialNumber = cert.SerialNumber.Uint64()
+	cd.Signature = hex.EncodeToString(cert.Signature)
+	cd.SignatureAlgorithm = cert.SignatureAlgorithm.String()
+	cd.PublicKeyAlgorithm = cert.PublicKeyAlgorithm.String()
+	cd.PublicKey = puk
+	cd.Issuer = *issuer
+	cd.Subject = *subject
+	cd.NotBefore = cert.NotBefore
+	cd.NotAfter = cert.NotAfter
+	cd.IsCA = cert.IsCA
+	cd.BasicConstraintsValid = cert.BasicConstraintsValid
+	cd.MaxPathLen = cert.MaxPathLen
+	cd.MaxPathLenZero = cert.MaxPathLenZero
+	cd.KeyUsage = strings.Join(utils.KeyUsageToStrings(cert.KeyUsage), "|")
+	cd.ResourceType = Certificate.String()
+	return nil
 }
 
 func (cd CertificateDTO) ToCertificate() (*x509.Certificate, error) {
 	var puk crypto.PublicKey
-	if cd.PublicKey.PublicKey != "" {
-		k, err := cd.PublicKey.ToPublicKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse public key  %v", err)
+	if cd.PublicKey != "" {
+		pkdto := &PublicKeyDTO{}
+		if err := pkdto.UnmarshalPEM([]byte(cd.PublicKey)); err == nil {
+			puk, err = pkdto.ToPublicKey()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			logger.Warning("certificate public key failed to parse %v", err)
 		}
-		puk = k
-	}
-	var issuer, subject pkix.Name
-	if cd.Issuer != nil {
-		issuer = cd.Issuer.ToName()
-	}
-	if cd.Subject != nil {
-		subject = cd.Subject.ToName()
 	}
 
 	var signature []byte
 	if cd.Signature != "" {
 		by, err := hex.DecodeString(cd.Signature)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decodfe signature as hex  %v", err)
+			return nil, fmt.Errorf("failed to decode signature as hex  %v", err)
 		}
 		signature = by
 	}
+	var keyUsage x509.KeyUsage
+	if cd.KeyUsage != "" {
+		ku, err := utils.ParseKeyUsage(strings.Split(cd.KeyUsage, "|"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse key usage  %v", err)
+		}
+		keyUsage = ku
+	}
 	return &x509.Certificate{
 		Version:            cd.Version,
-		SerialNumber:       cd.SerialNumber.ToBigInt(),
+		SerialNumber:       new(big.Int).SetUint64(cd.SerialNumber),
 		SignatureAlgorithm: utils.ParseSignatureAlgorithm(cd.SignatureAlgorithm),
 		PublicKeyAlgorithm: utils.ParsePublicKeyAlgorithm(cd.PublicKeyAlgorithm),
 		PublicKey:          puk,
-		Issuer:             issuer,
-		Subject:            subject,
+		Issuer:             cd.Issuer.ToName(),
+		Subject:            cd.Subject.ToName(),
 		NotBefore:          cd.NotBefore,
 		NotAfter:           cd.NotAfter,
 		Signature:          signature,
 
-		KeyUsage:                    0,
+		KeyUsage:                    keyUsage,
 		Extensions:                  nil,
 		ExtraExtensions:             nil,
 		UnhandledCriticalExtensions: nil,
@@ -110,51 +165,4 @@ func (cd CertificateDTO) ToCertificate() (*x509.Certificate, error) {
 		CRLDistributionPoints:       nil,
 		PolicyIdentifiers:           nil,
 	}, nil
-}
-
-func (cd CertificateDTO) MarshalBinary() (data []byte, err error) {
-	if len(cd.Der) == 0 {
-		return nil, fmt.Errorf("certificate is not parsed")
-	}
-	return cd.Der, nil
-}
-
-func (cd *CertificateDTO) UnmarshalBinary(data []byte) error {
-	cert, err := x509.ParseCertificate(data)
-	if err != nil {
-		return err
-	}
-	var sn SerialNumber
-	if cert.SerialNumber != nil {
-		sn = SerialNumber(cert.SerialNumber.Uint64())
-	}
-
-	var pukTemplate *PublicKeyDTO
-	if cert.PublicKey != nil {
-		pukt, err := NewPublicKeyDTO(cert.PublicKey)
-		if err != nil {
-			return fmt.Errorf("Failed to parse certificates public key  %v", err)
-		} else {
-			pukTemplate = &pukt
-		}
-	}
-	cd.Version = cert.Version
-	cd.SerialNumber = sn
-	cd.Signature = hex.EncodeToString(cert.Signature)
-	cd.SignatureAlgorithm = cert.SignatureAlgorithm.String()
-	cd.PublicKeyAlgorithm = cert.PublicKeyAlgorithm.String()
-	cd.PublicKey = pukTemplate
-	cd.Issuer = newDistinguishedNameDTO(cert.Issuer)
-	cd.Subject = newDistinguishedNameDTO(cert.Subject)
-	cd.NotBefore = cert.NotBefore
-	cd.NotAfter = cert.NotAfter
-	cd.IsCA = cert.IsCA
-	cd.BasicConstraintsValid = cert.BasicConstraintsValid
-	cd.MaxPathLen = cert.MaxPathLen
-	cd.MaxPathLenZero = cert.MaxPathLenZero
-
-	cd.Der = cert.Raw
-	cd.Identity = cd.String()
-	cd.ResourceType = Certificate.String()
-	return nil
 }

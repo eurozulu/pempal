@@ -1,7 +1,0 @@
-root-path: .
-root-certificate: root-certificate.pem
-cert-path: certs
-key-path: private
-csr-path: requests
-crl-path: revoked
-template-path: templates

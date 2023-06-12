@@ -2,129 +2,108 @@ package resourceio
 
 import (
 	"context"
+	"github.com/eurozulu/pempal/logger"
+	"github.com/eurozulu/pempal/model"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"pempal/logger"
-	"pempal/model"
 	"strings"
 	"sync"
 )
 
-var ResourceFileExtensions = map[string]bool{
-	"":     true,
-	"pem":  true,
-	"cer":  true,
-	"cert": true,
-	"csr":  true,
-	"key":  true,
-	"pub":  true,
-	"prk":  true,
-	"req":  true,
-}
-
+// ResourceScanner scans one or more locations for x509 resources.
 type ResourceScanner interface {
-	Scan(ctx context.Context, paths ...string) <-chan *ResourceLocation
+	Recursive() bool
+	Scan(ctx context.Context, paths ...string) <-chan ResourceLocation
 }
 
 type resourceScanner struct {
 	recursive bool
-	filters   []LocationFilter
 }
 
-func (r resourceScanner) Scan(ctx context.Context, paths ...string) <-chan *ResourceLocation {
-	ch := make(chan *ResourceLocation)
+func (f resourceScanner) Recursive() bool {
+	return f.recursive
+}
+
+func (f resourceScanner) Scan(ctx context.Context, paths ...string) <-chan ResourceLocation {
+	ch := make(chan ResourceLocation)
 	go func(paths []string) {
 		defer close(ch)
 		var wg sync.WaitGroup
+		wg.Add(len(paths))
 		for _, p := range paths {
-			wg.Add(1)
-			go r.scan(ctx, p, ch, &wg)
+			go f.scan(ctx, p, ch, &wg)
 		}
 		wg.Wait()
 	}(paths)
 	return ch
 }
 
-func (r resourceScanner) scan(ctx context.Context, root string, out chan<- *ResourceLocation, wg *sync.WaitGroup) {
+func (f resourceScanner) scan(ctx context.Context, root string, out chan<- ResourceLocation, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-
 		if d.IsDir() {
-			if path == root {
-				return nil
-			}
-			if !r.recursive || strings.HasPrefix(filepath.Base(path), ".") {
+			if path != root && (!f.recursive || strings.HasPrefix(d.Name(), ".")) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if strings.HasPrefix(filepath.Base(path), ".") {
+		if strings.HasPrefix(d.Name(), ".") {
 			return nil
 		}
-
-		ext := strings.ToLower(strings.TrimLeft(filepath.Ext(d.Name()), "."))
-		if !ResourceFileExtensions[ext] {
-			logger.Log(logger.Debug, "Skipping file %s as no file extension match", path)
-			return nil
-		}
-		loc, err := r.parseResourceLocation(path)
+		// todo: add file extension filter
+		loc, err := f.parseLocation(path)
 		if err != nil {
-			logger.Log(logger.Debug, "Skipping file %s as failed to parse as resources  %v", path, err)
+			logger.Error("Failed to parse location %s  %v", path, err)
 			return nil
 		}
-		if len(loc.Resources) == 0 {
-			logger.Log(logger.Debug, "Skipping file %s as no matching resources found", path)
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case out <- loc:
+		if loc != nil {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case out <- loc:
+				logger.Debug("pushed location %s with %d resources", loc.Location(), len(loc.Resources()))
+			}
 		}
 		return nil
 
 	}); err != nil {
-		logger.Log(logger.Error, "reading directory %s failed:  %v", root, err)
+		logger.Error("Failed to scan directory %s  %v", root, err)
 	}
 }
 
-func (r resourceScanner) parseResourceLocation(path string) (*ResourceLocation, error) {
+func (f resourceScanner) parseLocation(path string) (ResourceLocation, error) {
+	logger.Debug("reading location %s", path)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	res, err := model.ParseResources(data)
-	if err != nil {
-		return nil, err
-	}
-	loc := ResourceLocation{
-		Path:      path,
-		Resources: res,
-	}
-	loc.Resources = r.filterLocation(loc)
-	return &loc, nil
-}
-
-func (r resourceScanner) filterLocation(loc ResourceLocation) []model.PEMResource {
-	for _, f := range r.filters {
-		loc.Resources = f.Filter(loc)
-		if len(loc.Resources) == 0 {
-			break
+	var found []model.Resource
+	for _, rp := range ResourceParsers {
+		if !rp.CanParse(data) {
+			continue
 		}
+		res, err := rp.ParseResources(data)
+		if err != nil {
+			logger.Warning("resource parsing error %s as %v", path, rp)
+			continue
+		}
+		found = append(found, res...)
+		break
 	}
-	return loc.Resources
+	if len(found) == 0 {
+		logger.Debug("no resources found in %s", path)
+		return nil, nil
+	}
+	logger.Debug("found %d resources in location %s", len(found), path)
+	return NewResourceLocation(path, found), nil
 }
 
-func NewResourceScanner(recursive bool, filters ...LocationFilter) ResourceScanner {
+func NewResourceScanner(recursive bool) ResourceScanner {
 	return &resourceScanner{
 		recursive: recursive,
-		filters:   filters,
 	}
 }
