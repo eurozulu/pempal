@@ -9,48 +9,52 @@ import (
 	"strings"
 )
 
-const defaultkey = `
+const organisation_name = `
+saubject.organisation: Your Organisation Name
+`
+const client_issuer_name = `
+issuer.common-name: My Client Issuer Certificate CN
+`
+
+const default_key = `
 #extends privatekey
 public-key-algorithm: RSA
 key-param: 2048
 `
-const client_certificate_request = `
-#imports - key
-#imports clientName
-#extends certificaterequest
-version: 1.0
+const default_certificate = `
+#extends certificate
 public-key-algorithm: RSA
+key-param: 2048
 signature-algorithm: SHA512WithRSA
-public-key: {{ .key }}
-subject: {{ .clientName }}
-`
-const client_certificate = `
-#imports issuerName
-#extends clientcertificaterequest,certificate
-serial-number: 1
-issuer: {{ .issuerName }}
 not-before: {{ now }}
 not-after: {{ nowPlusDays 365 }}
 is-ca: false
+`
+
+const client_certificate = `
+#extends default_certificate
+#imports organisation_name,client_issuer_name
+serial-number: 1
+subject: {{ .organisationName }}
+issuer: {{ .clientIssueName }}
 basic-constraints-valid: true
 max-path-len: 0
 max-path-len-zero: true
 key-usage: KeyUsageDigitalSignature|KeyUsageContentCommitment|KeyUsageKeyEncipherment|KeyUsageDataEncipherment|KeyUsageKeyAgreement|KeyUsageCRLSign
 `
-const newClientCertificate = `
-#extends defaultKey
-#imports defaultIssuer issuerName
----
-#extends clientcertificate
-`
 
 // DefaultResourceTemplates contains the named resource templates for each resource type.
 // These define the base properties used to create that resource type.
-var DefaultResourceTemplates map[string][]byte
+var DefaultResourceTemplates = map[string][]byte{
+	"default_key":         []byte(default_key),
+	"default_certificate": []byte(default_certificate),
+	"client_certificate":  []byte(client_certificate),
+	"organisation_name":   []byte(organisation_name),
+	"client_issuer_name":  []byte(client_issuer_name),
+}
 
 func init() {
-	DefaultResourceTemplates = map[string][]byte{}
-
+	// Add base resource type templates
 	for _, rt := range resourceTypes {
 		dto := NewDTOForResourceType(rt)
 		data, err := yaml.Marshal(dto)

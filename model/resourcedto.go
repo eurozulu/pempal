@@ -24,15 +24,15 @@ func DTOForResource(r Resource) (ResourceDTO, error) {
 func NewDTOForResourceType(t ResourceType) ResourceDTO {
 	switch t {
 	case Certificate:
-		return &CertificateDTO{}
+		return &CertificateDTO{ResourceType: Certificate.String()}
 	case CertificateRequest:
-		return &CertificateRequestDTO{}
+		return &CertificateRequestDTO{ResourceType: CertificateRequest.String()}
 	case PublicKey:
-		return &PublicKeyDTO{}
+		return &PublicKeyDTO{ResourceType: PublicKey.String()}
 	case PrivateKey:
-		return &PrivateKeyDTO{}
+		return &PrivateKeyDTO{ResourceType: PrivateKey.String()}
 	case RevokationList:
-		return &RevocationListDTO{}
+		return &RevocationListDTO{ResourceType: RevokationList.String()}
 	default:
 		return nil
 	}

@@ -22,8 +22,11 @@ type TemplateStore interface {
 	// the template extending it, next and so on until the given named template, whihc is the last returned.
 	ExtendedTemplatesByName(name ...string) ([]Template, error)
 
-	// Names lists the names of all the available templates.
-	Names(s ...string) []string
+	// Names lists the names of the custom templates, templates added by the user.
+	Names() []string
+
+	// AllNames lists all the templates, user and in built, format templates
+	AllNames(s ...string) []string
 
 	Exists(name string) bool
 
@@ -103,7 +106,15 @@ func (ts templateStore) extendedTemplates(name string, used uniqueNames) ([]Temp
 	return temps, nil
 }
 
-func (ts templateStore) Names(s ...string) []string {
+func (ts templateStore) Names() []string {
+	return ts.names(false)
+}
+
+func (ts templateStore) AllNames(s ...string) []string {
+	return ts.names(true, s...)
+}
+
+func (ts templateStore) names(includeDefault bool, s ...string) []string {
 	var names []string
 	hasQuery := len(s) > 0
 	for _, n := range ts.store.Names() {
@@ -115,11 +126,13 @@ func (ts templateStore) Names(s ...string) []string {
 		}
 		names = append(names, n)
 	}
-	for k := range ts.defaults {
-		if compareString(k, names, true) || (hasQuery && !compareString(k, s, false)) {
-			continue
+	if includeDefault {
+		for k := range ts.defaults {
+			if compareString(k, names, true) || (hasQuery && !compareString(k, s, false)) {
+				continue
+			}
+			names = append(names, k)
 		}
-		names = append(names, k)
 	}
 	return names
 }

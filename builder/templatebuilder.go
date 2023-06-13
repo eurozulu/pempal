@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/templates"
+	"github.com/eurozulu/pempal/utils"
 	"github.com/go-yaml/yaml"
 )
 
 func MergeTemplates(temps []templates.Template) (templates.Template, error) {
-	m := map[string]interface{}{}
+	m := utils.FlatMap{}
 	if err := ApplyTemplates(&m, temps); err != nil {
 		return nil, err
 	}

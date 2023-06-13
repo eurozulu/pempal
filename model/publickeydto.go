@@ -9,7 +9,7 @@ import (
 )
 
 type PublicKeyDTO struct {
-	Id                 string `yaml:"identity"`
+	Id                 string `yaml:"identity,omitempty"`
 	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
 	PublicKey          string `yaml:"public-key,omitempty"`
 
