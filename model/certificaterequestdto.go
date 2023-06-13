@@ -11,7 +11,7 @@ import (
 )
 
 type CertificateRequestDTO struct {
-	Id                 string               `yaml:"identity"`
+	Id                 string               `yaml:"identity,omitempty"`
 	Version            int                  `yaml:"version" flag:"version,ver"`
 	Signature          string               `yaml:"signature" flag:"signature,sig"`
 	SignatureAlgorithm string               `yaml:"signature-algorithm" flag:"signature-algorithm,signaturealgorithm,sig-algo"`

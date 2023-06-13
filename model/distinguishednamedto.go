@@ -15,8 +15,8 @@ type DistinguishedNameDTO struct {
 	StreetAddress      []string                    `yaml:"street-address,omitempty"`
 	PostalCode         []string                    `yaml:"postal-code,omitempty"`
 	SerialNumber       string                      `yaml:"serial.txt-number,omitempty"`
-	Names              []*AttributeTypeAndValueDTO `yaml:"names"`
-	ExtraNames         []*AttributeTypeAndValueDTO `yaml:"extra-names"`
+	Names              []*AttributeTypeAndValueDTO `yaml:"names,omitempty"`
+	ExtraNames         []*AttributeTypeAndValueDTO `yaml:"extra-names,omitempty"`
 }
 
 type AttributeTypeAndValueDTO struct {

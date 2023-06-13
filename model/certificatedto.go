@@ -14,7 +14,7 @@ import (
 )
 
 type CertificateDTO struct {
-	Id                    string               `yaml:"identity"`
+	Id                    string               `yaml:"identity,omitempty"`
 	Version               int                  `yaml:"version" flag:"version,ver"`
 	SerialNumber          uint64               `yaml:"serial-number" flag:"serial-number,serialnumber,sn"`
 	Signature             string               `yaml:"signature" flag:"signature,sig"`

@@ -13,7 +13,7 @@ import (
 const defaultEncryptCipher = x509.PEMCipherAES256
 
 type PrivateKeyDTO struct {
-	Id                 string `yaml:"identity"`
+	Id                 string `yaml:"identity,omitempty"`
 	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
 	PrivateKey         string `yaml:"private-key,omitempty"`
 	PublicKey          string `yaml:"public-key,omitempty"`
