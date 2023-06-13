@@ -25,6 +25,8 @@ type TemplateStore interface {
 	// Names lists the names of all the available templates.
 	Names(s ...string) []string
 
+	Exists(name string) bool
+
 	// SaveTemplate adds a new template to the store under the given name.
 	// returns error if the name already exists.
 	SaveTemplate(name string, t Template) error
@@ -134,6 +136,14 @@ func (ts templateStore) DeleteTemplate(name string) error {
 		name = strings.Join([]string{name, templateFileExtension}, "")
 	}
 	return ts.store.Delete(name)
+}
+
+func (ts templateStore) Exists(name string) bool {
+	fname := name
+	if filepath.Ext(fname) == "" {
+		fname = strings.Join([]string{name, templateFileExtension}, "")
+	}
+	return ts.store.Contains(fname)
 }
 
 func (ts templateStore) readTemplateBytes(name string) ([]byte, error) {

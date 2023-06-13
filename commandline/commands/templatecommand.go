@@ -7,7 +7,6 @@ import (
 	"github.com/eurozulu/pempal/config"
 	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/templates"
-	"github.com/go-yaml/yaml"
 	"io"
 	"sort"
 	"strings"
@@ -38,20 +37,22 @@ func (cmd TemplateCommand) Execute(args []string, out io.Writer) error {
 		return fmt.Errorf("template store unavailable, %v", err)
 	}
 
-	if len(args) == 0 {
-		// if no name given, list all names
-		return cmd.writeTemplateNames(out)
-	}
-
 	// parse argument into simple names and assignments (names followed by '=')
 	assignments, names := parseArgsForAssignments(args)
-	if err := cmd.addTemplates(assignments); err != nil {
+	if ns, err := cmd.addNewTemplates(assignments); err != nil {
 		return err
+	} else if !CommonFlags.Quiet {
+		names = append(names, ns...)
 	}
 
 	if cmd.Unformatted {
 		return cmd.writeRawTemplates(out, names)
 	}
+	if len(args) == 0 {
+		// if no name given, list all names
+		return cmd.writeTemplateNames(out)
+	}
+
 	return cmd.writeTemplates(out, names)
 }
 
@@ -111,68 +112,30 @@ func (cmd TemplateCommand) writeTemplateNames(out io.Writer) error {
 	return nil
 }
 
-func (cmd TemplateCommand) addTemplates(names []string) error {
-	for _, name := range names {
+func (cmd TemplateCommand) addNewTemplates(names []string) ([]string, error) {
+	for i, name := range names {
 		ss := strings.SplitN(name, "=", 2)
-		var data []byte
+		name = ss[0]
+		var temp templates.Template
 		if len(ss) > 1 {
-			d, err := parseInlineTemplateValue(ss[1])
+			t, err := templates.ParseInlineTemplate(ss[1])
 			if err != nil {
-				return err
+				return nil, err
 			}
-			data = d
+			temp = t
 		}
-		t, err := templates.NewTemplate(data)
-		if err != nil {
-			return err
+		if CommonFlags.ForceOut && cmd.templateStore.Exists(name) {
+			if err := cmd.templateStore.DeleteTemplate(name); err != nil {
+				return nil, err
+			}
 		}
-		if err = cmd.templateStore.SaveTemplate(ss[0], t); err != nil {
-			return fmt.Errorf("Failed to save template '%s'  %v", ss[0], err)
+		if err := cmd.templateStore.SaveTemplate(name, temp); err != nil {
+			return nil, fmt.Errorf("Failed to save template '%s'  %v", name, err)
 		}
 		if !CommonFlags.Quiet {
-			logger.Info("created template %s\n", ss[0])
+			logger.Info("created template %s\n", name)
 		}
+		names[i] = name
 	}
-	return nil
-}
-
-func parseInlineTemplateValue(s string) ([]byte, error) {
-	if s == "-" {
-		return readStdIn()
-	}
-	lines := strings.Split(s, ",")
-	m := map[string]interface{}{}
-	for _, line := range lines {
-		ls := strings.SplitN(line, ":", 2)
-		key := strings.TrimSpace(ls[0])
-		var val string
-		if len(ls) > 1 {
-			val = strings.TrimSpace(ls[1])
-		}
-		if err := addDotKeyValue(key, val, m); err != nil {
-			return nil, err
-		}
-	}
-	return yaml.Marshal(&m)
-}
-
-func addDotKeyValue(key string, v interface{}, m map[string]interface{}) error {
-	i := strings.IndexRune(key, '.')
-	if i < 0 {
-		m[key] = v
-		return nil
-	}
-	iv, ok := m[key[:i]]
-	if !ok {
-		iv = map[string]interface{}{}
-		m[key[:i]] = iv
-	}
-	im, ok := iv.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("failed to apply property %s, as already holds an incompatible type")
-	}
-	if i+1 >= len(key) {
-		return fmt.Errorf("key '%s' is invalid. no name found after dot", key)
-	}
-	return addDotKeyValue(key[i+1:], v, im)
+	return names, nil
 }
