@@ -22,9 +22,6 @@ type MakeCommand struct {
 
 func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	if len(args) == 0 {
-		if err := showTemplateNames(out); err != nil {
-			return err
-		}
 		return fmt.Errorf("must provide one or more template names to build")
 	}
 

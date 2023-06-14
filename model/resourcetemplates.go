@@ -19,7 +19,7 @@ issuer.common-name: My Client Issuer Certificate CN
 const default_key = `
 #extends privatekey
 public-key-algorithm: RSA
-key-param: 2048
+key-size: 2048
 `
 const default_certificate = `
 #extends certificate
@@ -46,7 +46,7 @@ key-usage: KeyUsageDigitalSignature|KeyUsageContentCommitment|KeyUsageKeyEnciphe
 // DefaultResourceTemplates contains the named resource templates for each resource type.
 // These define the base properties used to create that resource type.
 var DefaultResourceTemplates = map[string][]byte{
-	"default_key":         []byte(default_key),
+	"key":                 []byte(default_key),
 	"default_certificate": []byte(default_certificate),
 	"client_certificate":  []byte(client_certificate),
 	"organisation_name":   []byte(organisation_name),

@@ -15,10 +15,10 @@ const defaultEncryptCipher = x509.PEMCipherAES256
 type PrivateKeyDTO struct {
 	Id                 string `yaml:"identity,omitempty"`
 	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
+	KeySize            string `yaml:"key-size"`
 	PrivateKey         string `yaml:"private-key,omitempty"`
 	PublicKey          string `yaml:"public-key,omitempty"`
 	IsEncrypted        bool   `yaml:"is-encrypted,omitempty"`
-	KeyParam           string `yaml:"key-param,omitempty"`
 
 	ResourceType string `yaml:"resource-type"`
 }
@@ -108,7 +108,7 @@ func (p *PrivateKeyDTO) reset() {
 	p.PrivateKey = ""
 	p.PublicKey = ""
 	p.IsEncrypted = false
-	p.KeyParam = ""
+	p.KeySize = ""
 }
 
 func (p *PrivateKeyDTO) setPrivateKey(block *pem.Block) error {
@@ -159,4 +159,16 @@ func (p *PrivateKeyDTO) setPublicKey(block *pem.Block) error {
 	p.PublicKeyAlgorithm = utils.PublicKeyAlgorithmFromKey(puk).String()
 	p.Id = id.String()
 	return nil
+}
+
+func NewPrivateKeyDTO(prk crypto.PrivateKey) (*PrivateKeyDTO, error) {
+	der, err := x509.MarshalPKCS8PrivateKey(prk)
+	if err != nil {
+		return nil, err
+	}
+	dto := &PrivateKeyDTO{}
+	if err = dto.UnmarshalBinary(der); err != nil {
+		return nil, err
+	}
+	return dto, nil
 }
