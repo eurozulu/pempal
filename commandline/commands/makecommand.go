@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"github.com/eurozulu/argdecoder"
 	"github.com/eurozulu/pempal/builder"
+	"github.com/eurozulu/pempal/commandline/formselect"
 	"github.com/eurozulu/pempal/config"
-	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/model"
 	"github.com/eurozulu/pempal/resourceio"
+	"github.com/eurozulu/pempal/templates"
 	"io"
 	"strings"
 )
@@ -15,9 +16,7 @@ import (
 const defaultResourceFormat = resourceio.FormatPEM
 
 type MakeCommand struct {
-	BuildType string   `flag:"type,resource-type,resourcetype,buildtype"`
-	Format    string   `flag:"format,fm"`
-	flags     []string `flag:"-"`
+	Format string `flag:"format,fm"`
 }
 
 func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
@@ -25,58 +24,60 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 		return fmt.Errorf("must provide one or more template names to build")
 	}
 
-	tm, err := config.TemplateStore()
-	if err != nil {
-		return err
-	}
-
 	km, err := config.KeyManager()
 	if err != nil {
 		return err
 	}
 
-	temps, err := tm.ExtendedTemplatesByName(args...)
+	// Collect the templates to build
+	tm, err := config.TemplateManager()
 	if err != nil {
 		return err
 	}
 
-	var rt model.ResourceType
-	if cmd.BuildType != "" {
-		rt = model.ParseResourceType(cmd.BuildType)
-		if rt == model.Unknown {
-			return fmt.Errorf("%s is an unknown build type", cmd.BuildType)
-		}
-	} else {
-		rt = model.DetectResourceType(temps...)
-		if rt == model.Unknown {
-			return fmt.Errorf("failed to detect build type, ensure a template extends a resource type")
-		}
-	}
-
-	build, err := builder.NewBuilder(rt, km)
+	// collect the named templates from the arguments
+	names, flags := argdecoder.ParseArgs(args)
+	temps, err := tm.ExtendedTemplatesByName(names...)
 	if err != nil {
 		return err
 	}
-
-	if err = build.ApplyTemplate(temps...); err != nil {
-		return err
-	}
-	if len(cmd.flags) > 0 {
-		if _, err := argdecoder.ApplyArguments(cmd.flags, build); err != nil {
+	// Build a 'flag' template and add to the list
+	if len(flags) > 0 {
+		t, err := flagTemplate(flags)
+		if err != nil {
 			return err
 		}
+		temps = append(temps, t)
 	}
 
-	// Keep validating until either no errors or user aborts (EOF)
-	err = build.Validate()
-	for err != nil {
-		err = processInvalidTemplate(build, err)
-		if err == io.EOF {
-			return fmt.Errorf("aborted")
+	// Create builder with templates.  Should be able to establish build type from these.
+	tb := builder.TemplateBuilder(temps)
+	// Build the final template, based on the established type
+	t, err := tb.MergeTemplates()
+
+	build, err := builder.NewBuilder(tb.ResourceType(), km)
+	if err != nil {
+		return err
+	}
+
+	errs := build.Validate(t)
+	if CommonFlags.Quiet && len(errs) > 0 {
+		return builder.CombineErrors(errs)
+	}
+	// request new values to correct errors
+	for len(errs) > 0 {
+		ct, err := correctionTemplate(t)
+		if err != nil {
+			return err
 		}
+		t, err = builder.TemplateBuilder([]templates.Template{t, ct}).MergeTemplates()
+		if err != nil {
+			return err
+		}
+		errs = build.Validate(t)
 	}
 
-	r, err := build.Build()
+	r, err := build.Build(t)
 	if err != nil {
 		return err
 	}
@@ -84,19 +85,6 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 	if err = cmd.writeResource(out, r); err != nil {
 		return err
 	}
-	return nil
-}
-
-func (cmd *MakeCommand) ApplyFlags(flags map[string]*string) error {
-	// reassemble into commandline args
-	var args []string
-	for k, v := range flags {
-		args = append(args, strings.Join([]string{"-", k}, ""))
-		if v != nil {
-			args = append(args, *v)
-		}
-	}
-	cmd.flags = args
 	return nil
 }
 
@@ -123,12 +111,17 @@ func (cmd MakeCommand) getResourceFormatter() (resourceio.ResourceFormatter, err
 	return resourceio.NewResourceFormatter(rf), nil
 }
 
-func showTemplateNames(out io.Writer) error {
-	tc := &TemplateCommand{}
-	return tc.Execute(nil, out)
+func parseErrorNames(errs []error) []string {
+	names := make([]string, len(errs))
+	for i, err := range errs {
+		names[i] = strings.SplitN(err.Error(), " ", 2)[0]
+	}
+	return names
 }
 
-func processInvalidTemplate(build builder.Builder, err error) error {
-	logger.Error("make failed:\n%v", err)
+func correctionTemplate(t templates.Template) (templates.Template, error) {
+
+	f := formselect.NewForm(5, 10, lines)
+	f.SelectLine(-1)
 	return io.EOF
 }

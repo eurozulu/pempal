@@ -3,6 +3,8 @@ package templates
 import (
 	"bytes"
 	"fmt"
+	"github.com/eurozulu/pempal/logger"
+	"github.com/go-yaml/yaml"
 )
 
 // Template represents a collection of named properties.
@@ -13,6 +15,8 @@ type Template interface {
 
 	// Bytes returns the 'raw', unformatted template, including tags
 	Bytes() []byte
+
+	Apply(v interface{}) error
 
 	// String returns a string of the formatted template after tags and macros applied
 	fmt.Stringer
@@ -25,6 +29,19 @@ type yamlTemplate struct {
 
 func (t yamlTemplate) Tags() Tags {
 	return t.tags
+}
+
+func (t yamlTemplate) Apply(v interface{}) error {
+	var err error
+	data := t.Bytes()
+	if containsGoTemplates(data) {
+		logger.Debug("go template detected.  executing template engine")
+		data, err = executeGoTemplate(data, v)
+		if err != nil {
+			return fmt.Errorf("failed to execute template %v", err)
+		}
+	}
+	return yaml.Unmarshal(data, v)
 }
 
 func (t yamlTemplate) String() string {

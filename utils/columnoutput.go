@@ -13,8 +13,8 @@ type ColumnOutput struct {
 	// All columns are set to DefaultColumnWidth unless an non zero value is in this slice
 	ColumnWidths []int
 
-	// Delimiter to split the data being written
-	Delimiter string
+	// DataDelimiter to split the data being written
+	DataDelimiter string
 	// ColumnDelimiter defines how columns are seperated
 	ColumnDelimiter string
 
@@ -25,7 +25,7 @@ func (t ColumnOutput) Write(p []byte) (n int, err error) {
 	if len(bytes.TrimSpace(p)) == 0 {
 		return t.out.Write(p)
 	}
-	return t.WriteSlice(strings.Split(string(p), t.Delimiter))
+	return t.WriteSlice(strings.Split(string(p), t.DataDelimiter))
 }
 
 // WriteString writes directly to the underlying output, ignorn=ging column widths and spaces.
@@ -85,7 +85,7 @@ func fixSizeString(s string, width int) string {
 func NewColumnOutput(out io.Writer, widths ...int) *ColumnOutput {
 	return &ColumnOutput{
 		ColumnWidths:    widths,
-		Delimiter:       ",",
+		DataDelimiter:   ",",
 		ColumnDelimiter: "\t",
 		out:             out,
 	}

@@ -31,6 +31,12 @@ func (cmd ConfigCommand) Execute(args []string, out io.Writer) error {
 	}
 	cmd.cfg = cfg
 
+	if a, err := cleanArguments(args); err != nil {
+		return err
+	} else {
+		args = a
+	}
+
 	assignments, names := parseArgsForAssignments(args)
 
 	if err = cmd.setConfigValues(out, assignments); err != nil {
@@ -198,13 +204,16 @@ func parseArgsForAssignments(args []string) (assignments, names []string) {
 	for i := 0; i < len(args); i++ {
 		arg := strings.TrimSpace(args[i])
 		if strings.Contains(arg, "=") {
-			// If arg end with equals, and has following arg, combine together.
-			if strings.HasSuffix(arg, "=") && i+1 < len(args) {
-				i++
-				arg = strings.Join([]string{arg, strings.TrimSpace(args[i])}, "")
+			argz := strings.SplitN(arg, "=", 2)
+			if len(argz) < 2 || argz[1] == "" {
+				// No value found, combine with next argument
+				if i+1 < len(args) {
+					i++
+					argz[1] = args[i]
+				}
 			}
-			assignments = append(assignments, arg)
-			continue
+			assignments = append(assignments, strings.Join(argz, "="))
+			arg = argz[0]
 		}
 		names = append(names, arg)
 	}
@@ -222,7 +231,7 @@ func containsString(s string, ss []string) string {
 
 func createColumnOutput(out io.Writer) *utils.ColumnOutput {
 	colOut := utils.NewColumnOutput(out)
-	colOut.Delimiter = ":"
+	colOut.DataDelimiter = ":"
 	colOut.ColumnWidths = []int{16}
 	colOut.ColumnDelimiter = "  "
 	return colOut

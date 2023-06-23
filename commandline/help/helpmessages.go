@@ -182,7 +182,7 @@ var templateHelpPage = HelpPage{
 }
 
 var unknownHelp = HelpPage{
-	Title: "Unknown command",
+	Title: "UnknownCurve command",
 }
 
 func HelpFor(command string) HelpPage {

@@ -54,17 +54,6 @@ func main() {
 		return
 	}
 
-	// Ensure all flags have been consumed
-	if ags, flags := argdecoder.ParseArgs(args); len(flags) > 0 {
-		if flagCmd, ok := cmd.(commands.CustomFlagsCommand); ok {
-			flagCmd.ApplyFlags(flags)
-		} else {
-			logger.Error("unknown flag(s) %v\n", unknownFlagNames(flags))
-			return
-		}
-		args = ags
-	}
-
 	// establish the output stream
 	out := os.Stdout
 	if commands.CommonFlags.Out != "" {
@@ -88,15 +77,6 @@ func main() {
 	if err = cmd.Execute(args, out); err != nil {
 		logger.Error("%v\n", err)
 	}
-}
-
-func unknownFlagNames(m map[string]*string) []string {
-	names := make([]string, len(m))
-	var index int
-	for k := range m {
-		names[index] = k
-	}
-	return names
 }
 
 func setLoggerLevel() {

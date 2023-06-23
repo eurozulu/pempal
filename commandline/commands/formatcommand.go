@@ -10,6 +10,11 @@ type FormatCommand struct {
 }
 
 func (sc FormatCommand) Execute(args []string, out io.Writer) error {
+	if a, err := cleanArguments(args); err != nil {
+		return err
+	} else {
+		args = a
+	}
 	panic("not done yet")
 }
 

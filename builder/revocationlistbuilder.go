@@ -8,7 +8,7 @@ import (
 type revocationListBuilder struct {
 }
 
-func (r revocationListBuilder) ApplyTemplate(tp ...templates.Template) error {
+func (r revocationListBuilder) AddTemplate(tp ...templates.Template) error {
 	//TODO implement me
 	panic("implement me")
 }

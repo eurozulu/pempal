@@ -34,6 +34,12 @@ type FindCommand struct {
 }
 
 func (fc FindCommand) Execute(args []string, out io.Writer) error {
+	if a, err := cleanArguments(args); err != nil {
+		return err
+	} else {
+		args = a
+	}
+
 	if len(args) == 0 {
 		return fmt.Errorf("Find requires at least one path to a file or directory.")
 	}

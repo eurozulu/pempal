@@ -9,10 +9,10 @@ import (
 
 const templateFileExtension = ".yaml"
 
-type TemplateStore interface {
+type TemplateManager interface {
 
 	// TemplateByName retrieves a named template or an error if the given name is not known
-	TemplateByName(name string) (Template, error)
+	TemplateByName(name ...string) ([]Template, error)
 
 	// ExtendedTemplatesByName retrieves a named template and all the templates it extends, or an error if the given name or any extended name is not known.
 	// Providing more than one name is the same as extending the second named template with the first.  i.e. a chain of templates can
@@ -25,16 +25,17 @@ type TemplateStore interface {
 	// Names lists the names of the custom templates, templates added by the user.
 	Names() []string
 
-	// AllNames lists all the templates, user and in built, format templates
+	// AllNames lists all the templates, user and in built, "format" templates
 	AllNames(s ...string) []string
 
+	// Exists checks if the given name is known
 	Exists(name string) bool
 
-	// SaveTemplate adds a new template to the store under the given name.
+	// SaveTemplate adds a new template to the manager under the given name.
 	// returns error if the name already exists.
 	SaveTemplate(name string, t Template) error
 
-	// DeleteTemplate removes a named template from the store.
+	// DeleteTemplate removes a named template from the manager.
 	//  returns error if the name is not known
 	// note: default tempaltes can NOT be deleted.
 	DeleteTemplate(name string) error
@@ -45,12 +46,20 @@ type templateStore struct {
 	defaults map[string][]byte
 }
 
-func (ts templateStore) TemplateByName(name string) (Template, error) {
-	data, err := ts.readTemplateBytes(name)
-	if err != nil {
-		return nil, fmt.Errorf("template '%s' error %v", name, err)
+func (ts templateStore) TemplateByName(name ...string) ([]Template, error) {
+	var temps []Template
+	for _, n := range name {
+		data, err := ts.readTemplateBytes(n)
+		if err != nil {
+			return nil, fmt.Errorf("template '%s' error %v", n, err)
+		}
+		t, err := NewTemplate(data)
+		if err != nil {
+			return nil, err
+		}
+		temps = append(temps, t)
 	}
-	return NewTemplate(data)
+	return temps, nil
 }
 
 func (ts templateStore) ExtendedTemplatesByName(names ...string) ([]Template, error) {
@@ -85,11 +94,11 @@ func (ts templateStore) extendedTemplates(name string, used uniqueNames) ([]Temp
 	used[name] = true
 
 	var temps []Template
-	tp, err := ts.TemplateByName(name)
+	nts, err := ts.TemplateByName(name)
 	if err != nil {
 		return nil, err
 	}
-
+	tp := nts[0]
 	if tp.Tags().ContainsTag(TAG_EXTENDS) {
 		// recusrive call with the extended names
 		names := strings.Split(tp.Tags().TagByName(TAG_EXTENDS).Value(), ",")
@@ -194,10 +203,10 @@ func compareString(s string, ss []string, exact bool) bool {
 	return false
 }
 
-// NewTemplateStore creates a new Template store using the given root path as
+// NewTemplateManager creates a new Template manager using the given root path as
 // the location of where to search and save template files.
-// An optional map of default templates may be provided.  When given defaults will be served when that name can not be found in the store.
-func NewTemplateStore(rootpath string, defaultTemplates map[string][]byte) (TemplateStore, error) {
+// An optional map of default templates may be provided.  When given defaults will be served when that name can not be found in the manager.
+func NewTemplateManager(rootpath string, defaultTemplates map[string][]byte) (TemplateManager, error) {
 	store, err := NewFileBlobStore(rootpath, "yaml", "template")
 	if err != nil {
 		return nil, err

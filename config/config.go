@@ -153,6 +153,7 @@ func resolveConfigPath(path string) (string, error) {
 		p := filepath.Join(os.ExpandEnv("$PWD"), ".config")
 		if utils.FileExists(p) {
 			path = p
+			logger.Debug("using config file found in current directory: %s", path)
 		}
 	}
 	// not in current dir, check if ENV var is set
@@ -163,6 +164,7 @@ func resolveConfigPath(path string) (string, error) {
 				logger.Warning("config path %s in %s could not be found", envPath, ENV_CA_CONFIG)
 			} else {
 				path = envPath
+				logger.Debug("using config file found in environment var %s: %s", ENV_CA_CONFIG, path)
 			}
 		}
 	}
@@ -171,6 +173,7 @@ func resolveConfigPath(path string) (string, error) {
 		p := os.ExpandEnv(defaultConfigPath)
 		if utils.FileExists(p) {
 			path = p
+			logger.Debug("using config file found in default path : %s", path)
 		}
 	}
 

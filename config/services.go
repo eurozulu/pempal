@@ -13,12 +13,12 @@ func CurrentConfig() (Config, error) {
 	return NewConfig(ConfigPath)
 }
 
-func TemplateStore() (templates.TemplateStore, error) {
+func TemplateManager() (templates.TemplateManager, error) {
 	cfg, err := CurrentConfig()
 	if err != nil {
 		return nil, err
 	}
-	return templates.NewTemplateStore(cfg.Templates(), model.DefaultResourceTemplates)
+	return templates.NewTemplateManager(cfg.Templates(), model.DefaultResourceTemplates)
 }
 
 func KeyManager() (keys.Keys, error) {

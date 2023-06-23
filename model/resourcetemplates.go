@@ -1,9 +1,7 @@
 package model
 
 import (
-	"bytes"
 	"github.com/eurozulu/pempal/logger"
-	"github.com/eurozulu/pempal/templates"
 	"github.com/go-yaml/yaml"
 	"reflect"
 	"strings"
@@ -25,7 +23,7 @@ const default_certificate = `
 #extends certificate
 public-key-algorithm: RSA
 key-param: 2048
-signature-algorithm: SHA512WithRSA
+signature-algorithm: SHA512-RSA
 not-before: {{ now }}
 not-after: {{ nowPlusDays 365 }}
 is-ca: false
@@ -64,27 +62,4 @@ func init() {
 		}
 		DefaultResourceTemplates[strings.ToLower(rt.String())] = data
 	}
-}
-
-func EqualsResourceTemplate(data []byte) string {
-	for k, v := range DefaultResourceTemplates {
-		if bytes.Equal(data, v) {
-			return k
-		}
-	}
-	return ""
-}
-
-// DetectResourceType scans the given templates from first to last to locate the first 'resource template'.
-// A resource template is one of the in built templates which relates to a specific resource type.
-// see #DefaultResourceTemplates
-func DetectResourceType(temps ...templates.Template) ResourceType {
-	for _, t := range temps {
-		s := EqualsResourceTemplate([]byte(t.String()))
-		if s == "" {
-			continue
-		}
-		return ParseResourceType(s)
-	}
-	return Unknown
 }

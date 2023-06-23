@@ -1,59 +1,38 @@
 package builder
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"github.com/eurozulu/argdecoder"
 	"github.com/eurozulu/pempal/keys"
 	"github.com/eurozulu/pempal/model"
 	"github.com/eurozulu/pempal/templates"
-	"github.com/go-yaml/yaml"
+	"reflect"
 )
 
 type certificateBuilder struct {
-	dto  model.CertificateDTO
 	keys keys.Keys
 }
 
-func (cb *certificateBuilder) UnmarshalArguments(args []string) ([]string, error) {
-	remain, err := argdecoder.ApplyArguments(args, &cb.dto)
-	if err != nil {
-		return nil, err
+func (cb certificateBuilder) Validate(t templates.Template) []error {
+	c, errs := cb.buildTemplateCertificate(t)
+	if len(errs) > 0 {
+		return errs
 	}
-	if len(remain) > 0 {
-		return nil, fmt.Errorf("unknown flags: %v", remain)
-	}
-	return nil, nil
-}
-
-func (cb *certificateBuilder) ApplyTemplate(tp ...templates.Template) error {
-	for _, t := range tp {
-		if err := yaml.Unmarshal(t.Bytes(), &cb.dto); err != nil {
-			return err
-		}
+	if _, err := cb.resolveIssuer(c.Issuer); err != nil {
+		return []error{err}
 	}
 	return nil
 }
 
-func (cb certificateBuilder) Validate() error {
-	if _, err := cb.buildTemplateCertificate(); err != nil {
-		return err
+func (cb certificateBuilder) Build(t templates.Template) (model.Resource, error) {
+	tcert, errs := cb.buildTemplateCertificate(t)
+	if len(errs) > 0 {
+		return nil, CombineErrors(errs)
 	}
-	if _, err := cb.resolveIssuer(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (cb certificateBuilder) Build() (model.Resource, error) {
-	tcert, err := cb.buildTemplateCertificate()
-	if err != nil {
-		return nil, err
-	}
-	issuer, err := cb.resolveIssuer()
+	issuer, err := cb.resolveIssuer(tcert.Issuer)
 	if err != nil {
 		return nil, err
 	}
@@ -68,45 +47,54 @@ func (cb certificateBuilder) Build() (model.Resource, error) {
 	}), nil
 }
 
-func (cb certificateBuilder) buildTemplateCertificate() (*x509.Certificate, error) {
-	c, err := cb.dto.ToCertificate()
-	if err != nil {
-		return nil, err
+func (cb certificateBuilder) buildTemplateCertificate(t templates.Template) (*x509.Certificate, []error) {
+	dto := model.NewDTOForResourceType(model.Certificate)
+	certdto, ok := dto.(*model.CertificateDTO)
+	if !ok {
+		return nil, []error{fmt.Errorf("unexpected DTO type %s, expected CertificateDTO", reflect.TypeOf(dto).String())}
 	}
-	errs := bytes.NewBuffer(nil)
+	if err := t.Apply(certdto); err != nil {
+		return nil, []error{err}
+	}
+	c, err := certdto.ToCertificate()
+	if err != nil {
+		return nil, []error{err}
+	}
+	var errs []error
 	if c.PublicKey == nil {
-		fmt.Fprintln(errs, "public key not found")
+		errs = append(errs, fmt.Errorf("public key not found"))
 	}
 	if c.Subject.CommonName == "" {
-		fmt.Fprintln(errs, "common name not found")
+		errs = append(errs, fmt.Errorf("common name not found"))
 	}
-
 	if c.SignatureAlgorithm == x509.UnknownSignatureAlgorithm {
-		fmt.Fprintln(errs, "signature algorithm unknown")
+		errs = append(errs, fmt.Errorf("signature algorithm unknown"))
 	}
 	if c.SerialNumber.Uint64() == 0 {
-		fmt.Fprintln(errs, "serial number not found")
+		errs = append(errs, fmt.Errorf("serial number not found"))
 	}
-	if errs.Len() > 0 {
-		return nil, fmt.Errorf("%s", errs.String())
+	if c.NotBefore.IsZero() {
+		errs = append(errs, fmt.Errorf("before-now invalid"))
+	}
+	if !c.NotAfter.After(c.NotBefore) {
+		errs = append(errs, fmt.Errorf("after-now invalid, after before-now"))
+	}
+	if len(errs) > 0 {
+		return nil, errs
 	}
 	return c, nil
 }
 
-func (cb certificateBuilder) resolveIssuer() (keys.User, error) {
-	c, err := cb.dto.ToCertificate()
-	if err != nil {
-		return nil, err
-	}
-	if c.Issuer.CommonName == "" {
+func (cb certificateBuilder) resolveIssuer(issuer pkix.Name) (keys.User, error) {
+	if issuer.CommonName == "" {
 		return nil, fmt.Errorf("no issuer common name")
 	}
-	u, err := cb.keys.UserByName(c.Issuer)
+	u, err := cb.keys.UserByName(issuer)
 	if err != nil {
 		return nil, err
 	}
 	if !u.Certificate().IsCA {
-		return nil, fmt.Errorf("user %s is not an issuer", c.Issuer.CommonName)
+		return nil, fmt.Errorf("user %s is not an issuer", issuer.CommonName)
 	}
 	return u, nil
 }

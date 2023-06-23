@@ -102,10 +102,6 @@ func stringToValue(s *string) interface{} {
 	if s == nil {
 		return nil
 	}
-	b, err := strconv.ParseBool(*s)
-	if err == nil {
-		return &b
-	}
 	i, err := strconv.ParseInt(*s, 10, 64)
 	if err == nil {
 		return &i
@@ -113,6 +109,10 @@ func stringToValue(s *string) interface{} {
 	f, err := strconv.ParseFloat(*s, 64)
 	if err == nil {
 		return &f
+	}
+	b, err := strconv.ParseBool(*s)
+	if err == nil {
+		return &b
 	}
 	if strings.HasPrefix(*s, "[") && strings.HasSuffix(*s, "]") {
 		ss := strings.Split(strings.Trim(*s, "[]"), ",")

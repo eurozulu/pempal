@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/eurozulu/argdecoder"
 	"io"
 	"strings"
 )
@@ -42,10 +43,13 @@ type Command interface {
 	Execute(args []string, out io.Writer) error
 }
 
-// CustomFlagsCommand is a Command which processes its own arbitrary flags.
-type CustomFlagsCommand interface {
-	Command
-	ApplyFlags(flags map[string]*string) error
+func cleanArguments(args []string) ([]string, error) {
+	// Ensure all flags have been consumed
+	ags, flags := argdecoder.ParseArgs(args)
+	if len(flags) > 0 {
+		return nil, fmt.Errorf("unknown flag(s) %v\n", (flags))
+	}
+	return ags, nil
 }
 
 func NewCommand(name string) (Command, error) {

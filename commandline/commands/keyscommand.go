@@ -24,6 +24,13 @@ func (kc keysCommand) Execute(args []string, out io.Writer) error {
 	} else {
 		kc.keys = km
 	}
+
+	if a, err := cleanArguments(args); err != nil {
+		return err
+	} else {
+		args = a
+	}
+
 	cols := utils.NewColumnOutput(out)
 	if !CommonFlags.Quiet {
 		if err := kc.writeKeyHeaders(cols); err != nil {

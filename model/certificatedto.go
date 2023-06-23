@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const timeFormat = time.RFC3339
+
 type CertificateDTO struct {
 	Id                    string               `yaml:"identity,omitempty"`
 	Version               int                  `yaml:"version" flag:"version,ver"`
@@ -23,8 +25,8 @@ type CertificateDTO struct {
 	PublicKey             string               `yaml:"public-key" flag:"public-key,publickey,puk,pubkey"`
 	Issuer                DistinguishedNameDTO `yaml:"issuer" flag:"issuer"`
 	Subject               DistinguishedNameDTO `yaml:"subject" flag:"subject"`
-	NotBefore             time.Time            `yaml:"not-before" flag:"not-before,notbefore,before"`
-	NotAfter              time.Time            `yaml:"not-after" flag:"not-after,notafter,after"`
+	NotBefore             string               `yaml:"not-before" flag:"not-before,notbefore,before"`
+	NotAfter              string               `yaml:"not-after" flag:"not-after,notafter,after"`
 	IsCA                  bool                 `yaml:"is-ca" flag:"is-ca,isca"`
 	BasicConstraintsValid bool                 `yaml:"basic-constraints-valid,omitempty" flag:"basic-constraints-valid,basicconstraintsvalid,constraints-valid,constraintsvalid"`
 	MaxPathLen            int                  `yaml:"max-path-len,omitempty" flag:"max-path-len,maxpathlen,path-len,pathlen"`
@@ -81,8 +83,8 @@ func (cd *CertificateDTO) UnmarshalBinary(data []byte) error {
 	cd.PublicKey = puk
 	cd.Issuer = *issuer
 	cd.Subject = *subject
-	cd.NotBefore = cert.NotBefore
-	cd.NotAfter = cert.NotAfter
+	cd.NotBefore = cert.NotBefore.Format(timeFormat)
+	cd.NotAfter = cert.NotAfter.Format(timeFormat)
 	cd.IsCA = cert.IsCA
 	cd.BasicConstraintsValid = cert.BasicConstraintsValid
 	cd.MaxPathLen = cert.MaxPathLen
@@ -122,6 +124,21 @@ func (cd CertificateDTO) ToCertificate() (*x509.Certificate, error) {
 		}
 		keyUsage = ku
 	}
+	var notBefore, notAfter time.Time
+	if cd.NotBefore != "" {
+		tm, err := time.Parse(timeFormat, cd.NotBefore)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse 'not-before' as time %v", cd.NotBefore, timeFormat)
+		}
+		notBefore = tm
+	}
+	if cd.NotAfter != "" {
+		tm, err := time.Parse(timeFormat, cd.NotAfter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse 'not-after' as time %v", cd.NotAfter, timeFormat)
+		}
+		notAfter = tm
+	}
 	return &x509.Certificate{
 		Version:            cd.Version,
 		SerialNumber:       new(big.Int).SetUint64(cd.SerialNumber),
@@ -130,8 +147,8 @@ func (cd CertificateDTO) ToCertificate() (*x509.Certificate, error) {
 		PublicKey:          puk,
 		Issuer:             cd.Issuer.ToName(),
 		Subject:            cd.Subject.ToName(),
-		NotBefore:          cd.NotBefore,
-		NotAfter:           cd.NotAfter,
+		NotBefore:          notBefore,
+		NotAfter:           notAfter,
 		Signature:          signature,
 
 		KeyUsage:                    keyUsage,

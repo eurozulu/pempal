@@ -13,7 +13,7 @@ type certificateRequestBuilder struct {
 	keys keys.Keys
 }
 
-func (crb certificateRequestBuilder) ApplyTemplate(tp ...templates.Template) error {
+func (crb certificateRequestBuilder) AddTemplate(tp ...templates.Template) error {
 	//TODO implement me
 	panic("implement me")
 }

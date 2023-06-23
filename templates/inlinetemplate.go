@@ -7,26 +7,24 @@ import (
 	"strings"
 )
 
-// ParseInlineTemplate parses given, comma delimited lines of text into a template.
-// names may use dot notation to indicate bud properties (e.g. subject.common-name)
-// line may be preceeded with #tags
 func ParseInlineTemplate(s string) (Template, error) {
 	var tags []string
-	var readTags bool
+	var tagsAllRead bool
 
 	lines := strings.Split(s, ",")
 	m := utils.FlatMap{}
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		if !readTags && strings.HasPrefix(line, TAG_TOKEN) {
+		if !tagsAllRead && strings.HasPrefix(line, TAG_TOKEN) {
 			tags = append(tags, line)
 			continue
 		}
-		readTags = true
+		tagsAllRead = true
 		ls := strings.SplitN(line, ":", 2)
-		key := ls[0]
+		key := strings.TrimSpace(ls[0])
 		var val *string
 		if len(ls) > 1 {
 			val = &ls[1]
@@ -38,8 +36,7 @@ func ParseInlineTemplate(s string) (Template, error) {
 		buf.WriteString(tag)
 		buf.WriteRune('\n')
 	}
-	em := m.Expand()
-	if err := yaml.NewEncoder(buf).Encode(&em); err != nil {
+	if err := yaml.NewEncoder(buf).Encode(&m); err != nil {
 		return nil, err
 	}
 	return NewTemplate(buf.Bytes())
