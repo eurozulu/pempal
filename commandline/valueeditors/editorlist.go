@@ -13,7 +13,7 @@ type EditorList struct {
 	ExitChar         rune
 }
 
-func (le EditorList) Show(offset ui.ViewOffset, values map[string]string, errs ...error) (map[string]string, error) {
+func (le EditorList) Show(offset ui.ViewOffset, values map[string]string, errs []error) (map[string]string, error) {
 	var clearScreen bool
 	if isRoot, err := ui.InitUI(); err != nil {
 		return nil, err

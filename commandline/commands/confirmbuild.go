@@ -21,7 +21,7 @@ func confirmBuild(prompt string, editors []valueeditors.ValueEditor, builder bui
 			return errs
 		}
 
-		t, err := tedit.Show(offset, builder.BuildTemplate(), errs...)
+		t, err := tedit.Show(offset, builder.BuildTemplate(), errs)
 		if err != nil {
 			return err
 		}

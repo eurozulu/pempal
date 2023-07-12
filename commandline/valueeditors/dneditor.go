@@ -1,6 +1,7 @@
 package valueeditors
 
 import (
+	"fmt"
 	"github.com/eurozulu/pempal/commandline/ui"
 	"github.com/eurozulu/pempal/resources"
 	"github.com/eurozulu/pempal/utils"
@@ -36,12 +37,15 @@ func (de DistinguishedNameEditor) Edit(offset ui.ViewOffset, value string) (stri
 	}
 
 	dnvalues, err := parseRDNSToMap(value)
+	var errs []error
 	if err != nil {
-		return "", err
+		errs = []error{err}
 	}
-
-	form := EditorList{Editors: edits}
-	result, err := form.Show(offset, dnvalues)
+	form := EditorList{
+		Editors:          edits,
+		BackgroundColour: ui.ColourBackgroundEdit,
+	}
+	result, err := form.Show(offset, dnvalues, errs)
 	if err != nil {
 		return "", err
 	}
@@ -51,7 +55,7 @@ func (de DistinguishedNameEditor) Edit(offset ui.ViewOffset, value string) (stri
 func parseRDNSToMap(rdns string) (map[string]string, error) {
 	// convert value into template via dnDTO
 	if rdns == "" {
-		return nil, nil
+		return nil, fmt.Errorf("missing common-name")
 	}
 	// Unmarshall RDNSequence string into DN-dto
 	dto := &resources.DistinguishedNameDTO{}
