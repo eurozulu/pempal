@@ -8,6 +8,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"reflect"
 	"strings"
@@ -24,6 +25,28 @@ func PublicKeyFromPrivate(key crypto.PrivateKey) (crypto.PublicKey, error) {
 	default:
 		return nil, fmt.Errorf("%s is an unsupported private key type", reflect.TypeOf(key).Name())
 	}
+}
+
+func PrivateKeyToPEM(key crypto.PrivateKey) (*pem.Block, error) {
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return &pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: der,
+	}, nil
+}
+
+func PublicKeyToPEM(key crypto.PublicKey) (*pem.Block, error) {
+	der, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: der,
+	}, nil
 }
 
 func PublicKeyEquals(k1, k2 crypto.PublicKey) bool {

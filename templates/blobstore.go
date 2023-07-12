@@ -110,7 +110,7 @@ func fileExists(path string, asDirectory bool) bool {
 	return fi.IsDir() == asDirectory
 }
 
-func NewFileBlobStore(rootpath string, extensions ...string) (BlobStore, error) {
+func newFileBlobStore(rootpath string, extensions ...string) (BlobStore, error) {
 	if !fileExists(rootpath, true) {
 		return nil, fmt.Errorf("root path '%s' does not exist", rootpath)
 	}

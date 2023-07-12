@@ -2,86 +2,79 @@ package resourceio
 
 import (
 	"bytes"
-	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/eurozulu/pempal/model"
+	"github.com/eurozulu/pempal/logger"
+	"github.com/eurozulu/pempal/resources"
+	"os"
 )
 
-var ResourceParsers = []ResourceParser{
-	PemResourceParser{},
-	DerResourceParser{},
-}
+const pemBegin = "-----BEGIN "
+const pemEnd = "-----END "
 
-type ResourceParser interface {
-	CanParse(data []byte) bool
-	ParseResources(data []byte) ([]model.Resource, error)
-}
-
-type PemResourceParser struct {
-}
-
-func (p PemResourceParser) CanParse(data []byte) bool {
-	i := bytes.Index(data, []byte("-----BEGIN "))
-	if i < 0 && i+1 < len(data) {
-		return false
+func ParseLocation(path string) (ResourceLocation, error) {
+	logger.Debug("reading location %s", path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
-	return bytes.Index(data[i+1:], []byte("-----END ")) > 0
+
+	res, err := ParseResources(data)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug("found %d resources in location %s", len(res), path)
+	return NewResourceLocation(path, res), nil
 }
 
-func (p PemResourceParser) ParseResources(data []byte) ([]model.Resource, error) {
-	var parsed []model.Resource
+func ParseResources(data []byte) ([]resources.Resource, error) {
+	if containPem(data) {
+		return parseResourcesAsPEM(data)
+	}
+	// try as der for each type
+	for _, rt := range resources.ResourceTypes {
+		r, err := parseResourcesAsDER(rt, data)
+		if err != nil {
+			continue
+		}
+		return []resources.Resource{r}, nil
+	}
+	return nil, fmt.Errorf("failed to parse as a pem or known der type")
+}
+
+func parseResourcesAsDER(rt resources.ResourceType, data []byte) (resources.Resource, error) {
+	dto, err := resources.NewResourceDTOByType(rt)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected resourcedto creation error %v", err)
+	}
+	if err = dto.UnmarshalBinary(data); err != nil {
+		return nil, err
+	}
+	return resources.DTOToResource(dto)
+}
+
+func parseResourcesAsPEM(data []byte) ([]resources.Resource, error) {
+	var found []resources.Resource
 	for len(data) > 0 {
 		blk, rest := pem.Decode(data)
 		if blk == nil {
 			break
 		}
-		parsed = append(parsed, model.NewResource(blk))
+		r, err := parseResourcesAsDER(resources.ParsePEMType(blk.Type), blk.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		found = append(found, r)
 		data = rest
 	}
-	return parsed, nil
+	if len(found) == 0 {
+		return nil, fmt.Errorf("no pem encoded resources found")
+	}
+	return found, nil
 }
 
-type DerResourceParser struct{}
-
-func (d DerResourceParser) CanParse(data []byte) bool {
-	return findResourceType(data) != model.Unknown
-}
-
-func (d DerResourceParser) ParseResources(data []byte) ([]model.Resource, error) {
-	t := findResourceType(data)
-	if t == model.Unknown {
-		return nil, fmt.Errorf("failed to parse as a FormatDER resource")
-	}
-	return []model.Resource{
-		model.NewResource(
-			&pem.Block{
-				Type:  t.String(),
-				Bytes: data,
-			}),
-	}, nil
-}
-
-func findResourceType(der []byte) model.ResourceType {
-	_, err := x509.ParseCertificate(der)
-	if err == nil {
-		return model.Certificate
-	}
-	_, err = x509.ParseCertificateRequest(der)
-	if err == nil {
-		return model.CertificateRequest
-	}
-	_, err = x509.ParsePKIXPublicKey(der)
-	if err == nil {
-		return model.PublicKey
-	}
-	_, err = x509.ParsePKCS8PrivateKey(der)
-	if err == nil {
-		return model.PrivateKey
-	}
-	_, err = x509.ParseRevocationList(der)
-	if err == nil {
-		return model.RevokationList
-	}
-	return model.Unknown
+func containPem(data []byte) bool {
+	pe := []byte(pemBegin)
+	i := bytes.Index(data, pe)
+	return i >= 0 && bytes.Index(data[i+len(pe):], []byte(pemEnd)) > 0
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func containsGoTemplates(text []byte) bool {
+func ContainsGoTemplates(text []byte) bool {
 	i := bytes.Index(text, []byte("{{"))
 	if i < 0 {
 		return false
@@ -15,7 +15,7 @@ func containsGoTemplates(text []byte) bool {
 	return bytes.Index(text[i+2:], []byte("}}")) >= 0
 }
 
-func executeGoTemplate(text []byte, data interface{}) ([]byte, error) {
+func ExecuteGoTemplate(text []byte, data interface{}) ([]byte, error) {
 	gt, err := gotemplate.New("template-for-" + reflect.TypeOf(data).Elem().Name()).
 		Funcs(buildFuncMap()).
 		Parse(string(text))

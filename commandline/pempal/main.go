@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/eurozulu/argdecoder"
 	"github.com/eurozulu/pempal/commandline/commands"
 	"github.com/eurozulu/pempal/commandline/help"
 	"github.com/eurozulu/pempal/logger"
@@ -12,64 +12,60 @@ import (
 )
 
 func main() {
-	// Apply common flags
-	args, err := commands.ApplyCommonFlags(os.Args[1:])
-	if err != nil {
-		logger.Error("%v", err)
+	args, flags := commands.ParseArgs(os.Args[1:])
+	if err := flags.ApplyAndRemove(commands.CommonFlags); err != nil {
+		fmt.Fprintln(os.Stderr, "Invalid arguments  %v", err)
 		return
 	}
 
 	// Set logging level output
 	setLoggerLevel()
 
-	// use first arg as command, if present
-	var cmdArg string
+	var arg string
 	if len(args) > 0 {
-		cmdArg = args[0]
+		arg = args[0]
 		args = args[1:]
 	}
-
 	// if help flag specified, show help on command or general help if no command given
-	if commands.CommonFlags.Help {
-		fmt.Fprintln(os.Stdout, help.HelpFor(cmdArg))
+	if commands.CommonFlags.Help || arg == "" {
+		fmt.Fprintln(os.Stdout, help.HelpFor(arg))
 		return
 	}
 
-	if cmdArg == "" {
-		fmt.Fprintln(os.Stdout, "requires at least one command. Use -help to list available commands")
-		return
-	}
-
-	// create Command and apply flags
-	cmd, err := commands.NewCommand(cmdArg)
+	// create Command with the first argument
+	cmd, err := commands.NewCommand(arg)
 	if err != nil {
 		logger.Error("%v", err)
 		return
 	}
 
 	// apply any flags to command
-	args, err = argdecoder.ApplyArguments(args, cmd)
-	if err != nil {
-		logger.Error("%v\n", err)
+	if err = flags.ApplyAndRemove(cmd); err != nil {
+		logger.Error("error parsing flags for %s  %v\n", arg, err)
 		return
 	}
 
+	if len(flags) > 0 {
+		logger.Error("unknown flag '%s' for command %s\n", badFlagNames(flags), arg)
+		return
+	}
 	// establish the output stream
 	out := os.Stdout
-	if commands.CommonFlags.Out != "" {
-		if utils.FileExists(commands.CommonFlags.Out) && !commands.CommonFlags.ForceOut {
-			logger.Error("%s already exists\n", commands.CommonFlags.Out)
+	outPath := commands.CommonFlags.Output
+	if commands.CommonFlags.Output != "" {
+		if utils.FileExists(outPath) && !commands.CommonFlags.ForceOut {
+			logger.Error("%s already exists\n", outPath)
 			return
 		}
-		f, err := os.OpenFile(commands.CommonFlags.Out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		f, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
-			logger.Error("failed to open %s  %v\n", commands.CommonFlags.Out, err)
+			logger.Error("failed to open %s  %v\n", outPath, err)
 			return
 		}
 		out = f
 		defer func(out io.WriteCloser) {
 			if err := out.Close(); err != nil {
-				logger.Error("failed to close %s  %v\n", commands.CommonFlags.Out, err)
+				logger.Error("failed to close %s  %v\n", outPath, err)
 			}
 		}(f)
 	}
@@ -81,6 +77,9 @@ func main() {
 
 func setLoggerLevel() {
 	level := logger.LevelInfo
+	if commands.CommonFlags.Quiet {
+		level = logger.LevelError
+	}
 	if commands.CommonFlags.Verbose {
 		level = logger.LevelWarning
 	}
@@ -88,5 +87,23 @@ func setLoggerLevel() {
 		level = logger.LevelDebug
 	}
 	logger.DefaultLogger.SetLevel(level)
-	logger.DefaultLogger.SetShowTimeStamp(level > logger.LevelInfo)
+	logger.DefaultLogger.SetShowTimeStamp(level == logger.LevelDebug)
+	if commands.CommonFlags.Quiet && (commands.CommonFlags.Verbose || commands.CommonFlags.Debug) {
+		logger.Warning("Ignoring -quiet flag as -verbose or -debug is active")
+	}
+}
+
+func badFlagNames(flags map[string]*string) string {
+	buf := bytes.NewBuffer(nil)
+	var nonFirst bool
+	for k := range flags {
+		if nonFirst {
+			buf.WriteString(", ")
+		} else {
+			nonFirst = true
+		}
+		buf.WriteRune('-')
+		buf.WriteString(k)
+	}
+	return buf.String()
 }

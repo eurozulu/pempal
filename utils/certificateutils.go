@@ -34,6 +34,14 @@ func ParseSignatureAlgorithm(s string) x509.SignatureAlgorithm {
 	return x509.UnknownSignatureAlgorithm
 }
 
+func SignatureAlgorithmNames() []string {
+	names := make([]string, len(signatureAlgorithmDetails))
+	for i, sigDetail := range signatureAlgorithmDetails {
+		names[i] = sigDetail.name
+	}
+	return names
+}
+
 // copied from x509 package
 var signatureAlgorithmDetails = []struct {
 	algo       x509.SignatureAlgorithm
@@ -43,7 +51,6 @@ var signatureAlgorithmDetails = []struct {
 }{
 	{x509.MD2WithRSA, "MD2-RSA", x509.RSA, crypto.Hash(0) /* no value for MD2 */},
 	{x509.MD5WithRSA, "MD5-RSA", x509.RSA, crypto.MD5},
-	{x509.SHA1WithRSA, "SHA1-RSA", x509.RSA, crypto.SHA1},
 	{x509.SHA1WithRSA, "SHA1-RSA", x509.RSA, crypto.SHA1},
 	{x509.SHA256WithRSA, "SHA256-RSA", x509.RSA, crypto.SHA256},
 	{x509.SHA384WithRSA, "SHA384-RSA", x509.RSA, crypto.SHA384},
@@ -113,4 +120,53 @@ func KeyUsageToStrings(k x509.KeyUsage) []string {
 		names = append(names)
 	}
 	return names
+}
+
+var ExtKeyUsageName = []string{
+	"Any",
+	"ServerAuth",
+	"ClientAuth",
+	"CodeSigning",
+	"EmailProtection",
+	"IPSECEndSystem",
+	"IPSECTunnel",
+	"IPSECUser",
+	"TimeStamping",
+	"OCSPSigning",
+	"MicrosoftServerGatedCrypto",
+	"NetscapeServerGatedCrypto",
+	"MicrosoftCommercialCodeSigning",
+	"MicrosoftKernelCodeSigning",
+}
+
+func ParseExtKeyUsage(eks []string) ([]x509.ExtKeyUsage, error) {
+	var found []x509.ExtKeyUsage
+	for _, s := range eks {
+		ku := lookupExtKeyUsage(s)
+		if ku == 0 {
+			return nil, fmt.Errorf("%s is not a known extended key usage", s)
+		}
+		found = append(found, ku)
+	}
+	return found, nil
+}
+
+func ExtKeyUsageToStrings(ek []x509.ExtKeyUsage) []string {
+	names := make([]string, len(ek))
+	for i, e := range ek {
+		if e < 0 || int(e) >= len(ExtKeyUsageName) {
+			e = 0
+		}
+		names[i] = ExtKeyUsageName[e]
+	}
+	return names
+}
+
+func lookupExtKeyUsage(s string) x509.ExtKeyUsage {
+	for i, kun := range ExtKeyUsageName {
+		if strings.EqualFold(s, kun) {
+			return x509.ExtKeyUsage(i)
+		}
+	}
+	return 0
 }

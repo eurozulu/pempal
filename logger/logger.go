@@ -33,7 +33,7 @@ type logger struct {
 }
 
 var DefaultLogger Logger = &logger{
-	level:         0,
+	level:         LevelInfo,
 	out:           os.Stdout,
 	showTimestamp: true,
 }
@@ -95,4 +95,8 @@ func Info(format string, a ...any) {
 
 func Error(format string, a ...any) {
 	DefaultLogger.Log(LevelError, format, a...)
+}
+
+func Level() LogLevel {
+	return DefaultLogger.Level()
 }

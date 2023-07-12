@@ -3,9 +3,7 @@ package resourceio
 import (
 	"context"
 	"github.com/eurozulu/pempal/logger"
-	"github.com/eurozulu/pempal/model"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -55,7 +53,7 @@ func (f resourceScanner) scan(ctx context.Context, root string, out chan<- Resou
 			return nil
 		}
 		// todo: add file extension filter
-		loc, err := f.parseLocation(path)
+		loc, err := ParseLocation(path)
 		if err != nil {
 			logger.Error("Failed to parse location %s  %v", path, err)
 			return nil
@@ -73,33 +71,6 @@ func (f resourceScanner) scan(ctx context.Context, root string, out chan<- Resou
 	}); err != nil {
 		logger.Error("Failed to scan directory %s  %v", root, err)
 	}
-}
-
-func (f resourceScanner) parseLocation(path string) (ResourceLocation, error) {
-	logger.Debug("reading location %s", path)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var found []model.Resource
-	for _, rp := range ResourceParsers {
-		if !rp.CanParse(data) {
-			continue
-		}
-		res, err := rp.ParseResources(data)
-		if err != nil {
-			logger.Warning("resource parsing error %s as %v", path, rp)
-			continue
-		}
-		found = append(found, res...)
-		break
-	}
-	if len(found) == 0 {
-		logger.Debug("no resources found in %s", path)
-		return nil, nil
-	}
-	logger.Debug("found %d resources in location %s", len(found), path)
-	return NewResourceLocation(path, found), nil
 }
 
 func NewResourceScanner(recursive bool) ResourceScanner {

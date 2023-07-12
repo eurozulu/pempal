@@ -2,125 +2,103 @@ package commands
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
-	"github.com/eurozulu/pempal/config"
-	"github.com/eurozulu/pempal/keys"
-	"github.com/eurozulu/pempal/resourceio"
+	"github.com/eurozulu/pempal/identity"
+	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/utils"
 	"io"
-	"strconv"
+	"strings"
 )
 
-type keysCommand struct {
-	Names     bool `flag:"names"`
-	Recursive bool `flag:"recursive,r"`
-
-	keys keys.Keys
+var columnNames = []string{
+	"identity",
+	"algorithm",
+	"encrypted",
+	"location",
 }
 
-func (kc keysCommand) Execute(args []string, out io.Writer) error {
-	if km, err := config.KeyManager(); err != nil {
-		return fmt.Errorf("key manager not available %v", err)
-	} else {
-		kc.keys = km
-	}
+// keysCommand displays the available keys on the 'keypath'
+// On its own, with no arguments, it lists all the identified private keys found on the keypath.
+// private keys are identified by a hash of their public key.
+// i.e. encrypted keys, which do not contain a public key pem in the same file are not identified.
+// When arguments are given, these are used to replace the keypath for the search.
+// arguments map be a directory or single file.
+// If that key is known, it is output to the standard out.
+// Flags:
+// -all | -a  When given, shows the unidentified (encrypted) identity otherwise hidden.
+// -new ["<key properties>"]  optional properties specify the key algorithm and optional length. defaults to RSA 2048
+type keysCommand struct {
+	AllKeys    bool `yaml:"all,omitempty"`
+	keyManager identity.Keys
+}
 
-	if a, err := cleanArguments(args); err != nil {
-		return err
-	} else {
-		args = a
+func (cmd keysCommand) Execute(args []string, out io.Writer) error {
+	if len(args) == 0 {
+		args = ResolvePath(CommonFlags.KeyPath)
 	}
-
-	cols := utils.NewColumnOutput(out)
-	if !CommonFlags.Quiet {
-		if err := kc.writeKeyHeaders(cols); err != nil {
-			return err
-		}
-	}
+	keyManager := identity.NewKeys(args)
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
-	for loc := range kc.keys.AllKeys(ctx) {
-		if err := kc.writeKeyLocation(cols, loc); err != nil {
+
+	cout := createColumnOutput(out)
+	if logger.Level() >= logger.LevelInfo {
+		if err := writeColumnNames(cout); err != nil {
+			return err
+		}
+	}
+	for k := range keyManager.AllKeys(ctx) {
+		if !matchKeyWithArgs(k, args) {
+			continue
+		}
+		if err := cmd.writeKey(cout, k); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (kc keysCommand) writeKeyHeaders(out *utils.ColumnOutput) error {
-	fields := []string{
-		"identity",
-		"encrypted",
-		"location",
+func (cmd *keysCommand) writeKey(out io.Writer, k identity.Key) error {
+	id := k.Identity()
+	if id == "" && !cmd.AllKeys {
+		return nil
 	}
-	_, err := out.WriteSlice(fields)
-	if err != nil {
-		return err
+	var ka string
+	pka := utils.PublicKeyAlgorithmFromKey(k.PublicKey())
+	if pka != x509.UnknownPublicKeyAlgorithm {
+		ka = pka.String()
 	}
-	err = out.WriteString("\n")
+	_, err := fmt.Fprintf(out, "%s,%s,%s,%s\n", id, ka, k.IsEncrypted(), k.Location())
 	return err
 }
 
-func (kc keysCommand) writeCertificateHeaders(out *utils.ColumnOutput) error {
-	fields := []string{
-		"",
-		"serial number",
-		"subject",
-	}
-	_, err := out.WriteSlice(fields)
+func writeColumnNames(out io.Writer) error {
+	_, err := fmt.Fprintf(out, strings.Join(columnNames, ","))
 	if err != nil {
 		return err
 	}
-	err = out.WriteString("\n")
+	_, err = fmt.Fprintln(out)
 	return err
 }
 
-func (kc keysCommand) writeKeyLocation(out *utils.ColumnOutput, loc resourceio.ResourceLocation) error {
-	prks := keys.ParseKeyLocation(loc)
-	for _, k := range prks {
-		fields := []string{
-			k.Identity().String(),
-			strconv.FormatBool(k.IsEncrypted()),
-			loc.Location(),
-		}
-		if _, err := out.WriteSlice(fields); err != nil {
-			return err
-		}
-
-		if kc.Names {
-			if err := out.WriteString("\n"); err != nil {
-				return err
-			}
-
-			if !CommonFlags.Quiet {
-				if err := kc.writeCertificateHeaders(out); err != nil {
-					return err
-				}
-			}
-			if err := kc.writeCertificates(out, k); err != nil {
-				return err
-			}
-		}
-		if err := out.WriteString("\n"); err != nil {
-			return err
+func matchKeyWithArgs(k identity.Key, args []string) bool {
+	if len(args) == 0 {
+		return true
+	}
+	for _, arg := range args {
+		if arg == k.Identity().String() || strings.Contains(k.Location(), arg) {
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
-func (kc keysCommand) writeCertificates(out *utils.ColumnOutput, k keys.Key) error {
-	for _, c := range kc.keys.CertificatesById(k.Identity()) {
-		fields := []string{
-			"",
-			c.SerialNumber.String(),
-			c.Subject.String(),
-		}
-		if _, err := out.WriteSlice(fields); err != nil {
-			return err
-		}
-		if err := out.WriteString("\n"); err != nil {
-			return err
-		}
+func createColumnOutput(out io.Writer) *utils.ColumnOutput {
+	widths := make([]int, len(columnNames)-1)
+	for i, n := range columnNames[:len(columnNames)-1] {
+		widths[i] = len(n)
 	}
-	return nil
+	cout := utils.NewColumnOutput(out, widths...)
+	cout.DataDelimiter = ","
+	return cout
 }

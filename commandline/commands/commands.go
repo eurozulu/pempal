@@ -2,40 +2,49 @@ package commands
 
 import (
 	"fmt"
-	"github.com/eurozulu/argdecoder"
+	"github.com/eurozulu/pempal/resourceio"
+	"github.com/eurozulu/pempal/templates"
+	"github.com/eurozulu/pempal/utils"
 	"io"
 	"strings"
 )
 
 const (
-	CommandMake     = "make"
-	CommandFind     = "find"
-	CommandTemplate = "template"
-	CommandConfig   = "config"
-	CommandKeys     = "keys"
+	CommandNewKey  = "newkey"
+	CommandKeys    = "keys"
+	CommandIssuers = "identity"
+	CommandRequest = "request"
+	CommandIssue   = "issue"
+
+	CommandTemplate  = "template"
+	CommandTemplates = "templates"
+
+	CommandFind  = "find"
+	CommandPaths = "paths"
 )
 
 // Commands maps the command name to the Command instance
 var Commands = map[string]Command{
-	CommandMake:     &MakeCommand{},
-	CommandFind:     &FindCommand{},
-	CommandTemplate: &TemplateCommand{},
-	CommandConfig:   &ConfigCommand{},
-	CommandKeys:     &keysCommand{},
+	CommandNewKey: &newKeyCommand{},
+	CommandKeys:   &keysCommand{},
+	CommandIssue:  &issueCommand{},
+	//CommandFind:     &FindCommand{},
+	//CommandTemplate: &TemplateCommand{},
+	//CommandConfig:   &ConfigCommand{},
 }
 
 // CommandAliases maps alternative names for commands, to the actual command name
 var CommandAliases = map[string]string{
-	"mk":        CommandMake,
-	"fd":        CommandFind,
+	"nk":        CommandNewKey,
+	"ks":        CommandKeys,
+	"is":        CommandIssuers,
+	"req":       CommandRequest,
+	"new":       CommandIssue,
 	"f":         CommandFind,
-	"tp":        CommandTemplate,
-	"temp":      CommandTemplate,
+	"t":         CommandTemplate,
+	"ts":        CommandTemplates,
 	"templates": CommandTemplate,
-	"cf":        CommandConfig,
-	"cfg":       CommandConfig,
-	"k":         CommandKeys,
-	"key":       CommandKeys,
+	"cfg":       CommandPaths,
 }
 
 // Command executes a single operation using the given arguments and any flags assigned to the Commands public fields.
@@ -43,13 +52,34 @@ type Command interface {
 	Execute(args []string, out io.Writer) error
 }
 
-func cleanArguments(args []string) ([]string, error) {
-	// Ensure all flags have been consumed
-	ags, flags := argdecoder.ParseArgs(args)
-	if len(flags) > 0 {
-		return nil, fmt.Errorf("unknown flag(s) %v\n", (flags))
+func argumentsToTemplates(args []string) ([]templates.Template, error) {
+	tm, err := templates.NewTemplateManager(ResolvePath(CommonFlags.TemplatePath))
+	if err != nil {
+		return nil, err
 	}
-	return ags, nil
+
+	var tps []templates.Template
+	for _, arg := range args {
+		// Check each arugment is valid filepath or template name
+		var ts []templates.Template
+		var err error
+		if utils.FileExists(arg) {
+			ts, err = resourceio.LoadTemplatesFromFile(arg)
+		} else {
+			// not a file, check if it's a template
+			if t, er := tm.TemplateByName(arg); er != nil {
+				err = er
+			} else {
+				ts = []templates.Template{t}
+			}
+
+		}
+		if err != nil {
+			return nil, err
+		}
+		tps = append(tps, ts...)
+	}
+	return tps, nil
 }
 
 func NewCommand(name string) (Command, error) {
