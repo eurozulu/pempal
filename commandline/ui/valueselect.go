@@ -2,27 +2,17 @@ package ui
 
 import "github.com/nsf/termbox-go"
 
-type SelectList struct {
+type ValueSelect struct {
 	Names    []string
 	ExitChar rune
 }
 
 type ListValues map[string]string
 
-func (sl SelectList) Select(offset ViewOffset, selected int, values ListValues) (int, error) {
-	isRoot := !termbox.IsInit
-	if isRoot {
-		if err := termbox.Init(); err != nil {
-			return -1, err
-		}
-		defer termbox.Close()
-	}
+func (sl ValueSelect) Select(offset ViewOffset, selected int, values ListValues) (int, error) {
 	list := sl.itemListOfNames(values)
 
 	for {
-		if isRoot {
-			termbox.Clear(ColourBackground.ToAttribute(), ColourBackground.ToAttribute())
-		}
 		list.renderList(offset, selected)
 
 		ev, err := nextKeyEvent()
@@ -52,7 +42,7 @@ func (sl SelectList) Select(offset ViewOffset, selected int, values ListValues) 
 	}
 }
 
-func (sl SelectList) itemListOfNames(values ListValues) ItemList {
+func (sl ValueSelect) itemListOfNames(values ListValues) ItemList {
 	items := make([]ListItem, len(sl.Names))
 	for i, n := range sl.Names {
 		items[i] = ListItem{
@@ -61,4 +51,22 @@ func (sl SelectList) itemListOfNames(values ListValues) ItemList {
 		}
 	}
 	return items
+}
+
+func InitUI() (bool, error) {
+	isRoot := !termbox.IsInit
+	if isRoot {
+		if err := termbox.Init(); err != nil {
+			return false, err
+		}
+	}
+	return isRoot, nil
+}
+
+func Clear() {
+	termbox.Clear(ColourBackground.ToAttribute(), ColourBackground.ToAttribute())
+}
+
+func CloseUi() {
+	termbox.Close()
 }

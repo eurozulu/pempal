@@ -2,31 +2,30 @@ package valueeditors
 
 import (
 	"github.com/eurozulu/pempal/commandline/ui"
-	"github.com/nsf/termbox-go"
 	"strings"
 )
 
 type EditorList []ValueEditor
 
 func (le EditorList) Show(offset ui.ViewOffset, listValues map[string]string, errs ...error) (map[string]string, error) {
-	isRoot := !termbox.IsInit
+	isRoot, err := ui.InitUI()
+	if err != nil {
+		return nil, err
+	}
 	if isRoot {
-		if err := termbox.Init(); err != nil {
-			return nil, err
-		}
-		defer termbox.Close()
+		defer ui.CloseUi()
 	}
 
 	deltaValues := ui.ListValues{}
 	var selected int
 	names := le.editorNames()
-	list := ui.SelectList{Names: names, ExitChar: 'Y'}
+	list := ui.ValueSelect{Names: names, ExitChar: 'Y'}
 	values := ui.ListValues{}
 	copyMapValues(values, listValues)
 
 	for {
 		if isRoot {
-			termbox.Clear(ui.ColourBackground.ToAttribute(), ui.ColourBackground.ToAttribute())
+			ui.Clear()
 		}
 
 		sl, err := list.Select(offset, selected, values)

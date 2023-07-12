@@ -9,6 +9,8 @@ import (
 
 var ERRAborted = fmt.Errorf("aborted")
 
+const valuePadWidth = 20
+
 type ValueEdit struct {
 	Name      string
 	ValueType InputType
@@ -16,21 +18,10 @@ type ValueEdit struct {
 }
 
 func (ed *ValueEdit) Edit(offset ViewOffset, value string) (string, error) {
-	isRoot := !termbox.IsInit
-	if isRoot {
-		if err := termbox.Init(); err != nil {
-			return "", err
-		}
-		defer termbox.Close()
-	}
-
 	selected := ed.optionIndex(value)
 	list := NewItemListOfValues(ed.Options)
 
 	for {
-		if isRoot {
-			termbox.Clear(ColourBackground.ToAttribute(), ColourBackground.ToAttribute())
-		}
 		os := offset
 		ed.renderValue(&os, value)
 		os.YOffset++
@@ -73,7 +64,7 @@ func (ed *ValueEdit) renderValue(offset *ViewOffset, value string) {
 	bg := ColourBackgroundEdit.ToAttribute()
 	tbprint(offset, fg, bg, ed.Name)
 	tbprint(offset, fg, bg, ": ")
-	tbprint(offset, fg, bg, padValue(value, 25))
+	tbprint(offset, fg, bg, padValue(value, valuePadWidth))
 }
 
 func (ed *ValueEdit) handleKeyInput(event termbox.Event, value string) string {
