@@ -60,7 +60,7 @@ func (se StringEditor) Edit(offset ui.ViewOffset, value string) (string, error) 
 	if se.AllowedInput || len(se.Choice) == 0 {
 		it = ui.InputTypePrintable
 	}
-	ev := ui.ValueEdit{
+	ev := ui.EditItem{
 		Name:      se.Name(),
 		ValueType: it,
 		Options:   se.Choice,
@@ -77,7 +77,7 @@ func (ne NumberEditor) Edit(offset ui.ViewOffset, value string) (string, error) 
 	if ne.AllowedInput || len(ne.Choice) == 0 {
 		it = ui.InputTypeNumbers
 	}
-	ev := &ui.ValueEdit{
+	ev := &ui.EditItem{
 		Name:      ne.Name(),
 		ValueType: it,
 		Options:   ne.choiceAsStrings(),
@@ -110,7 +110,7 @@ func (be BoolEditor) Edit(offset ui.ViewOffset, value string) (string, error) {
 	if !v {
 		choice = []string{"no", "yes"}
 	}
-	ev := ui.ValueEdit{
+	ev := ui.EditItem{
 		Name:      be.Name(),
 		ValueType: ui.InputTypeNone,
 		Options:   choice,
@@ -127,7 +127,7 @@ func (sle StringSliceEditor) Edit(offset ui.ViewOffset, value string) (string, e
 	if sle.AllowedInput || len(sle.Choice) == 0 {
 		it = ui.InputTypePrintable
 	}
-	ev := ui.ValueEdit{
+	ev := ui.EditItem{
 		Name:      sle.Name(),
 		ValueType: it,
 		Options:   sle.Choice,

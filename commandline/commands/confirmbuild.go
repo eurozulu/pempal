@@ -13,7 +13,7 @@ import (
 
 func confirmBuild(prompt string, editors []valueeditors.ValueEditor, builder builders.Builder) error {
 	offset := ui.ViewOffset{}
-
+	tedit := &valueeditors.EditorList{Editors: editors}
 	for {
 		errs := builder.Validate()
 		if CommonFlags.Quiet {
@@ -21,8 +21,7 @@ func confirmBuild(prompt string, editors []valueeditors.ValueEditor, builder bui
 			return errs
 		}
 
-		tedit := valueeditors.EditorList(editors)
-		t, err := tedit.Show(offset, builder.BuildTemplate(), errs)
+		t, err := tedit.Show(offset, builder.BuildTemplate(), errs...)
 		if err != nil {
 			return err
 		}

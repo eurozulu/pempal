@@ -1,19 +1,23 @@
 package ui
 
-import "github.com/nsf/termbox-go"
+import (
+	"fmt"
+	"github.com/nsf/termbox-go"
+)
 
-type ValueSelect struct {
-	Names    []string
+type ItemSelect struct {
+	Items    []ListItem
 	ExitChar rune
 }
 
 type ListValues map[string]string
 
-func (sl ValueSelect) Select(offset ViewOffset, selected int, values ListValues) (int, error) {
-	list := sl.itemListOfNames(values)
-
+func (sl ItemSelect) Select(offset ViewOffset, selected int) (int, error) {
 	for {
-		list.renderList(offset, selected)
+		ItemList(sl.Items).render(offset, selected)
+		if err := termbox.Flush(); err != nil {
+			return -1, err
+		}
 
 		ev, err := nextKeyEvent()
 		if err != nil {
@@ -25,7 +29,7 @@ func (sl ValueSelect) Select(offset ViewOffset, selected int, values ListValues)
 				selected--
 			}
 		case termbox.KeyArrowDown: // next line
-			if selected < len(list)-1 {
+			if selected < len(sl.Items)-1 {
 				selected++
 			}
 		case termbox.KeyEnter: // Selected last item
@@ -42,17 +46,6 @@ func (sl ValueSelect) Select(offset ViewOffset, selected int, values ListValues)
 	}
 }
 
-func (sl ValueSelect) itemListOfNames(values ListValues) ItemList {
-	items := make([]ListItem, len(sl.Names))
-	for i, n := range sl.Names {
-		items[i] = ListItem{
-			Name:  n,
-			Value: values[n],
-		}
-	}
-	return items
-}
-
 func InitUI() (bool, error) {
 	isRoot := !termbox.IsInit
 	if isRoot {
@@ -64,9 +57,17 @@ func InitUI() (bool, error) {
 }
 
 func Clear() {
-	termbox.Clear(ColourBackground.ToAttribute(), ColourBackground.ToAttribute())
+	termbox.Clear(ColourBackground.toAttribute(), ColourBackground.toAttribute())
 }
 
 func CloseUi() {
 	termbox.Close()
+}
+
+func PrintF(offset *ViewOffset, fg, bg ItemColour, format string, a ...any) {
+	if len(a) > 0 {
+		format = fmt.Sprintf(format, a)
+	}
+	tbprint(offset, fg.toAttribute(), bg.toAttribute(), format)
+	termbox.Flush()
 }

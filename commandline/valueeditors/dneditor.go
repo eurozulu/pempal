@@ -40,7 +40,7 @@ func (de DistinguishedNameEditor) Edit(offset ui.ViewOffset, value string) (stri
 		return "", err
 	}
 
-	form := EditorList(edits)
+	form := EditorList{Editors: edits}
 	result, err := form.Show(offset, dnvalues)
 	if err != nil {
 		return "", err

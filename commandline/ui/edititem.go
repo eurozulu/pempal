@@ -11,13 +11,26 @@ var ERRAborted = fmt.Errorf("aborted")
 
 const valuePadWidth = 20
 
-type ValueEdit struct {
+const (
+	// InputTypeNone only the Options of the field may be selected
+	InputTypeNone InputType = iota
+	// InputTypeNumbers only the options and any numeric value may be entered
+	InputTypeNumbers
+	// InputTypeLetters only the options and any string of letters may be entered
+	InputTypeLetters
+	// InputTypePrintable only the options and any printable string of characters may be entered
+	InputTypePrintable
+)
+
+type InputType int
+
+type EditItem struct {
 	Name      string
 	ValueType InputType
 	Options   []string
 }
 
-func (ed *ValueEdit) Edit(offset ViewOffset, value string) (string, error) {
+func (ed *EditItem) Edit(offset ViewOffset, value string) (string, error) {
 	selected := ed.optionIndex(value)
 	list := NewItemListOfValues(ed.Options)
 
@@ -26,7 +39,10 @@ func (ed *ValueEdit) Edit(offset ViewOffset, value string) (string, error) {
 		ed.renderValue(&os, value)
 		os.YOffset++
 		os.XOffset -= 25
-		list.renderList(os, selected)
+		list.render(os, selected)
+		if err := termbox.Flush(); err != nil {
+			return "", err
+		}
 
 		ev, err := nextKeyEvent()
 		if err != nil {
@@ -55,19 +71,19 @@ func (ed *ValueEdit) Edit(offset ViewOffset, value string) (string, error) {
 	}
 }
 
-func (ed *ValueEdit) CanEdit() bool {
+func (ed *EditItem) CanEdit() bool {
 	return ed.ValueType != InputTypeNone
 }
 
-func (ed *ValueEdit) renderValue(offset *ViewOffset, value string) {
-	fg := ColourForeground.ToAttribute()
-	bg := ColourBackgroundEdit.ToAttribute()
+func (ed *EditItem) renderValue(offset *ViewOffset, value string) {
+	fg := ColourForeground.toAttribute()
+	bg := ColourBackgroundEdit.toAttribute()
 	tbprint(offset, fg, bg, ed.Name)
 	tbprint(offset, fg, bg, ": ")
 	tbprint(offset, fg, bg, padValue(value, valuePadWidth))
 }
 
-func (ed *ValueEdit) handleKeyInput(event termbox.Event, value string) string {
+func (ed *EditItem) handleKeyInput(event termbox.Event, value string) string {
 	switch event.Key {
 	case termbox.KeyBackspace, termbox.KeyBackspace2:
 		if len(value) > 0 {
@@ -83,7 +99,7 @@ func (ed *ValueEdit) handleKeyInput(event termbox.Event, value string) string {
 	return value
 }
 
-func (ed *ValueEdit) handleCharInput(ch rune, value string) string {
+func (ed *EditItem) handleCharInput(ch rune, value string) string {
 	switch ed.ValueType {
 	case InputTypeNumbers:
 		if !unicode.IsNumber(ch) && !unicode.IsDigit(ch) {
@@ -104,7 +120,7 @@ func (ed *ValueEdit) handleCharInput(ch rune, value string) string {
 	return string(append([]rune(value), ch))
 }
 
-func (ed *ValueEdit) optionIndex(s string) int {
+func (ed *EditItem) optionIndex(s string) int {
 	for i, v := range ed.Options {
 		if s == v {
 			return i

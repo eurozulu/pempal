@@ -22,3 +22,13 @@ func copyMapInto(dst, src map[string]string) {
 		dst[k] = v
 	}
 }
+
+func MapKeyNames(m map[string]string) []string {
+	names := make([]string, len(m))
+	var i int
+	for k := range m {
+		names[i] = k
+		i++
+	}
+	return names
+}

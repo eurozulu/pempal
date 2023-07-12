@@ -10,6 +10,20 @@ type ViewOffset struct {
 	XOffset, YOffset int
 }
 
+func (vo ViewOffset) OffsetY(yOffset int) ViewOffset {
+	return ViewOffset{
+		XOffset: vo.XOffset,
+		YOffset: vo.YOffset + yOffset,
+	}
+}
+
+func (vo ViewOffset) OffsetX(xOffset int) ViewOffset {
+	return ViewOffset{
+		XOffset: vo.XOffset + xOffset,
+		YOffset: vo.YOffset,
+	}
+}
+
 func cleanLine(y int, bg termbox.Attribute) {
 	w, h := termbox.Size()
 	if y >= h || y < 0 {
