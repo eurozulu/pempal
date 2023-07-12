@@ -66,7 +66,9 @@ func (ed *EditItem) Edit(offset ViewOffset, value string) (string, error) {
 			return "", ERRAborted
 
 		default:
-			value = ed.handleKeyInput(*ev, value)
+			if ed.ValueType != InputTypeNone {
+				value = ed.handleKeyInput(*ev, value)
+			}
 		}
 	}
 }
