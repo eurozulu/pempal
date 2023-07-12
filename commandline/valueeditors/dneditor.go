@@ -44,8 +44,9 @@ func (de DistinguishedNameEditor) Edit(offset ui.ViewOffset, value string) (stri
 	form := EditorList{
 		Editors:          edits,
 		BackgroundColour: ui.ColourBackgroundEdit,
+		ShowAllNames:     len(errs) == 0,
 	}
-	result, err := form.Show(offset, dnvalues, errs)
+	result, err := form.Show(offset.OffsetY(1), dnvalues, errs)
 	if err != nil {
 		return "", err
 	}

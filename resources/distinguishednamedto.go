@@ -7,15 +7,15 @@ import (
 )
 
 type DistinguishedNameDTO struct {
-	CommonName         string   `yaml:"common-name"`
-	SerialNumber       string   `yaml:"serial-number,omitempty"`
-	Country            []string `yaml:"country,omitempty"`
-	Organization       []string `yaml:"organization,omitempty"`
-	OrganizationalUnit []string `yaml:"organizational-unit,omitempty"`
-	Locality           []string `yaml:"locality,omitempty"`
-	Province           []string `yaml:"province,omitempty"`
-	StreetAddress      []string `yaml:"street-address,omitempty"`
-	PostalCode         []string `yaml:"postal-code,omitempty"`
+	CommonName         string
+	SerialNumber       string
+	Country            []string
+	Organization       []string
+	OrganizationalUnit []string
+	Locality           []string
+	Province           []string
+	StreetAddress      []string
+	PostalCode         []string
 }
 
 func (dn DistinguishedNameDTO) ToName() pkix.Name {
@@ -39,7 +39,7 @@ func (dn *DistinguishedNameDTO) UnmarshalBinary(data []byte) error {
 			return fmt.Errorf("invalid '%s', no value", n)
 		}
 
-		if err := dn.addValue(ns[0], parseValueToSlice(ns[1])...); err != nil {
+		if err := dn.addValue(ns[0], parseRDNSValueToSlice(ns[1])...); err != nil {
 			return err
 		}
 	}
@@ -80,7 +80,66 @@ func (dn *DistinguishedNameDTO) addValue(key string, value ...string) error {
 	return nil
 }
 
-func parseValueToSlice(value string) []string {
+func (dn *DistinguishedNameDTO) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	st := struct {
+		CommonName         string `yaml:"common-name"`
+		SerialNumber       string `yaml:"serial-number"`
+		Country            string `yaml:"country"`
+		Organization       string `yaml:"organization"`
+		OrganizationalUnit string `yaml:"organizational-unit"`
+		Locality           string `yaml:"locality"`
+		Province           string `yaml:"province"`
+		StreetAddress      string `yaml:"street-address"`
+		PostalCode         string `yaml:"postal-code"`
+	}{}
+	if err := unmarshal(&st); err != nil {
+		return err
+	}
+	dn.CommonName = st.CommonName
+	dn.SerialNumber = st.SerialNumber
+	dn.Country = parseStringToSlice(st.Country)
+	dn.Organization = parseStringToSlice(st.Organization)
+	dn.OrganizationalUnit = parseStringToSlice(st.OrganizationalUnit)
+	dn.Locality = parseStringToSlice(st.Locality)
+	dn.Province = parseStringToSlice(st.Province)
+	dn.StreetAddress = parseStringToSlice(st.StreetAddress)
+	dn.PostalCode = parseStringToSlice(st.PostalCode)
+	return nil
+}
+
+func (dn DistinguishedNameDTO) MarshalYAML() (interface{}, error) {
+	st := struct {
+		CommonName         string `yaml:"common-name"`
+		SerialNumber       string `yaml:"serial-number,omitempty"`
+		Country            string `yaml:"country,omitempty"`
+		Organization       string `yaml:"organization,omitempty"`
+		OrganizationalUnit string `yaml:"organizational-unit,omitempty"`
+		Locality           string `yaml:"locality,omitempty"`
+		Province           string `yaml:"province,omitempty"`
+		StreetAddress      string `yaml:"street-address,omitempty"`
+		PostalCode         string `yaml:"postal-code,omitempty"`
+	}{
+		CommonName:         dn.CommonName,
+		SerialNumber:       dn.SerialNumber,
+		Country:            strings.Join(dn.Country, ","),
+		Organization:       strings.Join(dn.Organization, ","),
+		OrganizationalUnit: strings.Join(dn.OrganizationalUnit, ","),
+		Locality:           strings.Join(dn.Locality, ","),
+		Province:           strings.Join(dn.Province, ","),
+		StreetAddress:      strings.Join(dn.StreetAddress, ","),
+		PostalCode:         strings.Join(dn.PostalCode, ","),
+	}
+	return &st, nil
+}
+
+func parseStringToSlice(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
+}
+
+func parseRDNSValueToSlice(value string) []string {
 	var found []string
 	for _, v := range strings.Split(value, "+") {
 		if strings.Contains(v, "=") {

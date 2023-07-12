@@ -2,6 +2,8 @@ package ui
 
 const maxValueWidth = 30
 
+type ItemList []ListItem
+
 // ListItem represents a single Key/Value pair for display.
 // It may optionally specify alternative colours to display, otherwise it defaults to ColourBackground and ColourForeground
 type ListItem struct {
@@ -11,14 +13,12 @@ type ListItem struct {
 	BackgroundColour ItemColour
 }
 
-type ItemList []ListItem
-
 func (li ListItem) render(offset ViewOffset, selected bool) {
 	bg := ColourBackground.toAttribute()
+	cleanLine(offset.YOffset, bg)
 	if li.BackgroundColour != 0 {
 		bg = li.BackgroundColour.toAttribute()
 	}
-	cleanLine(offset.YOffset, bg)
 
 	if selected {
 		bg = ColourBackgroundSelected.toAttribute()
@@ -44,12 +44,4 @@ func (sl ItemList) render(offset ViewOffset, selected int) {
 		li.render(offset, i == selected)
 		offset.YOffset++
 	}
-}
-
-func NewItemListOfValues(values []string) ItemList {
-	items := make([]ListItem, len(values))
-	for i, v := range values {
-		items[i] = ListItem{Value: v}
-	}
-	return items
 }

@@ -32,7 +32,7 @@ type EditItem struct {
 
 func (ed *EditItem) Edit(offset ViewOffset, value string) (string, error) {
 	selected := ed.optionIndex(value)
-	list := NewItemListOfValues(ed.Options)
+	list := newItemListOfValues(ed.Options)
 
 	for {
 		os := offset
@@ -150,4 +150,12 @@ func nextKeyEvent() (*termbox.Event, error) {
 			continue
 		}
 	}
+}
+
+func newItemListOfValues(values []string) ItemList {
+	items := make([]ListItem, len(values))
+	for i, v := range values {
+		items[i] = ListItem{Value: v}
+	}
+	return items
 }

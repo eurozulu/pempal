@@ -11,6 +11,7 @@ type EditorList struct {
 	ForegrondColour  ui.ItemColour
 	BackgroundColour ui.ItemColour
 	ExitChar         rune
+	ShowAllNames     bool
 }
 
 func (le EditorList) Show(offset ui.ViewOffset, values map[string]string, errs []error) (map[string]string, error) {
@@ -32,8 +33,9 @@ func (le EditorList) Show(offset ui.ViewOffset, values map[string]string, errs [
 		if clearScreen {
 			ui.Clear()
 		}
+
 		// If no errors, Add the "Confirm key" prompt
-		if len(errs) == 0 {
+		if len(errs) == 0 && len(deltaValues) > 0 {
 			list.ExitChar = 'Y'
 			writePrompt(offset.OffsetY(len(list.Items)+1), "Hit 'Y' (Captial Letter) to confirm")
 		}
@@ -102,7 +104,7 @@ func (le EditorList) buildItemList(values ui.ListValues, errs []error) []ui.List
 		errIndex := errorIndexByName(editName, errs)
 
 		// if no value to edit or no error with editable name, ignore it.
-		if !ok && errIndex < 0 {
+		if !le.ShowAllNames && !ok && errIndex < 0 {
 			continue
 		}
 		li := ui.ListItem{
