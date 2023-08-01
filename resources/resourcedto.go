@@ -34,11 +34,56 @@ func ApplyTemplateToDTO(dto ResourceDTO, t templates.Template) error {
 }
 
 func DTOToTemplate(dto ResourceDTO) (templates.Template, error) {
-	m := map[string]string{}
+	m := map[string]interface{}{}
 	if err := transferViaYaml(&m, dto); err != nil {
 		return nil, err
 	}
-	return m, nil
+	sm := map[string]string{}
+	for k, v := range m {
+		sm[k] = fmt.Sprintf("%v", v)
+	}
+	return sm, nil
+}
+
+func TemplateTypes(t templates.Template, exact bool) ([]ResourceType, error) {
+	var found []ResourceType
+	for _, rt := range resourceTypes[1:] {
+		rtt, err := ResourceTemplateByType(rt)
+		if err != nil {
+			return nil, err
+		}
+		// if exact both templates must have exactly the same keynames. no more or less.
+		if exact && (len(rtt) != len(t)) {
+			continue
+		}
+		// Ensure template contains at least all of the keys in the resource template
+		if !containsAllKeys(rtt, t) {
+			continue
+		}
+
+		found = append(found, rt)
+	}
+	if len(found) == 0 {
+		return nil, fmt.Errorf("template type could not be determined")
+	}
+	return found, nil
+}
+
+func ResourceTemplateByType(rt ResourceType) (templates.Template, error) {
+	dto, err := NewResourceDTOByType(rt)
+	if err != nil {
+		return nil, err
+	}
+	return DTOToTemplate(dto)
+}
+
+func containsAllKeys(keys, t map[string]string) bool {
+	for k := range keys {
+		if _, ok := t[k]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func transferViaYaml(target, src interface{}) error {
@@ -67,12 +112,14 @@ func NewResourceDTOByType(resourceType ResourceType) (ResourceDTO, error) {
 	switch resourceType {
 	case PublicKey:
 		return &publicKeyDTO{}, nil
-
 	case PrivateKey:
 		return &PrivateKeyDTO{}, nil
-
 	case Certificate:
 		return &CertificateDTO{}, nil
+	case CertificateRequest:
+		return &CertificateRequestDTO{}, nil
+	case RevocationList:
+		return &RevocationListDTO{}, nil
 
 	default:
 		return nil, fmt.Errorf("no resourcedto available for resource type %s", resourceType.String())

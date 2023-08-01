@@ -6,32 +6,32 @@ import (
 	"github.com/eurozulu/pempal/logger"
 )
 
-type Issuers interface {
-	AllIssuers(ctx context.Context) <-chan Issuer
-	IssuersByIdentity(id Identity) []Issuer
-	IssuerByName(name string) (Issuer, error)
+type Users interface {
+	AllUsers(ctx context.Context) <-chan User
+	UsersByIdentity(id Identity) []User
+	UserByName(name string) (User, error)
 	Keys() Keys
 	Certificates() Certificates
 }
 
-type issuers struct {
+type users struct {
 	keyz  Keys
 	certz Certificates
 }
 
-func (is issuers) Certificates() Certificates {
+func (is users) Certificates() Certificates {
 	return is.certz
 }
 
-func (is issuers) Keys() Keys {
+func (is users) Keys() Keys {
 	return is.keyz
 }
 
-func (is issuers) IssuersByIdentity(id Identity) []Issuer {
+func (is users) UsersByIdentity(id Identity) []User {
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
-	var found []Issuer
-	for is := range is.AllIssuers(ctx) {
+	var found []User
+	for is := range is.AllUsers(ctx) {
 		if is.Identity().String() != id.String() {
 			continue
 		}
@@ -40,20 +40,20 @@ func (is issuers) IssuersByIdentity(id Identity) []Issuer {
 	return found
 }
 
-func (is issuers) IssuerByName(name string) (Issuer, error) {
+func (is users) UserByName(name string) (User, error) {
 	ctx, cnl := context.WithCancel(context.Background())
 	defer cnl()
 
-	for is := range is.AllIssuers(ctx) {
+	for is := range is.AllUsers(ctx) {
 		if compareDN(is.Certificate().Certificate().Subject, name) {
 			return is, nil
 		}
 	}
-	return nil, fmt.Errorf("%s unknown issuer", name)
+	return nil, fmt.Errorf("%s unknown user", name)
 }
 
-func (is issuers) AllIssuers(ctx context.Context) <-chan Issuer {
-	ch := make(chan Issuer)
+func (is users) AllUsers(ctx context.Context) <-chan User {
+	ch := make(chan User)
 	go func() {
 		for key := range is.keyz.AllKeys(ctx) {
 			certs, err := is.certz.CertificatesByIdentity(key.Identity())
@@ -65,7 +65,7 @@ func (is issuers) AllIssuers(ctx context.Context) <-chan Issuer {
 				select {
 				case <-ctx.Done():
 					return
-				case ch <- &issuer{
+				case ch <- &user{
 					key:  key,
 					cert: c,
 				}:
@@ -76,10 +76,10 @@ func (is issuers) AllIssuers(ctx context.Context) <-chan Issuer {
 	return ch
 }
 
-func NewIssuers(keypath, certpath []string) Issuers {
+func NewIssuers(keypath, certpath []string) Users {
 	keyz := NewKeys(keypath)
 	certz := NewCertificates(certpath)
-	return &issuers{
+	return &users{
 		keyz:  keyz,
 		certz: certz,
 	}

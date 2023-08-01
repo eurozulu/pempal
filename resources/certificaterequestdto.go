@@ -22,6 +22,10 @@ type CertificateRequestDTO struct {
 	CertificateRequest string `yaml:"certificate-request,omitempty"`
 }
 
+func (crd CertificateRequestDTO) String() string {
+	return crd.CertificateRequest
+}
+
 func (crd CertificateRequestDTO) ToCertificateRequest() (*x509.CertificateRequest, error) {
 	subject, err := stringToDN(crd.Subject)
 	if err != nil {

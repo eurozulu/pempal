@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+var errNoRevokationList = fmt.Errorf("no pem encoded revokation list found")
+
+const timeFormat = time.RFC850
+
 type RevocationListDTO struct {
 	Issuer             string `yaml:"issuer"`
 	Signature          string `yaml:"signature"`
@@ -16,18 +20,20 @@ type RevocationListDTO struct {
 	// RevokedCertificates is used to populate the revokedCertificates
 	// sequence in the CRL, it may be empty. RevokedCertificates may be nil,
 	// in which case an empty CRL will be created.
-	RevokedCertificates []RevokedCertificateDTO `yaml:"revoked-certificates"`
-	Number              uint64                  `yaml:"number"`
-
-	ThisUpdate time.Time      `yaml:"this-update"`
-	NextUpdate time.Time      `yaml:"next-update"`
-	Extensions []ExtensionDTO `yaml:"extensions"`
+	RevokedCertificates []string `yaml:"revoked-certificates"`
+	Number              int64    `yaml:"number"`
+	ThisUpdate          string   `yaml:"this-update"`
+	NextUpdate          string   `yaml:"next-update"`
+	Extensions          []string `yaml:"extensions,omitempty"`
 
 	// ExtraExtensions contains any additional extensions to add directly to
 	// the CRL.
-	ExtraExtensions []ExtensionDTO `yaml:"extraExtensions"`
+	ExtraExtensions []string `yaml:"extra-extensions,omitempty"`
+	RevokationList  string   `yaml:"revokation-list,omitempty"`
+}
 
-	ResourceType string `yaml:"resource-type"`
+func (rvl *RevocationListDTO) String() string {
+	return rvl.RevokationList
 }
 
 func (rvl *RevocationListDTO) UnmarshalPEM(data []byte) error {
@@ -36,7 +42,7 @@ func (rvl *RevocationListDTO) UnmarshalPEM(data []byte) error {
 		if blk == nil {
 			break
 		}
-		if ParsePEMType(blk.Type) != RevokationList {
+		if ParsePEMType(blk.Type) != RevocationList {
 			data = rest
 			continue
 		}
@@ -45,23 +51,33 @@ func (rvl *RevocationListDTO) UnmarshalPEM(data []byte) error {
 	return fmt.Errorf("no pem encoded public key found")
 }
 
+func (rvl *RevocationListDTO) MarshalBinary() (data []byte, err error) {
+	blk, _ := pem.Decode([]byte(rvl.RevokationList))
+	if blk == nil {
+		return nil, errNoRevokationList
+	}
+	return blk.Bytes, nil
+}
+
 func (rvl *RevocationListDTO) UnmarshalBinary(data []byte) error {
 	rlist, err := x509.ParseRevocationList(data)
 	if err != nil {
 		return err
 	}
-
+	rvl.RevokationList = string(pem.EncodeToMemory(&pem.Block{
+		Type:  RevocationList.PEMString(),
+		Bytes: rlist.Raw,
+	}))
 	rvl.Issuer = rlist.Issuer.String()
 	rvl.Signature = hex.EncodeToString(rlist.Signature)
 	rvl.SignatureAlgorithm = rlist.SignatureAlgorithm.String()
 
-	rvl.RevokedCertificates = newRevokedCertificateDTOs(rlist.RevokedCertificates)
-	rvl.Number = rlist.Number.Uint64()
-	rvl.ThisUpdate = rlist.ThisUpdate
-	rvl.NextUpdate = rlist.NextUpdate
-	rvl.ExtraExtensions = newExtentionsDTOs(rlist.Extensions)
-	rvl.ExtraExtensions = newExtentionsDTOs(rlist.ExtraExtensions)
+	rvl.RevokedCertificates = nil //newRevokedCertificateDTOs(rlist.RevokedCertificates)
+	rvl.Number = rlist.Number.Int64()
+	rvl.ThisUpdate = rlist.ThisUpdate.Format(timeFormat)
+	rvl.NextUpdate = rlist.NextUpdate.Format(timeFormat)
+	rvl.Extensions = nil      //newExtentionsDTOs(rlist.Extensions)
+	rvl.ExtraExtensions = nil //newExtentionsDTOs(rlist.ExtraExtensions)
 
-	rvl.ResourceType = RevokationList.String()
 	return nil
 }

@@ -13,33 +13,67 @@ import (
 )
 
 const (
-	property_cert_serial_number = "serial-number"
-	property_cert_subject_name  = "subject"
-	property_cert_issuer_name   = "issuer"
-	property_cert_common_name   = "common-name"
-	property_cert_public_key    = "public-key"
+	Property_version                 = "version"
+	Property_serial_number           = "serial-number"
+	Property_issuer                  = "issuer"
+	Property_not_before              = "not-before"
+	Property_not_after               = "not-after"
+	Property_is_ca                   = "is-ca"
+	Property_basic_constraints_valid = "basic-constraints-valid"
+	Property_max_path_len            = "max-path-len"
+	Property_max_path_len_zero       = "max-path-len-zero"
+	Property_key_usage               = "max-path-len-zero"
+	Property_extended_key_usage      = "extended-key-usage"
 )
 
 type certificateBuilder struct {
-	knownIssuers identity.Issuers
-	temps        []templates.Template
+	knownIssuers identity.Users
 }
 
-func (c *certificateBuilder) AddTemplate(t ...templates.Template) {
-	c.temps = append(c.temps, t...)
+func (c certificateBuilder) Validate(t templates.Template) utils.CompoundErrors {
+	var errs utils.CompoundErrors
+	if sn := t[Property_serial_number]; sn == "" {
+		errs = append(errs, fmt.Errorf("%s missing", Property_serial_number))
+	} else if _, err := strconv.ParseInt(sn, 10, 64); err != nil {
+		errs = append(errs, fmt.Errorf("%s invalid", Property_serial_number))
+	}
+
+	if ver := t[Property_version]; ver == "" {
+		errs = append(errs, fmt.Errorf("%s missing", Property_version))
+	} else if _, err := strconv.ParseInt(ver, 10, 64); err != nil {
+		errs = append(errs, fmt.Errorf("%s invalid", Property_version))
+	}
+
+	if sub := t[Property_subject]; sub == "" {
+		errs = append(errs, fmt.Errorf("%s missing", Property_subject))
+	} else if dto, err := resources.ParseDistinguishedName(sub); err != nil {
+		errs = append(errs, fmt.Errorf("%s invalid %v", Property_subject, err))
+	} else {
+		if dto.CommonName == "" {
+			errs = append(errs, fmt.Errorf("%s.%s missing", Property_subject, Property_common_name))
+		}
+	}
+	if iss := t[Property_issuer]; iss == "" {
+		errs = append(errs, fmt.Errorf("%s missing", Property_issuer))
+	} else if dto, err := resources.ParseDistinguishedName(iss); err != nil {
+		errs = append(errs, fmt.Errorf("%s invalid %v", Property_issuer, err))
+	} else {
+		if dto.CommonName == "" {
+			errs = append(errs, fmt.Errorf("%s.%s missing", Property_issuer, Property_common_name))
+		}
+	}
+
+	if puks := t[Property_public_key]; puks == "" {
+		errs = append(errs, fmt.Errorf("%s missing", Property_public_key))
+	} else if _, err := c.resolveKeyId(puks); err != nil {
+		errs = append(errs, fmt.Errorf("%s %v", Property_public_key, err))
+	}
+
+	return errs
 }
 
-func (c certificateBuilder) Validate() utils.CompoundErrors {
-	return c.validate(c.BuildTemplate())
-}
-
-func (c certificateBuilder) BuildTemplate() templates.Template {
-	return templates.MergeTemplates(c.temps...)
-}
-
-func (c certificateBuilder) Build() (resources.Resource, error) {
-	t := c.BuildTemplate()
-	if errs := c.validate(t); len(errs) > 0 {
+func (c certificateBuilder) Build(t templates.Template) (resources.Resource, error) {
+	if errs := c.Validate(t); len(errs) > 0 {
 		return nil, errs
 	}
 
@@ -48,7 +82,7 @@ func (c certificateBuilder) Build() (resources.Resource, error) {
 		return nil, err
 	}
 
-	issuer, err := c.knownIssuers.IssuerByName(cert.Issuer.String())
+	issuer, err := c.knownIssuers.UserByName(cert.Issuer.String())
 	if err != nil {
 		return nil, err
 	}
@@ -61,43 +95,6 @@ func (c certificateBuilder) Build() (resources.Resource, error) {
 		Type:  resources.Certificate.PEMString(),
 		Bytes: der,
 	}), nil
-}
-
-func (c certificateBuilder) validate(t templates.Template) utils.CompoundErrors {
-	var errs utils.CompoundErrors
-
-	if vp := t[property_cert_serial_number]; vp == "" {
-		errs = append(errs, fmt.Errorf("%s missing", property_cert_serial_number))
-	} else if _, err := strconv.ParseInt(vp, 10, 64); err != nil {
-		errs = append(errs, fmt.Errorf("%s invalid", property_cert_serial_number))
-	}
-
-	if vp := t[property_cert_subject_name]; vp == "" {
-		errs = append(errs, fmt.Errorf("%s missing", property_cert_subject_name))
-	} else if dto, err := resources.ParseDistinguishedName(vp); err != nil {
-		errs = append(errs, fmt.Errorf("%s invalid %v", property_cert_subject_name, err))
-	} else {
-		if dto.CommonName == "" {
-			errs = append(errs, fmt.Errorf("%s.%s missing", property_cert_subject_name, property_cert_common_name))
-		}
-	}
-	if vp := t[property_cert_issuer_name]; vp == "" {
-		errs = append(errs, fmt.Errorf("%s missing", property_cert_issuer_name))
-	} else if dto, err := resources.ParseDistinguishedName(vp); err != nil {
-		errs = append(errs, fmt.Errorf("%s invalid %v", property_cert_issuer_name, err))
-	} else {
-		if dto.CommonName == "" {
-			errs = append(errs, fmt.Errorf("%s.%s missing", property_cert_issuer_name, property_cert_common_name))
-		}
-	}
-
-	if vp := t[property_cert_public_key]; vp == "" {
-		errs = append(errs, fmt.Errorf("%s missing", property_cert_public_key))
-	} else if _, err := c.resolveKeyId(vp); err != nil {
-		errs = append(errs, fmt.Errorf("%s %v", property_cert_public_key, err))
-	}
-
-	return errs
 }
 
 func (c certificateBuilder) buildTemplateCertificate(t templates.Template) (*x509.Certificate, error) {

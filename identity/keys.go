@@ -14,6 +14,7 @@ type Keys interface {
 	AllKeys(ctx context.Context) <-chan Key
 	KeyByIdentity(id string) (Key, error)
 	KeysByName(name string) ([]Key, error)
+	FindKeys(ctx context.Context, s string) []Key
 }
 
 type keys struct {
@@ -38,6 +39,24 @@ func (ks keys) AllKeys(ctx context.Context) <-chan Key {
 		}
 	}()
 	return ch
+}
+
+func (ks keys) FindKeys(ctx context.Context, s string) []Key {
+	var id Identity
+	if IsIdentity(s) {
+		id = Identity(s)
+	}
+	var kez []Key
+	ctx, cnl := context.WithCancel(ctx)
+	defer cnl()
+	for k := range ks.AllKeys(ctx) {
+		kid := k.Identity()
+		if kid.String() != id.String() && kid.String() != s && !strings.Contains(k.Location(), s) {
+			continue
+		}
+		kez = append(kez, k)
+	}
+	return kez
 }
 
 func (ks keys) KeyByIdentity(id string) (Key, error) {

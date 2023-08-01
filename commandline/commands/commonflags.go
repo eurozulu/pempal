@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	ENV_PP_HOME      = "PP_HOME"
 	ENV_PP_CERTS     = "PP_CERT_PATH"
 	ENV_PP_KEYS      = "PP_KEY_PATH"
 	ENV_PP_CSRS      = "PP_CSR_PATH"
@@ -16,9 +17,10 @@ const (
 	ENV_PP_TEMPLATES = "PP_TEMPLATES_PATH"
 )
 
-const defaultCertPath = "$PWD:$HOME/.pempal/certs:/etc/ssl/certs"
-const defaultKeyPath = "$PWD:$HOME/.pempal/private:$HOME/.ssh"
-const defaultTemplatePath = "$HOME/.pempal/templates"
+const defaultHomePath = "$HOME/.pempal"
+const defaultCertPath = "$PWD:" + defaultHomePath + "/certs:/etc/ssl/certs"
+const defaultKeyPath = "$PWD:" + defaultHomePath + "/private:$HOME/.ssh"
+const defaultTemplatePath = defaultHomePath + "/templates"
 
 var CommonFlags = &DefaultCommonFlags{}
 
@@ -28,6 +30,7 @@ type DefaultCommonFlags struct {
 	CsrPath      string `yaml:"csr-path,omitempty"`
 	CrlPath      string `yaml:"crl-path,omitempty"`
 	TemplatePath string `yaml:"template-path"`
+	HomePath     string `yaml:"home-path,omitempty"`
 	Quiet        bool   `yaml:"quiet"`
 	Verbose      bool   `yaml:"verbose"`
 	Debug        bool   `yaml:"debug"`
@@ -36,7 +39,8 @@ type DefaultCommonFlags struct {
 	ForceOut     bool   `yaml:"force"`
 }
 
-func Init() {
+func init() {
+	CommonFlags.HomePath = envOrDefault(ENV_PP_HOME, defaultHomePath)
 	CommonFlags.CertPath = envOrDefault(ENV_PP_CERTS, defaultCertPath)
 	CommonFlags.KeyPath = envOrDefault(ENV_PP_KEYS, defaultKeyPath)
 	CommonFlags.CsrPath = envOrDefault(ENV_PP_CSRS, "")

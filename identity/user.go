@@ -1,23 +1,27 @@
 package identity
 
-import (
-	"crypto/x509"
-)
-
 type User interface {
-	Certificate() *x509.Certificate
+	Identity() Identity
 	Key() Key
+	Certificate() Certificate
 }
 
 type user struct {
-	cert *x509.Certificate
 	key  Key
+	cert Certificate
 }
 
-func (u user) Certificate() *x509.Certificate {
-	return u.cert
+func (is user) Identity() Identity {
+	if is.cert == nil {
+		return ""
+	}
+	return is.cert.Identity()
 }
 
-func (u user) Key() Key {
-	return u.key
+func (is user) Key() Key {
+	return is.key
+}
+
+func (is user) Certificate() Certificate {
+	return is.cert
 }

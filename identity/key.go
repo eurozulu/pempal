@@ -9,7 +9,10 @@ import (
 	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/resources"
 	"github.com/eurozulu/pempal/utils"
+	"strings"
 )
+
+const pemCipher = x509.PEMCipherAES256
 
 type Key interface {
 	Identity() Identity
@@ -17,6 +20,8 @@ type Key interface {
 	PublicKey() crypto.PublicKey
 	PrivateKey() crypto.PrivateKey
 	IsEncrypted() bool
+	Encrypt(password []byte) (Key, error)
+	Decrypt(password []byte) (Key, error)
 	Location() string
 }
 
@@ -31,10 +36,14 @@ func (k key) Identity() Identity {
 }
 
 func (k key) String() string {
-	if k.puk == nil {
+	if k.prk == nil {
 		return ""
 	}
-	return string(pem.EncodeToMemory(k.prk))
+	s := string(pem.EncodeToMemory(k.prk))
+	if k.puk != nil {
+		s = strings.Join([]string{s, string(pem.EncodeToMemory(k.puk))}, "")
+	}
+	return s
 }
 
 func (k key) Location() string {
@@ -93,7 +102,7 @@ func (k key) Encrypt(password []byte) (Key, error) {
 	if k.IsEncrypted() {
 		return nil, fmt.Errorf("key already encrypted")
 	}
-	blk, err := x509.EncryptPEMBlock(rand.Reader, k.prk.Type, k.prk.Bytes, password, x509.PEMCipherAES256)
+	blk, err := x509.EncryptPEMBlock(rand.Reader, k.prk.Type, k.prk.Bytes, password, pemCipher)
 	if err != nil {
 		return nil, err
 	}
@@ -114,12 +123,12 @@ func NewKey(location string, pemdata []byte) (Key, error) {
 		switch resources.ParsePEMType(blk.Type) {
 		case resources.PrivateKey:
 			if k.prk != nil {
-				return nil, fmt.Errorf("multiple private identity found in same pem")
+				return nil, fmt.Errorf("multiple private keys found in same pem")
 			}
 			k.prk = blk
 		case resources.PublicKey:
 			if k.puk != nil {
-				return nil, fmt.Errorf("multiple public identity found in same pem")
+				return nil, fmt.Errorf("multiple public keys found in same pem")
 			}
 			k.puk = blk
 

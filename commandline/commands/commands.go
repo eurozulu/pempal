@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/eurozulu/pempal/resourceio"
+	"github.com/eurozulu/pempal/resources"
 	"github.com/eurozulu/pempal/templates"
 	"github.com/eurozulu/pempal/utils"
 	"io"
@@ -10,24 +11,22 @@ import (
 )
 
 const (
-	CommandNewKey  = "newkey"
-	CommandKeys    = "keys"
-	CommandIssuers = "identity"
-	CommandRequest = "request"
-	CommandIssue   = "issue"
+	CommandMake = "make"
+	CommandKeys = "keys"
 
 	CommandTemplate  = "template"
 	CommandTemplates = "templates"
 
+	CommandType  = "type"
 	CommandFind  = "find"
 	CommandPaths = "paths"
 )
 
 // Commands maps the command name to the Command instance
 var Commands = map[string]Command{
-	CommandNewKey: &newKeyCommand{},
-	CommandKeys:   &keysCommand{},
-	CommandIssue:  &issueCommand{},
+	CommandMake: &MakeCommand{},
+	CommandKeys: &keysCommand{},
+	CommandType: &TypeCommand{},
 	//CommandFind:     &FindCommand{},
 	//CommandTemplate: &TemplateCommand{},
 	//CommandConfig:   &ConfigCommand{},
@@ -35,11 +34,9 @@ var Commands = map[string]Command{
 
 // CommandAliases maps alternative names for commands, to the actual command name
 var CommandAliases = map[string]string{
-	"nk":        CommandNewKey,
-	"ks":        CommandKeys,
-	"is":        CommandIssuers,
-	"req":       CommandRequest,
-	"new":       CommandIssue,
+	"mk": CommandMake,
+	"ks": CommandKeys,
+
 	"f":         CommandFind,
 	"t":         CommandTemplate,
 	"ts":        CommandTemplates,
@@ -53,7 +50,7 @@ type Command interface {
 }
 
 func argumentsToTemplates(args []string) ([]templates.Template, error) {
-	tm, err := templates.NewTemplateManager(ResolvePath(CommonFlags.TemplatePath))
+	tm, err := resources.NewResourceTemplatesManager(ResolvePath(CommonFlags.TemplatePath))
 	if err != nil {
 		return nil, err
 	}

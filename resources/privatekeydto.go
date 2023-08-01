@@ -26,6 +26,25 @@ func (pk PrivateKeyDTO) String() string {
 	return strings.Join([]string{pk.PrivateKey, pk.PublicKey}, "")
 }
 
+func (pk *PrivateKeyDTO) UnmarshalPEM(data []byte) error {
+	var keyBlk *pem.Block
+	for {
+		blk, rest := pem.Decode(data)
+		if blk == nil {
+			break
+		}
+		if ParsePEMType(blk.Type) == PrivateKey {
+			keyBlk = blk
+			break
+		}
+		data = rest
+	}
+	if keyBlk == nil {
+		return fmt.Errorf("failed to parse private key from pem")
+	}
+	return pk.UnmarshalBinary(keyBlk.Bytes)
+}
+
 func (pk *PrivateKeyDTO) UnmarshalBinary(data []byte) error {
 	prk, err := x509.ParsePKCS8PrivateKey(data)
 	if err != nil {

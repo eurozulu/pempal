@@ -78,7 +78,7 @@ var keyusages = []x509.KeyUsage{
 	x509.KeyUsageEncipherOnly,
 	x509.KeyUsageDecipherOnly,
 }
-var keyusageNames = []string{
+var KeyUsageNames = []string{
 	"KeyUsageDigitalSignature",
 	"KeyUsageContentCommitment",
 	"KeyUsageKeyEncipherment",
@@ -88,6 +88,23 @@ var keyusageNames = []string{
 	"KeyUsageCRLSign",
 	"KeyUsageEncipherOnly",
 	"KeyUsageDecipherOnly",
+}
+
+var ExtKeyUsageNames = []string{
+	"Any",
+	"ServerAuth",
+	"ClientAuth",
+	"CodeSigning",
+	"EmailProtection",
+	"IPSECEndSystem",
+	"IPSECTunnel",
+	"IPSECUser",
+	"TimeStamping",
+	"OCSPSigning",
+	"MicrosoftServerGatedCrypto",
+	"NetscapeServerGatedCrypto",
+	"MicrosoftCommercialCodeSigning",
+	"MicrosoftKernelCodeSigning",
 }
 
 func ParseKeyUsage(s []string) (x509.KeyUsage, error) {
@@ -103,7 +120,7 @@ func ParseKeyUsage(s []string) (x509.KeyUsage, error) {
 }
 
 func lookupKeyUsage(s string) x509.KeyUsage {
-	for i, kun := range keyusageNames {
+	for i, kun := range KeyUsageNames {
 		if strings.EqualFold(s, kun) {
 			return keyusages[i]
 		}
@@ -122,23 +139,6 @@ func KeyUsageToStrings(k x509.KeyUsage) []string {
 	return names
 }
 
-var ExtKeyUsageName = []string{
-	"Any",
-	"ServerAuth",
-	"ClientAuth",
-	"CodeSigning",
-	"EmailProtection",
-	"IPSECEndSystem",
-	"IPSECTunnel",
-	"IPSECUser",
-	"TimeStamping",
-	"OCSPSigning",
-	"MicrosoftServerGatedCrypto",
-	"NetscapeServerGatedCrypto",
-	"MicrosoftCommercialCodeSigning",
-	"MicrosoftKernelCodeSigning",
-}
-
 func ParseExtKeyUsage(eks []string) ([]x509.ExtKeyUsage, error) {
 	var found []x509.ExtKeyUsage
 	for _, s := range eks {
@@ -154,16 +154,16 @@ func ParseExtKeyUsage(eks []string) ([]x509.ExtKeyUsage, error) {
 func ExtKeyUsageToStrings(ek []x509.ExtKeyUsage) []string {
 	names := make([]string, len(ek))
 	for i, e := range ek {
-		if e < 0 || int(e) >= len(ExtKeyUsageName) {
+		if e < 0 || int(e) >= len(ExtKeyUsageNames) {
 			e = 0
 		}
-		names[i] = ExtKeyUsageName[e]
+		names[i] = ExtKeyUsageNames[e]
 	}
 	return names
 }
 
 func lookupExtKeyUsage(s string) x509.ExtKeyUsage {
-	for i, kun := range ExtKeyUsageName {
+	for i, kun := range ExtKeyUsageNames {
 		if strings.EqualFold(s, kun) {
 			return x509.ExtKeyUsage(i)
 		}

@@ -27,7 +27,7 @@ var columnNames = []string{
 // If that key is known, it is output to the standard out.
 // Flags:
 // -all | -a  When given, shows the unidentified (encrypted) identity otherwise hidden.
-// -new ["<key properties>"]  optional properties specify the key algorithm and optional length. defaults to RSA 2048
+// -new ["<key prompts>"]  optional prompts specify the key algorithm and optional length. defaults to RSA 2048
 type keysCommand struct {
 	AllKeys    bool `yaml:"all,omitempty"`
 	keyManager identity.Keys

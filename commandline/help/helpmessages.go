@@ -71,7 +71,7 @@ var findHelpPage = HelpPage{
 		"Files may contain multiple resources but all must be encoded in the same manner.\n" +
 		"Encodings supported are PEM and der (TODO: Add pk7 etc)\n" +
 		"With no flags set, find will display ALL resources found in all the paths.  These may be filtered using the flags.\n\n" +
-		"The properties or fields output for each resource depend on both the 'resource-type' and 'fields' flags\n" +
+		"The prompts or fields output for each resource depend on both the 'resource-type' and 'fields' flags\n" +
 		"When a single, specific resource type is set with the 'resource-type' flag, fields relating to that resource type are show.\n" +
 		"When no type, or multiple types are specified, it shows generic fields for all resources.\n" +
 		"Setting the 'fields' flag with specific fields will show values for all resources containing that field and empty for resource which do not.",
@@ -149,7 +149,7 @@ var templateHelpPage = HelpPage{
 		"One or more parameters may be given, each must be a valid template name.\n" +
 		"When names are provided, the template(s) of that name are displayed in their formatted state.\n" +
 		"Multiple templates may be merged into one using the merge flag.\n" +
-		"This will merge left to right, so all the properties of all templates are placed into a single template, which is then displayed.\n\n" +
+		"This will merge left to right, so all the prompts of all templates are placed into a single template, which is then displayed.\n\n" +
 		"To create a new template, use a new template name, followed directly by an equal sign and the property names, comma delimited:\n" +
 		"e.g. template mynewtemple=\"subject.common-name: my server certificate, subject.organisation: Acme Ltd\"\n" +
 		"The new template may also be read from the standard input, using a dash '-' in place of the template value.\n" +

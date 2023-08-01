@@ -1,5 +1,10 @@
 package commands
 
+import (
+	"github.com/eurozulu/pempal/resources"
+	"github.com/eurozulu/pempal/templates"
+)
+
 //import (
 //	"fmt"
 //	"github.com/eurozulu/argdecoder"
@@ -177,7 +182,7 @@ package commands
 //	}
 //
 //	if cmd.ShowExtends && t.Tags().ContainsTag(templates.TAG_EXTENDS) {
-//		name := t.Tags().TagByName(templates.TAG_EXTENDS).Value()
+//		name := t.Tags().TagByName(templates.TAG_EXTENDS).DefaultValue()
 //		et, err := cmd.templateManager.TemplateByName(name)
 //		if err != nil {
 //			return err
@@ -264,3 +269,8 @@ package commands
 //	_, err := colOut.WriteSlice(append(make([]string, indent), s))
 //	return err
 //}
+
+func TemplateManagerFromCommonFLags() (templates.TemplateManager, error) {
+	p := ResolvePath(CommonFlags.TemplatePath)
+	return resources.NewResourceTemplatesManager(p)
+}

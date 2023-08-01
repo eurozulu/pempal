@@ -1,6 +1,11 @@
 package utils
 
-import "os"
+import (
+	"bufio"
+	"bytes"
+	"io"
+	"os"
+)
 
 func FileOrDirectoryExists(path string) bool {
 	_, err := os.Stat(path)
@@ -31,4 +36,16 @@ func EnsurePathExists(path string, perm os.FileMode) error {
 		return nil
 	}
 	return os.MkdirAll(path, perm)
+}
+
+func ReadStdIn() ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	scan := bufio.NewScanner(os.Stdin)
+	for scan.Scan() {
+		buf.Write(scan.Bytes())
+	}
+	if scan.Err() != nil && scan.Err() != io.EOF {
+		return nil, scan.Err()
+	}
+	return buf.Bytes(), nil
 }

@@ -11,14 +11,14 @@ const (
 	PrivateKey
 	CertificateRequest
 	Certificate
-	RevokationList
+	RevocationList
 )
 
 func (rt ResourceType) String() string {
-	if rt < 0 || int(rt) >= len(resourceTypeNames) {
+	if rt < 0 || int(rt) >= len(ResourceTypeNames) {
 		rt = UnknownResourceType
 	}
-	return resourceTypeNames[rt]
+	return ResourceTypeNames[rt]
 }
 
 func (rt ResourceType) PEMString() string {
@@ -29,10 +29,19 @@ func (rt ResourceType) PEMString() string {
 }
 
 var ResourceTypes = []ResourceType{
-	Certificate, PrivateKey, CertificateRequest, PublicKey, RevokationList,
+	UnknownResourceType, PublicKey, PrivateKey, CertificateRequest, Certificate, RevocationList,
 }
 
-var resourceTypeNames = []string{
+var resourceTypes = []ResourceType{
+	UnknownResourceType,
+	PublicKey,
+	PrivateKey,
+	CertificateRequest,
+	Certificate,
+	RevocationList,
+}
+
+var ResourceTypeNames = []string{
 	"Unknown",
 	"PublicKey",
 	"PrivateKey",
@@ -55,8 +64,8 @@ var resourceTypeAliasis = map[string]ResourceType{
 	"puk":     PublicKey,
 	"request": CertificateRequest,
 	"csr":     CertificateRequest,
-	"crl":     RevokationList,
-	"revoked": RevokationList,
+	"crl":     RevocationList,
+	"revoked": RevocationList,
 }
 
 func ContainsType(t ResourceType, types []ResourceType) bool {
@@ -73,7 +82,7 @@ func ParseResourceType(s string) ResourceType {
 	if ok {
 		return alias
 	}
-	for i, rs := range resourceTypeNames {
+	for i, rs := range ResourceTypeNames {
 		if strings.EqualFold(s, rs) {
 			return ResourceType(i)
 		}
