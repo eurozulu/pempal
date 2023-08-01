@@ -75,7 +75,7 @@ func (b fileStore) fileNames(names ...string) []string {
 			break
 		}
 	}
-	return names
+	return found
 }
 
 func (b fileStore) resolveNameMustExist(name string) (string, error) {

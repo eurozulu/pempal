@@ -31,8 +31,8 @@ type DefaultCommonFlags struct {
 	CrlPath      string `yaml:"crl-path,omitempty"`
 	TemplatePath string `yaml:"template-path"`
 	HomePath     string `yaml:"home-path,omitempty"`
-	Quiet        bool   `yaml:"quiet"`
-	Verbose      bool   `yaml:"verbose"`
+	Quiet        bool   `yaml:"q"`
+	Verbose      bool   `yaml:"v"`
 	Debug        bool   `yaml:"debug"`
 	Help         bool   `yaml:"help"`
 	Output       string `yaml:"out"`
