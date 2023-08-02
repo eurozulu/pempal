@@ -9,6 +9,13 @@ type Window interface {
 	Show(v View) (View, error)
 	Render(v View) error
 }
+type ViewEventOpener interface {
+	OnViewOpen(parent View)
+}
+
+type ViewEventCloser interface {
+	OnViewClose(parent View)
+}
 
 type window struct {
 	title  string
@@ -42,6 +49,10 @@ func (win window) Show(v View) (View, error) {
 	}
 	text := v.String()
 	preselect := View(nil) //selectedChildParentView(v)
+	if vo, ok := v.(ViewEventOpener); ok {
+		vo.OnViewOpen(nil)
+	}
+
 	for {
 		if err := win.Render(v); err != nil {
 			return nil, err
@@ -68,7 +79,13 @@ func (win window) Show(v View) (View, error) {
 		if child != nil {
 			if _, ok := child.(ParentView); ok {
 				f := win.frame.WithRelativeOffset(len(v.Label())+2, selectedChildIndex(v))
+				if vo, ok := child.(ViewEventOpener); ok {
+					vo.OnViewOpen(v)
+				}
 				cv, err := win.showChild(f, child)
+				if vc, ok := child.(ViewEventCloser); ok {
+					vc.OnViewClose(v)
+				}
 				if err == ErrAborted {
 					continue
 				} // abort back to parent

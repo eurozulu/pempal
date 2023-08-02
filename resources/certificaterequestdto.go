@@ -12,14 +12,14 @@ import (
 var errNoCertificateRequest = fmt.Errorf("no pem encoded certificate request found")
 
 type CertificateRequestDTO struct {
-	Version            int    `yaml:"version" flag:"version,ver"`
-	Signature          string `yaml:"signature" flag:"signature,sig"`
-	SignatureAlgorithm string `yaml:"signature-algorithm" flag:"signature-algorithm,signaturealgorithm,sig-algo"`
-	PublicKeyAlgorithm string `yaml:"public-key-algorithm" flag:"public-key-algorithm,publickeyalgorithm,key-algorithm,keyalgorithm,keyalgo"`
-	PublicKey          string `yaml:"public-key" flag:"public-key,publickey,puk,pubkey"`
-	Subject            string `yaml:"subject" flag:"subject"`
+	Version            int    `yaml:"version" json:"version"`
+	Signature          string `yaml:"signature" json:"signature"`
+	SignatureAlgorithm string `yaml:"signature-algorithm" json:"signature-algorithm"`
+	PublicKeyAlgorithm string `yaml:"public-key-algorithm" json:"public-key-algorithm"`
+	PublicKey          string `yaml:"public-key" json:"public-key"`
+	Subject            string `yaml:"subject" json:"subject"`
 
-	CertificateRequest string `yaml:"certificate-request,omitempty"`
+	CertificateRequest string `yaml:"certificate-request,omitempty" json:"-"`
 }
 
 func (crd CertificateRequestDTO) String() string {

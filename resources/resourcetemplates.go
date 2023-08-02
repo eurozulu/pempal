@@ -19,7 +19,7 @@ func NewResourceTemplatesManager(storePath []string) (templates.TemplateManager,
 }
 
 func resourceTemplateAsBytes(rt ResourceType) ([]byte, error) {
-	t, err := ResourceTemplateByType(rt)
+	t, err := ResourceTemplateByType(rt, false)
 	if err != nil {
 		return nil, err
 	}

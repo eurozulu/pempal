@@ -12,10 +12,10 @@ var errNoPublicKey = fmt.Errorf("no pem encoded public key found")
 
 type publicKeyDTO struct {
 	// PublicKeyAlgorithm is the Key Algorithm of the existing key or key to be created
-	PublicKeyAlgorithm string `yaml:"public-key-algorithm"`
+	PublicKeyAlgorithm string `yaml:"public-key-algorithm" json:"public-key-algorithm"`
 
 	// PublicKey when it exists, contains the PEM encoded public key.
-	PublicKey string `yaml:"public-key,omitempty"`
+	PublicKey string `yaml:"public-key,omitempty" json:"-"`
 }
 
 func (p publicKeyDTO) String() string {

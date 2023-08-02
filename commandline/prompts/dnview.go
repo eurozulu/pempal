@@ -74,7 +74,7 @@ func parseRDNSToMap(rdns string) (map[string]string, error) {
 	if err := dto.UnmarshalBinary([]byte(rdns)); err != nil {
 		return nil, err
 	}
-	return resources.DTOToTemplate(dto)
+	return resources.DTOToTemplate(dto, false)
 }
 
 func formatMapToRDNSString(m map[string]string) (string, error) {

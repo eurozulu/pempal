@@ -13,13 +13,13 @@ var errNoPrivateKey = fmt.Errorf("no pem encoded private key found")
 
 type PrivateKeyDTO struct {
 	// PublicKeyAlgorithm is the Key Algorithm of the existing key or key to be created
-	PublicKeyAlgorithm string `yaml:"key-algorithm"`
-	IsEncrypted        bool   `yaml:"is-encrypted"`
-	KeyLength          string `yaml:"key-length,omitempty"`
-	KeyCurve           string `yaml:"key-curve,omitempty"`
-	PrivateKey         string `yaml:"private-key,omitempty"`
+	PublicKeyAlgorithm string `yaml:"key-algorithm" json:"key-algorithm"`
+	IsEncrypted        bool   `yaml:"is-encrypted" json:"is-encrypted"`
+	KeyLength          string `yaml:"key-length,omitempty" json:"key-length"`
+	KeyCurve           string `yaml:"key-curve,omitempty" json:"key-curve"`
+	PrivateKey         string `yaml:"private-key,omitempty" json:"private-key,omitempty"`
 	// PublicKey when it exists, contains the PEM encoded public key.
-	PublicKey string `yaml:"public-key,omitempty"`
+	PublicKey string `yaml:"public-key,omitempty" json:"-"`
 }
 
 func (pk PrivateKeyDTO) String() string {

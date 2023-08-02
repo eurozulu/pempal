@@ -3,10 +3,13 @@ package resources
 import (
 	"bytes"
 	"encoding"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"github.com/eurozulu/pempal/templates"
 	"github.com/go-yaml/yaml"
+	"log"
+	"strings"
 )
 
 // ResourceDTO is the intermediary object between Resources and Templates
@@ -33,10 +36,17 @@ func ApplyTemplateToDTO(dto ResourceDTO, t templates.Template) error {
 	return nil
 }
 
-func DTOToTemplate(dto ResourceDTO) (templates.Template, error) {
+func DTOToTemplate(dto ResourceDTO, includeAll bool) (templates.Template, error) {
 	m := map[string]interface{}{}
-	if err := transferViaYaml(&m, dto); err != nil {
-		return nil, err
+
+	if !includeAll {
+		if err := transferViaYaml(&m, dto); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := transferViaJson(&m, dto); err != nil {
+			return nil, err
+		}
 	}
 	sm := map[string]string{}
 	for k, v := range m {
@@ -45,22 +55,16 @@ func DTOToTemplate(dto ResourceDTO) (templates.Template, error) {
 	return sm, nil
 }
 
-func TemplateTypes(t templates.Template, exact bool) ([]ResourceType, error) {
+func TemplateTypes(t templates.Template) ([]ResourceType, error) {
 	var found []ResourceType
 	for _, rt := range resourceTypes[1:] {
-		rtt, err := ResourceTemplateByType(rt)
-		if err != nil {
-			return nil, err
-		}
-		// if exact both templates must have exactly the same keynames. no more or less.
-		if exact && (len(rtt) != len(t)) {
+		// Ensure template contains all of the keys in the resource template
+		if !containsRequiredKeys(rt, t) {
 			continue
 		}
-		// Ensure template contains at least all of the keys in the resource template
-		if !containsAllKeys(rtt, t) {
-			continue
+		if containsAllKeys(rt, t) {
+			return []ResourceType{rt}, nil
 		}
-
 		found = append(found, rt)
 	}
 	if len(found) == 0 {
@@ -69,17 +73,37 @@ func TemplateTypes(t templates.Template, exact bool) ([]ResourceType, error) {
 	return found, nil
 }
 
-func ResourceTemplateByType(rt ResourceType) (templates.Template, error) {
+func ResourceTemplateByType(rt ResourceType, includeAll bool) (templates.Template, error) {
 	dto, err := NewResourceDTOByType(rt)
 	if err != nil {
 		return nil, err
 	}
-	return DTOToTemplate(dto)
+	return DTOToTemplate(dto, includeAll)
 }
 
-func containsAllKeys(keys, t map[string]string) bool {
-	for k := range keys {
+func containsRequiredKeys(rt ResourceType, t map[string]string) bool {
+	rtt, err := ResourceTemplateByType(rt, false)
+	if err != nil {
+		log.Fatalf("Unexpected resource type error ", err)
+	}
+	for k := range rtt {
 		if _, ok := t[k]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func containsAllKeys(rt ResourceType, t map[string]string) bool {
+	rtt, err := ResourceTemplateByType(rt, true)
+	if err != nil {
+		log.Fatalf("Unexpected resource type error ", err)
+	}
+	for k := range t {
+		if strings.EqualFold(k, rt.String()) {
+			continue
+		} // ignore the type property
+		if _, ok := rtt[k]; !ok {
 			return false
 		}
 	}
@@ -92,6 +116,16 @@ func transferViaYaml(target, src interface{}) error {
 		return err
 	}
 	if err := yaml.NewDecoder(buf).Decode(target); err != nil {
+		return err
+	}
+	return nil
+}
+func transferViaJson(target, src interface{}) error {
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(buf).Encode(src); err != nil {
+		return err
+	}
+	if err := json.NewDecoder(buf).Decode(target); err != nil {
 		return err
 	}
 	return nil

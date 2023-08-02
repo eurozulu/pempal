@@ -17,24 +17,24 @@ var CommonDateFormat = time.RFC850
 var errNoCertificate = fmt.Errorf("no pem encoded certificate found")
 
 type CertificateDTO struct {
-	Version               int      `yaml:"version"`
-	SerialNumber          int64    `yaml:"serial-number"`
-	Signature             string   `yaml:"signature"`
-	SignatureAlgorithm    string   `yaml:"signature-algorithm"`
-	PublicKeyAlgorithm    string   `yaml:"public-key-algorithm"`
-	PublicKey             string   `yaml:"public-key"`
-	Issuer                string   `yaml:"issuer"`
-	Subject               string   `yaml:"subject"`
-	NotBefore             string   `yaml:"not-before"`
-	NotAfter              string   `yaml:"not-after"`
-	IsCA                  bool     `yaml:"is-ca"`
-	BasicConstraintsValid bool     `yaml:"basic-constraints-valid,omitempty"`
-	MaxPathLen            int      `yaml:"max-path-len,omitempty"`
-	MaxPathLenZero        bool     `yaml:"max-path-len-zero,omitempty"`
-	KeyUsage              []string `yaml:"key-usage,omitempty"`
-	ExtKeyUsage           []string `yaml:"extended-key-usage,omitempty"`
+	Version               int      `yaml:"version" json:"version"`
+	SerialNumber          int64    `yaml:"serial-number" json:"serial-number"`
+	Signature             string   `yaml:"signature" json:"signature"`
+	SignatureAlgorithm    string   `yaml:"signature-algorithm" json:"signature-algorithm"`
+	PublicKeyAlgorithm    string   `yaml:"public-key-algorithm" json:"public-key-algorithm"`
+	PublicKey             string   `yaml:"public-key" json:"public-key"`
+	Issuer                string   `yaml:"issuer" json:"issuer"`
+	Subject               string   `yaml:"subject" json:"subject"`
+	NotBefore             string   `yaml:"not-before" json:"not-before"`
+	NotAfter              string   `yaml:"not-after" json:"not-after"`
+	IsCA                  bool     `yaml:"is-ca" json:"is-ca"`
+	BasicConstraintsValid bool     `yaml:"basic-constraints-valid,omitempty" json:"basic-constraints-valid"`
+	MaxPathLen            int      `yaml:"max-path-len,omitempty" json:"max-path-len,omitempty"`
+	MaxPathLenZero        bool     `yaml:"max-path-len-zero,omitempty" json:"max-path-len-zero"`
+	KeyUsage              []string `yaml:"key-usage,omitempty" json:"key-usage"`
+	ExtKeyUsage           []string `yaml:"extended-key-usage,omitempty" json:"extended-key-usage"`
 
-	Certificate string `yaml:"certificate,omitempty"`
+	Certificate string `yaml:"certificate,omitempty" json:"-"`
 }
 
 func (c CertificateDTO) ToCertificate() *x509.Certificate {

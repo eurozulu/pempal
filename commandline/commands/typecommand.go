@@ -10,7 +10,6 @@ import (
 
 // TypeCommand displays the resource type of a given template
 type TypeCommand struct {
-	ShowAll *string `yaml:"all"`
 }
 
 func (t TypeCommand) Execute(args []string, out io.Writer) error {
@@ -23,7 +22,7 @@ func (t TypeCommand) Execute(args []string, out io.Writer) error {
 	}
 	// Merge into single template
 	mt := templates.NewTemplateBuilder(temps...).Build()
-	rts, err := resources.TemplateTypes(mt, !t.showAll())
+	rts, err := resources.TemplateTypes(mt)
 	if err != nil {
 		return err
 	}
@@ -37,8 +36,4 @@ func (t TypeCommand) Execute(args []string, out io.Writer) error {
 		}
 	}
 	return nil
-}
-
-func (t TypeCommand) showAll() bool {
-	return t.ShowAll != nil && *t.ShowAll == "true"
 }

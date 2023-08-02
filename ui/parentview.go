@@ -8,8 +8,8 @@ import (
 type ParentView interface {
 	TextView
 	ChildViews() []View
-	ChildByLabel(label string) View
 	SelectedIndex() int
+	ChildByLabel(label string) View
 }
 
 type WindowNotifer interface {
@@ -25,6 +25,19 @@ type parentView struct {
 
 func (pv parentView) ChildViews() []View {
 	return pv.children
+}
+
+func (pv parentView) SelectedIndex() int {
+	return pv.selectedindex
+}
+
+func (pv parentView) ChildByLabel(label string) View {
+	for _, c := range pv.children {
+		if c.Label() == label {
+			return c
+		}
+	}
+	return nil
 }
 
 func (pv parentView) Render(frame ViewFrame) {
@@ -44,26 +57,13 @@ func (pv *parentView) AppendText(ch rune) {
 	default:
 		if pv.allowInput {
 			pv.textView.AppendText(ch)
+			pv.setSelectedByText(pv.text)
 		}
 	}
 }
 
 func (pv *parentView) SetText(text string) {
 	pv.text = text
-	pv.setSelectedByText(pv.text)
-}
-
-func (pv parentView) ChildByLabel(label string) View {
-	for _, c := range pv.children {
-		if c.Label() == label {
-			return c
-		}
-	}
-	return nil
-}
-
-func (pv parentView) SelectedIndex() int {
-	return pv.selectedindex
 }
 
 func (pv parentView) renderChildren(frame ViewFrame) {

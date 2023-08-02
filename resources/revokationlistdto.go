@@ -20,16 +20,16 @@ type RevocationListDTO struct {
 	// RevokedCertificates is used to populate the revokedCertificates
 	// sequence in the CRL, it may be empty. RevokedCertificates may be nil,
 	// in which case an empty CRL will be created.
-	RevokedCertificates []string `yaml:"revoked-certificates"`
-	Number              int64    `yaml:"number"`
-	ThisUpdate          string   `yaml:"this-update"`
-	NextUpdate          string   `yaml:"next-update"`
-	Extensions          []string `yaml:"extensions,omitempty"`
+	RevokedCertificates []string `yaml:"revoked-certificates" json:"revoked-certificates"`
+	Number              int64    `yaml:"number" json:"number"`
+	ThisUpdate          string   `yaml:"this-update" json:"this-update"`
+	NextUpdate          string   `yaml:"next-update" json:"next-update"`
+	Extensions          []string `yaml:"extensions,omitempty" json:"extensions"`
 
 	// ExtraExtensions contains any additional extensions to add directly to
 	// the CRL.
 	ExtraExtensions []string `yaml:"extra-extensions,omitempty"`
-	RevokationList  string   `yaml:"revokation-list,omitempty"`
+	RevokationList  string   `yaml:"revokation-list,omitempty" json:"-"`
 }
 
 func (rvl *RevocationListDTO) String() string {

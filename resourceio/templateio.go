@@ -16,7 +16,7 @@ func LoadTemplatesFromFile(path string) ([]templates.Template, error) {
 		if err != nil {
 			return nil, err
 		}
-		t, err := resources.DTOToTemplate(dto)
+		t, err := resources.DTOToTemplate(dto, false)
 		if err != nil {
 			return nil, err
 		}

@@ -52,17 +52,13 @@ func (cmd MakeCommand) validate(rt resources.ResourceType, t templates.Template)
 }
 
 func (cmd MakeCommand) detectResourceType(t templates.Template) (resources.ResourceType, error) {
-	rts, err := resources.TemplateTypes(t, true)
+	rts, err := resources.TemplateTypes(t)
 	if err != nil || len(rts) == 0 {
-		// no exact match, look for inexact
-		rts, err = resources.TemplateTypes(t, false)
-		if err != nil {
-			// still no type known.  If quiet, report as error, otherwise request type
-			if CommonFlags.Quiet {
-				return 0, err
-			}
-			rts = []resources.ResourceType{}
+		// no type known.  If quiet, report as error, otherwise request type
+		if CommonFlags.Quiet {
+			return 0, err
 		}
+		rts = []resources.ResourceType{}
 	}
 	if len(rts) != 1 {
 		if CommonFlags.Quiet {
