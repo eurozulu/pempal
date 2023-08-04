@@ -13,7 +13,7 @@ type NumberView interface {
 }
 
 type numberView struct {
-	view
+	textView
 }
 
 func (m *numberView) AppendText(ch rune) {
@@ -38,5 +38,6 @@ func (m *numberView) SetText(text string) {
 }
 
 func NewNumberView(label string, value int64) NumberView {
-	return &numberView{*NewLabelView(label, strconv.FormatInt(value, 10))}
+	tv := NewTextView(label, strconv.FormatInt(value, 10)).(*textView)
+	return &numberView{*tv}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"github.com/eurozulu/pempal/commandline/commonflags"
 	"github.com/eurozulu/pempal/identity"
 	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/utils"
@@ -35,7 +36,7 @@ type keysCommand struct {
 
 func (cmd keysCommand) Execute(args []string, out io.Writer) error {
 	if len(args) == 0 {
-		args = ResolvePath(CommonFlags.KeyPath)
+		args = commonflags.ResolvePath(commonflags.CommonFlags.KeyPath)
 	}
 	keyManager := identity.NewKeys(args)
 	ctx, cnl := context.WithCancel(context.Background())

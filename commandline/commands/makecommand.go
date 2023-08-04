@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/eurozulu/pempal/builders"
+	"github.com/eurozulu/pempal/commandline/commonflags"
 	"github.com/eurozulu/pempal/commandline/prompts"
 	"github.com/eurozulu/pempal/resources"
 	"github.com/eurozulu/pempal/templates"
@@ -29,7 +30,7 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 		return err
 	}
 
-	if !CommonFlags.Quiet {
+	if !commonflags.CommonFlags.Quiet {
 		t, err := cmd.confirmBuild(rt, tb.Build())
 		if err != nil {
 			return err
@@ -55,13 +56,13 @@ func (cmd MakeCommand) detectResourceType(t templates.Template) (resources.Resou
 	rts, err := resources.TemplateTypes(t)
 	if err != nil || len(rts) == 0 {
 		// no type known.  If quiet, report as error, otherwise request type
-		if CommonFlags.Quiet {
+		if commonflags.CommonFlags.Quiet {
 			return 0, err
 		}
 		rts = []resources.ResourceType{}
 	}
 	if len(rts) != 1 {
-		if CommonFlags.Quiet {
+		if commonflags.CommonFlags.Quiet {
 			return 0, fmt.Errorf("template has unknown or ambiguous resource type(s) %v", rts)
 		}
 		rt, err := cmd.showRequestType(rts)

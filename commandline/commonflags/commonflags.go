@@ -1,11 +1,14 @@
-package commands
+package commonflags
 
 import (
+	"context"
 	"github.com/eurozulu/pempal/logger"
+	"github.com/eurozulu/pempal/resourceio"
 	"github.com/eurozulu/pempal/utils"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
@@ -46,6 +49,75 @@ func init() {
 	CommonFlags.CsrPath = envOrDefault(ENV_PP_CSRS, "")
 	CommonFlags.CrlPath = envOrDefault(ENV_PP_CRLS, "")
 	CommonFlags.TemplatePath = envOrDefault(ENV_PP_TEMPLATES, defaultTemplatePath)
+}
+
+func (cf DefaultCommonFlags) FindInPath(name string, recursive bool) (resourceio.ResourceLocation, error) {
+	if utils.FileExists(name) {
+		return resourceio.ParseLocation(name)
+	}
+
+	ctx, cnl := context.WithCancel(context.Background())
+	result := make(chan resourceio.ResourceLocation)
+
+	go func() {
+		defer close(result)
+		var wg sync.WaitGroup
+		for _, p := range cf.allPaths() {
+			paths := ResolvePath(p)
+			if len(paths) > 0 {
+				wg.Add(1)
+				go scanPathForResource(ctx, name, paths, recursive, result, &wg)
+			}
+		}
+		wg.Wait()
+	}()
+
+	var found resourceio.ResourceLocation
+	for {
+		loc, ok := <-result
+		if !ok {
+			// all completed,
+			if found == nil {
+				return nil, os.ErrNotExist
+			}
+			return found, nil
+		}
+		// is first result?
+		if found == nil {
+			found = loc
+			cnl()
+		}
+	}
+}
+
+func (cf DefaultCommonFlags) allPaths() []string {
+	return []string{
+		cf.HomePath,
+		cf.CertPath,
+		cf.KeyPath,
+		cf.CsrPath,
+		cf.CrlPath,
+		cf.TemplatePath,
+	}
+}
+
+func scanPathForResource(ctx context.Context, name string, paths []string, recursive bool, result chan<- resourceio.ResourceLocation, wg *sync.WaitGroup) {
+	logger.Debug("scanning '%v' for resources...\n", paths)
+
+	defer wg.Done()
+	scan := resourceio.NewResourceScanner(recursive)
+	//nameEsc := strings.ReplaceAll(name, ".", "\\.")
+	for loc := range scan.Scan(ctx, paths...) {
+		if !strings.HasSuffix(loc.Location(), name) {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case result <- loc:
+			return
+		}
+	}
 }
 
 func ResolvePath(p string) []string {

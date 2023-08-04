@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"github.com/eurozulu/pempal/commandline/commonflags"
 	"github.com/eurozulu/pempal/resources"
 	"github.com/eurozulu/pempal/templates"
 )
@@ -271,6 +272,6 @@ import (
 //}
 
 func TemplateManagerFromCommonFLags() (templates.TemplateManager, error) {
-	p := ResolvePath(CommonFlags.TemplatePath)
+	p := commonflags.ResolvePath(commonflags.CommonFlags.TemplatePath)
 	return resources.NewResourceTemplatesManager(p)
 }

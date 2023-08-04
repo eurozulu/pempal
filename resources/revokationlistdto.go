@@ -5,12 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"time"
 )
 
 var errNoRevokationList = fmt.Errorf("no pem encoded revokation list found")
-
-const timeFormat = time.RFC850
 
 type RevocationListDTO struct {
 	Issuer             string `yaml:"issuer"`
@@ -74,8 +71,8 @@ func (rvl *RevocationListDTO) UnmarshalBinary(data []byte) error {
 
 	rvl.RevokedCertificates = nil //newRevokedCertificateDTOs(rlist.RevokedCertificates)
 	rvl.Number = rlist.Number.Int64()
-	rvl.ThisUpdate = rlist.ThisUpdate.Format(timeFormat)
-	rvl.NextUpdate = rlist.NextUpdate.Format(timeFormat)
+	rvl.ThisUpdate = rlist.ThisUpdate.Format(CommonDateFormat)
+	rvl.NextUpdate = rlist.NextUpdate.Format(CommonDateFormat)
 	rvl.Extensions = nil      //newExtentionsDTOs(rlist.Extensions)
 	rvl.ExtraExtensions = nil //newExtentionsDTOs(rlist.ExtraExtensions)
 

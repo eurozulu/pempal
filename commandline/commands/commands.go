@@ -1,11 +1,12 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/eurozulu/pempal/commandline/commonflags"
 	"github.com/eurozulu/pempal/resourceio"
 	"github.com/eurozulu/pempal/resources"
 	"github.com/eurozulu/pempal/templates"
-	"github.com/eurozulu/pempal/utils"
 	"io"
 	"strings"
 )
@@ -50,31 +51,44 @@ type Command interface {
 }
 
 func argumentsToTemplates(args []string) ([]templates.Template, error) {
-	tm, err := resources.NewResourceTemplatesManager(ResolvePath(CommonFlags.TemplatePath))
+	tm, err := resources.NewResourceTemplatesManager(commonflags.ResolvePath(commonflags.CommonFlags.TemplatePath))
 	if err != nil {
 		return nil, err
 	}
 
 	var tps []templates.Template
 	for _, arg := range args {
-		// Check each arugment is valid filepath or template name
-		var ts []templates.Template
-		var err error
-		if utils.FileExists(arg) {
-			ts, err = resourceio.LoadTemplatesFromFile(arg)
+		// Check each arugment is a known template name or file location
+		var errs []error
+		// first check if it's a template
+		if t, err := tm.TemplateByName(arg); err == nil {
+			tps = append(tps, t)
+			continue
 		} else {
-			// not a file, check if it's a template
-			if t, er := tm.TemplateByName(arg); er != nil {
-				err = er
-			} else {
-				ts = []templates.Template{t}
-			}
+			errs = append(errs, err)
+		}
 
+		// Not a template, check if known to filepaths
+		if loc, err := commonflags.CommonFlags.FindInPath(arg, false); err == nil {
+			ts, err := resourceio.ResourceLocationToTemplates(loc)
+			if err != nil {
+				return nil, err
+			}
+			tps = append(tps, ts...)
+			continue
+		} else {
+			errs = append(errs, err)
 		}
-		if err != nil {
-			return nil, err
+
+		// neither template or file location valid, report errors
+		buf := bytes.NewBuffer(nil)
+		for _, err := range errs {
+			if buf.Len() > 0 {
+				buf.WriteString(" or ")
+			}
+			buf.WriteString(err.Error())
 		}
-		tps = append(tps, ts...)
+		return nil, fmt.Errorf("%s", buf.String())
 	}
 	return tps, nil
 }

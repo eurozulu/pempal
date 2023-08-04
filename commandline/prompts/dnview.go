@@ -7,7 +7,7 @@ import (
 )
 
 type DNView struct {
-	ui.TextList
+	ui.ListView
 }
 
 func buildDNChildViews() []ui.View {
@@ -24,12 +24,11 @@ func buildDNChildViews() []ui.View {
 	}
 }
 
-func (dnv DNView) Render(frame ui.ViewFrame) {
+func (dnv *DNView) OnViewOpen() {
 	dnv.setChildValues(dnv.String())
-	dnv.TextList.Render(frame)
 }
 
-func (dnv *DNView) OnChildUpdate(child ui.View) {
+func (dnv *DNView) OnViewClose(child ui.View) {
 	dnv.SetText(dnv.getChildValues())
 }
 
@@ -86,5 +85,5 @@ func formatMapToRDNSString(m map[string]string) (string, error) {
 }
 
 func NewDNView(label, rdn string) ui.ParentView {
-	return &DNView{*ui.NewTextListView(label, rdn, buildDNChildViews()...)}
+	return &DNView{*ui.NewListView(label, rdn, buildDNChildViews()...)}
 }

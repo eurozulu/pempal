@@ -12,8 +12,9 @@ type ParentView interface {
 	ChildByLabel(label string) View
 }
 
-type WindowNotifer interface {
-	OnChildUpdate(child View)
+type MutableParentView interface {
+	SetSelectedIndex(index int)
+	SetChildViews(children []View)
 }
 
 type parentView struct {
@@ -25,6 +26,10 @@ type parentView struct {
 
 func (pv parentView) ChildViews() []View {
 	return pv.children
+}
+
+func (pv *parentView) SetChildViews(children []View) {
+	pv.children = children
 }
 
 func (pv parentView) SelectedIndex() int {
@@ -41,8 +46,12 @@ func (pv parentView) ChildByLabel(label string) View {
 }
 
 func (pv parentView) Render(frame ViewFrame) {
-	pv.textView.Render(frame)
-	if !pv.textView.IsHidden() && len(pv.children) > 0 {
+	if pv.textView.IsHidden() {
+		return
+	}
+	pv.textView.renderLabel(frame)
+	pv.textView.renderText(frame.WithColour(allowEditColour))
+	if len(pv.children) > 0 {
 		frame.Println()
 		pv.renderChildren(frame)
 	}
@@ -51,13 +60,13 @@ func (pv parentView) Render(frame ViewFrame) {
 func (pv *parentView) AppendText(ch rune) {
 	switch ch {
 	case rune(termbox.KeyArrowUp):
-		pv.setSelectedIndex(-1)
+		pv.SetSelectedIndex(pv.selectedindex - 1)
 	case rune(termbox.KeyArrowDown):
-		pv.setSelectedIndex(1)
+		pv.SetSelectedIndex(pv.selectedindex + 1)
 	default:
 		if pv.allowInput {
 			pv.textView.AppendText(ch)
-			pv.setSelectedByText(pv.text)
+			pv.setSelectedIndexByText(pv.text)
 		}
 	}
 }
@@ -89,41 +98,50 @@ func (pv parentView) renderChild(frame ViewFrame, child View, selected bool) {
 		frame.Print(padText(child.Label(), 20))
 	}
 	frame = frame.WithColour(child.Colours())
-	frame.Print(truncateOrPadValue(child.String(), 25))
+	frame.Print(padText(child.String(), 25))
 }
 
-func (pv *parentView) setSelectedByText(text string) {
+func (pv *parentView) SetSelectedIndex(index int) {
+	increment := 1
+	if index < pv.selectedindex {
+		increment = -1
+	}
+	for {
+		if index < 0 || index >= len(pv.children) {
+			return
+		}
+		if hv, ok := pv.children[index].(HiddenView); ok && hv.IsHidden() {
+			// if hidden view, move onto the next one
+			index += increment
+			continue
+		}
+		break
+	}
+	pv.selectedindex = index
+	pv.setTextWithSelectedChild()
+}
+
+func (pv *parentView) setTextWithSelectedChild() {
+	s := pv.children[pv.selectedindex].String()
+	if tv, ok := pv.children[pv.selectedindex].(TextView); ok {
+		s = tv.GetText()
+	}
+	pv.textView.SetText(s)
+}
+
+func (pv *parentView) setSelectedIndexByText(text string) {
 	index := -1
 	for i, c := range pv.children {
-		if c.String() == text {
+		s := c.String()
+		if vt, ok := c.(TextView); ok {
+			s = vt.GetText()
+		}
+		if s == text {
 			index = i
 			break
 		}
 	}
 	pv.selectedindex = index
-}
-
-func (pv *parentView) setSelectedIndex(relativeIndex int) {
-	i := pv.selectedindex
-	for {
-		i += relativeIndex
-		if i < 0 || i >= len(pv.children) {
-			return
-		}
-		if hv, ok := pv.children[i].(HiddenView); ok && hv.IsHidden() {
-			continue
-		}
-		pv.selectedindex = i
-		pv.textView.SetText(pv.children[i].String())
-		break
-	}
-}
-
-func truncateOrPadValue(s string, width int) string {
-	if len(s) <= width {
-		return padText(s, width)
-	}
-	return s[width-3:] + "..."
 }
 
 func padText(s string, width int) string {

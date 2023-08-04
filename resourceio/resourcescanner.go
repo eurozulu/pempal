@@ -39,6 +39,7 @@ func (f resourceScanner) Scan(ctx context.Context, paths ...string) <-chan Resou
 
 func (f resourceScanner) scan(ctx context.Context, root string, out chan<- ResourceLocation, wg *sync.WaitGroup) {
 	defer wg.Done()
+
 	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -55,7 +56,7 @@ func (f resourceScanner) scan(ctx context.Context, root string, out chan<- Resou
 		// todo: add file extension filter
 		loc, err := ParseLocation(path)
 		if err != nil {
-			logger.Error("Failed to parse location %s  %v", path, err)
+			logger.Warning("Failed to parse location %s  %v", path, err)
 			return nil
 		}
 		if loc != nil {
@@ -69,7 +70,7 @@ func (f resourceScanner) scan(ctx context.Context, root string, out chan<- Resou
 		return nil
 
 	}); err != nil {
-		logger.Error("Failed to scan directory %s  %v", root, err)
+		logger.Warning("Failed to scan directory %s  %v", root, err)
 	}
 }
 

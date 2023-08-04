@@ -33,11 +33,22 @@ func (v view) Render(frame ViewFrame) {
 	if v.IsHidden() {
 		return
 	}
-	f := frame.WithColour(v.colours)
+	v.renderLabel(frame)
+	v.renderText(frame)
+}
+
+func (v view) renderLabel(frame ViewFrame) {
 	if v.label != "" {
+		f := frame.WithColour(v.colours)
 		f.Print(v.label, ": ")
 	}
-	f.Print(v.text)
+}
+
+func (v view) renderText(frame ViewFrame) {
+	if v.text != "" {
+		f := frame.WithColour(v.colours)
+		f.Print(v.text)
+	}
 }
 
 func (v view) Label() string {

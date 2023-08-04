@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/eurozulu/pempal/commandline/commands"
+	"github.com/eurozulu/pempal/commandline/commonflags"
 	"github.com/eurozulu/pempal/commandline/help"
 	"github.com/eurozulu/pempal/logger"
 	"github.com/eurozulu/pempal/utils"
@@ -13,7 +14,7 @@ import (
 
 func main() {
 	args, flags := commands.ParseArgs(os.Args[1:])
-	if err := flags.ApplyAndRemove(commands.CommonFlags); err != nil {
+	if err := flags.ApplyTo(commonflags.CommonFlags); err != nil {
 		fmt.Fprintln(os.Stderr, "Invalid arguments  %v", err)
 		return
 	}
@@ -27,7 +28,7 @@ func main() {
 		args = args[1:]
 	}
 	// if help flag specified, show help on command or general help if no command given
-	if commands.CommonFlags.Help || arg == "" {
+	if commonflags.CommonFlags.Help || arg == "" {
 		fmt.Fprintln(os.Stdout, help.HelpFor(arg))
 		return
 	}
@@ -40,7 +41,7 @@ func main() {
 	}
 
 	// apply any flags to command
-	if err = flags.ApplyAndRemove(cmd); err != nil {
+	if err = flags.ApplyTo(cmd); err != nil {
 		logger.Error("error parsing flags for %s  %v\n", arg, err)
 		return
 	}
@@ -51,9 +52,9 @@ func main() {
 	}
 	// establish the output stream
 	out := os.Stdout
-	outPath := commands.CommonFlags.Output
-	if commands.CommonFlags.Output != "" {
-		if utils.FileExists(outPath) && !commands.CommonFlags.ForceOut {
+	outPath := commonflags.CommonFlags.Output
+	if commonflags.CommonFlags.Output != "" {
+		if utils.FileExists(outPath) && !commonflags.CommonFlags.ForceOut {
 			logger.Error("%s already exists\n", outPath)
 			return
 		}
@@ -77,18 +78,18 @@ func main() {
 
 func setLoggerLevel() {
 	level := logger.LevelInfo
-	if commands.CommonFlags.Quiet {
+	if commonflags.CommonFlags.Quiet {
 		level = logger.LevelError
 	}
-	if commands.CommonFlags.Verbose {
+	if commonflags.CommonFlags.Verbose {
 		level = logger.LevelWarning
 	}
-	if commands.CommonFlags.Debug {
+	if commonflags.CommonFlags.Debug {
 		level = logger.LevelDebug
 	}
 	logger.DefaultLogger.SetLevel(level)
 	logger.DefaultLogger.SetShowTimeStamp(level == logger.LevelDebug)
-	if commands.CommonFlags.Quiet && (commands.CommonFlags.Verbose || commands.CommonFlags.Debug) {
+	if commonflags.CommonFlags.Quiet && (commonflags.CommonFlags.Verbose || commonflags.CommonFlags.Debug) {
 		logger.Warning("Ignoring -quiet flag as -verbose or -debug is active")
 	}
 }

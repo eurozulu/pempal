@@ -6,11 +6,11 @@ import (
 )
 
 type multiSelect struct {
-	TextList
+	ListView
 	selected []string
 }
 
-func (ms *multiSelect) OnChildUpdate(child View) {
+func (ms *multiSelect) OnViewClose(parent View) {
 	ms.SetText(ms.getSelectedValues())
 }
 
@@ -19,15 +19,15 @@ func (ms multiSelect) renderChild(frame ViewFrame, child View, selected bool) {
 		frame = frame.WithColour(selectedColour)
 	}
 	frame.Print(padText(child.Label(), 20))
-	frame.Print(truncateOrPadValue(child.String(), 25))
+	frame.Print(padText(child.String(), 25))
 }
 
 func (ms *multiSelect) AppendText(ch rune) {
 	switch ch {
 	case rune(termbox.KeyArrowUp):
-		ms.setSelectedIndex(-1)
+		ms.SetSelectedIndex(ms.selectedindex - 1)
 	case rune(termbox.KeyArrowDown):
-		ms.setSelectedIndex(1)
+		ms.SetSelectedIndex(ms.selectedindex + 1)
 	case rune(termbox.KeySpace):
 		ms.toggleSelected()
 	default:
@@ -84,8 +84,8 @@ func NewMultiSelectHidden(label, text string, choices ...string) *multiSelect {
 }
 
 func NewMultiSelect(label, text string, choices ...string) *multiSelect {
-	tl := NewTextList(label, text, choices...)
+	tl := NewListViewStrings(label, text, choices...)
 	return &multiSelect{
-		TextList: *tl,
+		ListView: *tl,
 	}
 }

@@ -9,13 +9,6 @@ type Window interface {
 	Show(v View) (View, error)
 	Render(v View) error
 }
-type ViewEventOpener interface {
-	OnViewOpen(parent View)
-}
-
-type ViewEventCloser interface {
-	OnViewClose(parent View)
-}
 
 type window struct {
 	title  string
@@ -48,9 +41,12 @@ func (win window) Show(v View) (View, error) {
 		}()
 	}
 	text := v.String()
-	preselect := View(nil) //selectedChildParentView(v)
-	if vo, ok := v.(ViewEventOpener); ok {
-		vo.OnViewOpen(nil)
+	if tv, ok := v.(TextView); ok {
+		text = tv.GetText()
+	}
+
+	if vo, ok := v.(WindowEventOpen); ok {
+		vo.OnViewOpen()
 	}
 
 	for {
@@ -58,55 +54,48 @@ func (win window) Show(v View) (View, error) {
 			return nil, err
 		}
 
-		child := preselect
-		if child != nil {
-			// preselected, skip input and clear preselect
-			preselect = nil
-		} else {
-			if exit, err := win.readInput(v); err != nil {
-				if tv, ok := v.(TextView); ok {
-					tv.SetText(text)
-				}
-				return nil, err
-			} else if !exit {
-				// input processed but no exit signal, rerender and read next char
-				continue
+		if exit, err := win.readInput(v); err != nil {
+			if tv, ok := v.(TextView); ok {
+				tv.SetText(text)
 			}
-			child = selectedChildView(v)
+			return nil, err
+		} else if !exit {
+			// input processed but no exit signal, rerender and read next char
+			continue
 		}
+		child := selectedChildView(v)
 
-		// if child view is also a parent, show that as a View, otherwise return the current view
+		// if child view accepts input, show that as a View, otherwise return the current view
 		if child != nil {
-			if _, ok := child.(ParentView); ok {
-				f := win.frame.WithRelativeOffset(len(v.Label())+2, selectedChildIndex(v))
-				if vo, ok := child.(ViewEventOpener); ok {
-					vo.OnViewOpen(v)
-				}
-				cv, err := win.showChild(f, child)
-				if vc, ok := child.(ViewEventCloser); ok {
-					vc.OnViewClose(v)
-				}
+			if _, ok := child.(TextView); ok {
+				cv, err := win.showChild(v, child)
 				if err == ErrAborted {
 					continue
 				} // abort back to parent
+				if wv, ok := v.(WindowEventClose); ok {
+					wv.OnViewClose(cv)
+				}
 				return cv, err
 			}
 		}
 		// No child or child not a parentview, return current view.
+		if wv, ok := v.(WindowEventClose); ok {
+			wv.OnViewClose(v)
+		}
 		return v, nil
 	}
 }
 
-func (win window) showChild(frame ViewFrame, v View) (View, error) {
-	win.frame = frame
-	nv, err := win.Show(v)
+func (win window) showChild(parent, child View) (View, error) {
+	var offset ViewOffset
+	if parent != nil {
+		offset.X = len(parent.Label()) + 2
+		offset.Y = selectedChildIndex(parent)
+	}
+	win.frame = win.frame.WithRelativeOffset(offset.X, offset.Y)
+	nv, err := win.Show(child)
 	if err != nil {
 		return nil, err
-	}
-	if wv, ok := v.(WindowNotifer); ok {
-		wv.OnChildUpdate(nv)
-		// return the parent view instead
-		return v, nil
 	}
 	return nv, nil
 }

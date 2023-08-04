@@ -6,10 +6,10 @@ import (
 )
 
 type YesNoPrompt struct {
-	ui.TextList
+	ui.ListView
 }
 
 func NewYesNoPrompt(label string, value bool) *YesNoPrompt {
-	tv := ui.NewTextList(label, strconv.FormatBool(value), "No", "Yes")
-	return &YesNoPrompt{TextList: *tv}
+	tv := ui.NewListViewStrings(label, strconv.FormatBool(value), "No", "Yes")
+	return &YesNoPrompt{ListView: *tv}
 }

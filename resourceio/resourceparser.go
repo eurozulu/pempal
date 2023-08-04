@@ -12,6 +12,7 @@ import (
 const pemBegin = "-----BEGIN "
 const pemEnd = "-----END "
 
+// ParseLocation reads the given path as a file and attempts to parse it into known resources
 func ParseLocation(path string) (ResourceLocation, error) {
 	logger.Debug("reading location %s", path)
 	data, err := os.ReadFile(path)

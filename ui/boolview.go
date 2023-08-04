@@ -29,7 +29,7 @@ func (bv BoolView) renderChild(frame ViewFrame, child View, selected bool) {
 		frame = frame.WithColour(selectedColour)
 	}
 	frame.Print(padText(child.Label(), 5))
-	frame.Print(truncateOrPadValue(child.String(), 5))
+	frame.Print(padText(child.String(), 5))
 }
 
 func (bv *BoolView) AppendText(ch rune) {
@@ -68,12 +68,12 @@ func buildChildViews(labels []string) []View {
 	}
 }
 
-func NewBoolView(label string, labels ...string) View {
+func NewBoolView(label string, labels ...string) *BoolView {
 	pv := NewParentView(label, "", buildChildViews(labels)...).(*parentView)
 	return &BoolView{*pv}
 }
 func NewBoolViewPreSelected(label string, value bool, labels ...string) View {
-	bv := NewBoolView(label, labels...).(*BoolView)
+	bv := NewBoolView(label, labels...)
 	bv.SetText(strconv.FormatBool(value))
 	return bv
 }

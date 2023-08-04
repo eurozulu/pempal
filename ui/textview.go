@@ -10,6 +10,7 @@ type TextView interface {
 	View
 	AppendText(ch rune)
 	SetText(text string)
+	GetText() string
 	SetColours(colours ViewColours)
 }
 
@@ -17,23 +18,38 @@ type textView struct {
 	view
 }
 
-func (m *textView) AppendText(ch rune) {
+func (tv textView) String() string {
+	return truncate(tv.text, 25)
+}
+
+func (tv *textView) GetText() string {
+	return tv.text
+}
+
+func (tv *textView) AppendText(ch rune) {
 	if ch == rune(termbox.KeyBackspace) || ch == rune(termbox.KeyBackspace2) {
-		if m.text != "" {
-			m.text = m.text[:len(m.text)-1]
+		if tv.text != "" {
+			tv.text = tv.text[:len(tv.text)-1]
 		}
 		return
-	} else if unicode.IsPrint(ch) {
-		m.text = string(append([]rune(m.text), ch))
+	} else if unicode.IsPrint(ch) && !unicode.IsSymbol(ch) {
+		tv.text = string(append([]rune(tv.text), ch))
 	}
 }
 
-func (m *textView) SetText(text string) {
-	m.text = text
+func (tv *textView) SetText(text string) {
+	tv.text = text
 }
 
-func (m *textView) SetColours(colours ViewColours) {
-	m.colours = m.colours.MergeColours(colours)
+func (tv *textView) SetColours(colours ViewColours) {
+	tv.colours = tv.colours.MergeColours(colours)
+}
+
+func truncate(s string, width int) string {
+	if len(s) <= width {
+		return s
+	}
+	return s[:width-3] + "..."
 }
 
 func NewTextView(label, text string) TextView {

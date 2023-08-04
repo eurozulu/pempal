@@ -28,16 +28,16 @@ var monthNames = []string{
 const yearDuration = 365 * (time.Hour * 24)
 
 type DateView struct {
-	ui.TextList
+	ui.ListView
 	Format string
 }
 
 func (dv DateView) Render(frame ui.ViewFrame) {
 	dv.setChildValues(dv.String())
-	dv.TextList.Render(frame)
+	dv.ListView.Render(frame)
 }
 
-func (dv *DateView) OnChildUpdate(child ui.View) {
+func (dv DateView) OnViewClose(parent ui.View) {
 	dv.SetText(dv.getChildValues())
 }
 
@@ -131,15 +131,15 @@ func rangeList(begin, length int) []string {
 func buildDateChildViews() []ui.View {
 	now := time.Now()
 	return []ui.View{
-		ui.NewTextList("Year", "", rangeList(now.Year(), now.Add(yearDuration*25).Year())...),
-		ui.NewTextList("Month", "", monthNames[1:]...),
-		ui.NewTextList("Day", "", rangeList(1, 31)...),
-		ui.NewTextList("Hour", "", rangeList(0, 23)...),
-		ui.NewTextList("Minute", "", rangeList(0, 59)...),
-		ui.NewTextList("Second", "", rangeList(0, 59)...),
+		ui.NewListViewStrings("Year", "", rangeList(now.Year(), now.Add(yearDuration*25).Year())...),
+		ui.NewListViewStrings("Month", "", monthNames[1:]...),
+		ui.NewListViewStrings("Day", "", rangeList(1, 31)...),
+		ui.NewListViewStrings("Hour", "", rangeList(0, 23)...),
+		ui.NewListViewStrings("Minute", "", rangeList(0, 59)...),
+		ui.NewListViewStrings("Second", "", rangeList(0, 59)...),
 	}
 }
 
 func NewDateView(label, date string) *DateView {
-	return &DateView{TextList: *ui.NewTextListView(label, date, buildDateChildViews()...)}
+	return &DateView{ListView: *ui.NewListView(label, date, buildDateChildViews()...)}
 }

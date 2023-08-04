@@ -6,7 +6,7 @@ import (
 )
 
 type RequestTypeView struct {
-	ui.TextList
+	ui.ListView
 }
 
 func (rv RequestTypeView) Show() (resources.ResourceType, error) {
@@ -30,5 +30,5 @@ func NewRequestTypeView(label, text string, types ...resources.ResourceType) *Re
 	if len(types) == 0 {
 		types = resources.ResourceTypes[2:]
 	}
-	return &RequestTypeView{*ui.NewTextList(label, text, typeNames(types)...)}
+	return &RequestTypeView{*ui.NewListViewStrings(label, text, typeNames(types)...)}
 }

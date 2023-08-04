@@ -5,22 +5,22 @@ import (
 	"github.com/eurozulu/pempal/templates"
 )
 
-func LoadTemplatesFromFile(path string) ([]templates.Template, error) {
-	locs, err := ParseLocation(path)
-	if err != nil {
-		return nil, err
-	}
+func ResourceLocationToTemplates(loc ResourceLocation, resourceType ...resources.ResourceType) ([]templates.Template, error) {
 	var temps []templates.Template
-	for _, res := range locs.Resources() {
-		dto, err := resources.NewResourceDTO(res)
-		if err != nil {
-			return nil, err
-		}
-		t, err := resources.DTOToTemplate(dto, false)
+	for _, r := range loc.Resources(resourceType...) {
+		t, err := ResourceToTemplate(r)
 		if err != nil {
 			return nil, err
 		}
 		temps = append(temps, t)
 	}
 	return temps, nil
+}
+
+func ResourceToTemplate(r resources.Resource) (templates.Template, error) {
+	dto, err := resources.NewResourceDTO(r)
+	if err != nil {
+		return nil, err
+	}
+	return resources.DTOToTemplate(dto, false)
 }
