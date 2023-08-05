@@ -33,11 +33,12 @@ func (bv *publicKeyView) OnViewOpen() {
 	}
 }
 
-func (bv *publicKeyView) OnViewClose(child ui.View) {
+func (bv *publicKeyView) OnViewClose(child ui.View) ui.View {
 	selected := bv.SelectedIndex()
 	if selected >= 0 {
 		bv.setTextFromId(bv.ChildViews()[selected].Label())
 	}
+	return child
 }
 
 func (bv *publicKeyView) setTextFromId(id string) {

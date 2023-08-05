@@ -25,11 +25,13 @@ func buildDNChildViews() []ui.View {
 }
 
 func (dnv *DNView) OnViewOpen() {
-	dnv.setChildValues(dnv.String())
+	dnv.setChildValues(dnv.GetText())
+	dnv.SetSelectedIndexByText("") // select first empty view
 }
 
-func (dnv *DNView) OnViewClose(child ui.View) {
+func (dnv *DNView) OnViewClose(child ui.View) ui.View {
 	dnv.SetText(dnv.getChildValues())
+	return dnv
 }
 
 func (dnv *DNView) setChildValues(rdns string) {
@@ -58,7 +60,11 @@ func (dnv *DNView) getChildValues() string {
 func (dnv *DNView) getChildValuesMap() map[string]string {
 	m := map[string]string{}
 	for _, cv := range dnv.ChildViews() {
-		m[cv.Label()] = cv.String()
+		s := cv.String()
+		if tv, ok := cv.(ui.TextView); ok {
+			s = tv.GetText()
+		}
+		m[cv.Label()] = s
 	}
 	return m
 }

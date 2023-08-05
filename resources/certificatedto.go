@@ -18,7 +18,7 @@ var errNoCertificate = fmt.Errorf("no pem encoded certificate found")
 
 type CertificateDTO struct {
 	Version               int      `yaml:"version" json:"version"`
-	SerialNumber          int64    `yaml:"serial-number" json:"serial-number"`
+	SerialNumber          string   `yaml:"serial-number" json:"serial-number"`
 	Signature             string   `yaml:"signature" json:"signature"`
 	SignatureAlgorithm    string   `yaml:"signature-algorithm" json:"signature-algorithm"`
 	PublicKeyAlgorithm    string   `yaml:"public-key-algorithm" json:"public-key-algorithm"`
@@ -74,7 +74,7 @@ func (c CertificateDTO) ToCertificate() *x509.Certificate {
 		PublicKeyAlgorithm:          utils.ParsePublicKeyAlgorithm(c.PublicKeyAlgorithm),
 		PublicKey:                   stringToPublicKey(c.PublicKey),
 		Version:                     c.Version,
-		SerialNumber:                big.NewInt(c.SerialNumber),
+		SerialNumber:                stringToBigInt(c.SerialNumber),
 		Issuer:                      issuer,
 		Subject:                     subject,
 		NotBefore:                   notBefore,
@@ -120,7 +120,7 @@ func (c *CertificateDTO) UnmarshalBinary(data []byte) error {
 		Bytes: cer.Raw,
 	}))
 	c.Version = cer.Version
-	c.SerialNumber = cer.SerialNumber.Int64()
+	c.SerialNumber = cer.SerialNumber.String()
 	c.Signature = hex.EncodeToString(cer.Signature)
 	c.SignatureAlgorithm = cer.SignatureAlgorithm.String()
 	c.PublicKeyAlgorithm = cer.PublicKeyAlgorithm.String()
@@ -181,4 +181,10 @@ func stringToDN(s string) (pkix.Name, error) {
 		return pkix.Name{}, err
 	}
 	return d.ToName(), nil
+}
+
+func stringToBigInt(s string) *big.Int {
+	i := &big.Int{}
+	i.SetString(s, 16)
+	return i
 }

@@ -6,7 +6,7 @@ type ListView struct {
 }
 
 func (l *ListView) OnViewOpen() {
-	l.setSelectedIndexByText(l.text)
+	l.SetSelectedIndexByText(l.text)
 }
 
 func NewListView(label, text string, children ...View) *ListView {

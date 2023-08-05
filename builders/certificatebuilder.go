@@ -9,6 +9,7 @@ import (
 	"github.com/eurozulu/pempal/resources"
 	"github.com/eurozulu/pempal/templates"
 	"github.com/eurozulu/pempal/utils"
+	"math/big"
 	"strconv"
 )
 
@@ -30,11 +31,17 @@ type certificateBuilder struct {
 	knownIssuers identity.Users
 }
 
+func parseAsBigInt(s string) *big.Int {
+	i := &big.Int{}
+	i, _ = i.SetString(s, 10)
+	return i
+}
+
 func (c certificateBuilder) Validate(t templates.Template) utils.CompoundErrors {
 	var errs utils.CompoundErrors
 	if sn := t[Property_serial_number]; sn == "" {
 		errs = append(errs, fmt.Errorf("%s missing", Property_serial_number))
-	} else if _, err := strconv.ParseInt(sn, 10, 64); err != nil {
+	} else if i := parseAsBigInt(sn); i == nil {
 		errs = append(errs, fmt.Errorf("%s invalid", Property_serial_number))
 	}
 

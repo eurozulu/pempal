@@ -40,7 +40,7 @@ func (cb confirmBuild) Confirm(template templates.Template) (templates.Template,
 		} else {
 			setChildViewsHidden(view, false)
 			// Add append label to end of list
-			view = ui.NewParentView(view.Label(), view.String(), append(view.ChildViews(), applyLabel)...)
+			view.(ui.MutableParentView).SetChildViews(append(view.ChildViews(), applyLabel))
 		}
 		sv, err := window.Show(view)
 		if err != nil {
@@ -49,7 +49,11 @@ func (cb confirmBuild) Confirm(template templates.Template) (templates.Template,
 		if selectedView(sv) == applyLabel {
 			break
 		}
-		tb.Add(map[string]string{sv.Label(): sv.String()})
+		s := sv.String()
+		if tv, ok := sv.(ui.TextView); ok {
+			s = tv.GetText()
+		}
+		tb.Add(map[string]string{sv.Label(): s})
 	}
 	// strip original template to return just what's changed
 	var updates []templates.Template

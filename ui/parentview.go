@@ -66,7 +66,7 @@ func (pv *parentView) AppendText(ch rune) {
 	default:
 		if pv.allowInput {
 			pv.textView.AppendText(ch)
-			pv.setSelectedIndexByText(pv.text)
+			pv.SetSelectedIndexByText(pv.text)
 		}
 	}
 }
@@ -129,7 +129,7 @@ func (pv *parentView) setTextWithSelectedChild() {
 	pv.textView.SetText(s)
 }
 
-func (pv *parentView) setSelectedIndexByText(text string) {
+func (pv *parentView) SetSelectedIndexByText(text string) {
 	index := -1
 	for i, c := range pv.children {
 		s := c.String()

@@ -73,14 +73,14 @@ func (win window) Show(v View) (View, error) {
 					continue
 				} // abort back to parent
 				if wv, ok := v.(WindowEventClose); ok {
-					wv.OnViewClose(cv)
+					cv = wv.OnViewClose(cv)
 				}
 				return cv, err
 			}
 		}
 		// No child or child not a parentview, return current view.
 		if wv, ok := v.(WindowEventClose); ok {
-			wv.OnViewClose(v)
+			v = wv.OnViewClose(v)
 		}
 		return v, nil
 	}

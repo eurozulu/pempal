@@ -23,7 +23,9 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 		return err
 	}
 	tb.Add(argTemps...)
-	tb.Add(cmd.flagsTemplate)
+	if cmd.flagsTemplate != nil {
+		tb.Add(cmd.flagsTemplate)
+	}
 
 	rt, err := cmd.detectResourceType(tb.Build())
 	if err != nil {
@@ -35,13 +37,15 @@ func (cmd MakeCommand) Execute(args []string, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		tb.Add(t)
+		if t != nil {
+			tb.Add(t)
+		}
 	} else {
 		if err := cmd.validate(rt, tb.Build()); err != nil {
 			return err
 		}
 	}
-	return PerformBuild(resources.PrivateKey, tb.Build(), out)
+	return PerformBuild(rt, tb.Build(), out)
 }
 
 func (cmd MakeCommand) validate(rt resources.ResourceType, t templates.Template) error {

@@ -37,8 +37,9 @@ func (dv DateView) Render(frame ui.ViewFrame) {
 	dv.ListView.Render(frame)
 }
 
-func (dv DateView) OnViewClose(parent ui.View) {
+func (dv DateView) OnViewClose(child ui.View) ui.View {
 	dv.SetText(dv.getChildValues())
+	return child
 }
 
 func (dv *DateView) setChildValues(date string) {

@@ -10,8 +10,9 @@ type multiSelect struct {
 	selected []string
 }
 
-func (ms *multiSelect) OnViewClose(parent View) {
+func (ms *multiSelect) OnViewClose(child View) View {
 	ms.SetText(ms.getSelectedValues())
+	return ms
 }
 
 func (ms multiSelect) renderChild(frame ViewFrame, child View, selected bool) {

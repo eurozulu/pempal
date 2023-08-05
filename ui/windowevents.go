@@ -5,5 +5,5 @@ type WindowEventOpen interface {
 }
 
 type WindowEventClose interface {
-	OnViewClose(child View)
+	OnViewClose(child View) View
 }
