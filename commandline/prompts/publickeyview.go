@@ -6,6 +6,8 @@ import (
 	"github.com/eurozulu/pempal/ui"
 )
 
+const defaultLabelWidth = 36
+
 type publicKeyView struct {
 	ui.ListView
 	keys identity.Keys
@@ -19,15 +21,9 @@ func (bv *publicKeyView) String() string {
 	return text
 }
 
-func (bv publicKeyView) textAsIdentity() identity.Identity {
-	if identity.IsIdentity(bv.GetText()) {
-		return identity.Identity(bv.GetText())
-	}
-	return ""
-}
-
 func (bv *publicKeyView) OnViewOpen() {
 	bv.buildKeyChoice()
+	bv.LabelWidth = defaultLabelWidth
 	if id := bv.textAsIdentity(); id != "" {
 		bv.setSelectedIndexByLabel(id.String())
 	}
@@ -35,10 +31,22 @@ func (bv *publicKeyView) OnViewOpen() {
 
 func (bv *publicKeyView) OnViewClose(child ui.View) ui.View {
 	selected := bv.SelectedIndex()
-	if selected >= 0 {
-		bv.setTextFromId(bv.ChildViews()[selected].Label())
+	if selected < 0 {
+		return child
 	}
+	sv := bv.ChildViews()[selected]
+	if sv.Label() == createKeyLabel {
+
+	}
+	bv.setTextFromId(bv.ChildViews()[selected].Label())
 	return child
+}
+
+func (bv publicKeyView) textAsIdentity() identity.Identity {
+	if identity.IsIdentity(bv.GetText()) {
+		return identity.Identity(bv.GetText())
+	}
+	return ""
 }
 
 func (bv *publicKeyView) setTextFromId(id string) {
@@ -51,13 +59,15 @@ func (bv *publicKeyView) setTextFromId(id string) {
 	bv.SetText(k.String())
 }
 
+const createKeyLabel = "Create New Key"
+
 func (bv *publicKeyView) buildKeyChoice() {
 	kez := bv.listAllKeys()
 	childs := make([]ui.View, len(kez)+1)
 	for i, k := range kez {
 		childs[i] = ui.NewLabelView(k.Identity().String(), k.Location())
 	}
-	childs[len(kez)] = ui.NewLabelView("Create New Key", "")
+	childs[len(kez)] = ui.NewLabelView(createKeyLabel, "")
 	ui.MutableParentView(&bv.ListView).SetChildViews(childs)
 }
 
@@ -73,12 +83,14 @@ func (bv *publicKeyView) listAllKeys() []identity.Key {
 }
 
 func (bv *publicKeyView) setSelectedIndexByLabel(label string) {
+	selected := -1
 	for i, c := range bv.ChildViews() {
 		if c.Label() == label {
-			bv.SetSelectedIndex(i)
-			return
+			selected = i
+			break
 		}
 	}
+	bv.SetSelectedIndex(selected)
 }
 
 func NewPublicKeyView(label, text string, keys identity.Keys) ui.ParentView {

@@ -171,9 +171,9 @@ import (
 //	}
 //	var cOut utils.ColourOut
 //	if indent == 0 {
-//		cOut = utils.ColourOut{Out: out, Col: utils.ColourBlue}
+//		cOut = utils.ColourOut{Output: out, Col: utils.ColourBlue}
 //	} else {
-//		cOut = utils.ColourOut{Out: out, Col: utils.ColourCyan}
+//		cOut = utils.ColourOut{Output: out, Col: utils.ColourCyan}
 //	}
 //	if err := writeIndentedString(cOut, indent, t.String()); err != nil {
 //		return err

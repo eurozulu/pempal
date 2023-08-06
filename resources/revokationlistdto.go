@@ -34,18 +34,11 @@ func (rvl *RevocationListDTO) String() string {
 }
 
 func (rvl *RevocationListDTO) UnmarshalPEM(data []byte) error {
-	for len(data) > 0 {
-		blk, rest := pem.Decode(data)
-		if blk == nil {
-			break
-		}
-		if ParsePEMType(blk.Type) != RevocationList {
-			data = rest
-			continue
-		}
-		return rvl.UnmarshalBinary(blk.Bytes)
+	blk, _ := pem.Decode(data)
+	if blk == nil {
+		return fmt.Errorf("failed to parse revokation list key from pem")
 	}
-	return fmt.Errorf("no pem encoded public key found")
+	return rvl.UnmarshalBinary(blk.Bytes)
 }
 
 func (rvl *RevocationListDTO) MarshalBinary() (data []byte, err error) {

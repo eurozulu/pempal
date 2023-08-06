@@ -28,18 +28,18 @@ const defaultTemplatePath = defaultHomePath + "/templates"
 var CommonFlags = &DefaultCommonFlags{}
 
 type DefaultCommonFlags struct {
-	CertPath     string `yaml:"cert-path"`
-	KeyPath      string `yaml:"key-path"`
-	CsrPath      string `yaml:"csr-path,omitempty"`
-	CrlPath      string `yaml:"crl-path,omitempty"`
-	TemplatePath string `yaml:"template-path"`
-	HomePath     string `yaml:"home-path,omitempty"`
-	Quiet        bool   `yaml:"q"`
-	Verbose      bool   `yaml:"v"`
-	Debug        bool   `yaml:"debug"`
-	Help         bool   `yaml:"help"`
-	Output       string `yaml:"out"`
-	ForceOut     bool   `yaml:"force"`
+	CertPath     string  `yaml:"cert-path"`
+	KeyPath      string  `yaml:"key-path"`
+	CsrPath      string  `yaml:"csr-path,omitempty"`
+	CrlPath      string  `yaml:"crl-path,omitempty"`
+	TemplatePath string  `yaml:"template-path"`
+	HomePath     string  `yaml:"home-path,omitempty"`
+	Quiet        bool    `yaml:"q"`
+	Verbose      bool    `yaml:"v"`
+	Debug        bool    `yaml:"debug"`
+	Help         bool    `yaml:"help"`
+	Output       *string `yaml:"out"`
+	ForceOut     bool    `yaml:"force"`
 }
 
 func init() {

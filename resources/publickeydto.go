@@ -10,7 +10,7 @@ import (
 
 var errNoPublicKey = fmt.Errorf("no pem encoded public key found")
 
-type publicKeyDTO struct {
+type PublicKeyDTO struct {
 	// PublicKeyAlgorithm is the Key Algorithm of the existing key or key to be created
 	PublicKeyAlgorithm string `yaml:"public-key-algorithm" json:"public-key-algorithm"`
 
@@ -18,11 +18,11 @@ type publicKeyDTO struct {
 	PublicKey string `yaml:"public-key,omitempty" json:"-"`
 }
 
-func (p publicKeyDTO) String() string {
+func (p PublicKeyDTO) String() string {
 	return p.PublicKey
 }
 
-func (p *publicKeyDTO) MarshalBinary() (data []byte, err error) {
+func (p *PublicKeyDTO) MarshalBinary() (data []byte, err error) {
 	blk, _ := pem.Decode([]byte(p.PublicKey))
 	if blk == nil {
 		return nil, errNoPublicKey
@@ -30,7 +30,7 @@ func (p *publicKeyDTO) MarshalBinary() (data []byte, err error) {
 	return blk.Bytes, nil
 }
 
-func (pkr *publicKeyDTO) UnmarshalBinary(data []byte) error {
+func (pkr *PublicKeyDTO) UnmarshalBinary(data []byte) error {
 	puk, err := x509.ParsePKIXPublicKey(data)
 	if err != nil {
 		return err
@@ -43,12 +43,20 @@ func (pkr *publicKeyDTO) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func NewPublicKeyDTO(puk crypto.PublicKey) (*publicKeyDTO, error) {
+func (pkr *PublicKeyDTO) UnmarshalPEM(data []byte) error {
+	blk, _ := pem.Decode(data)
+	if blk == nil {
+		return fmt.Errorf("failed to parse public key from pem")
+	}
+	return pkr.UnmarshalBinary(blk.Bytes)
+}
+
+func NewPublicKeyDTO(puk crypto.PublicKey) (*PublicKeyDTO, error) {
 	der, err := x509.MarshalPKIXPublicKey(puk)
 	if err != nil {
 		return nil, err
 	}
-	dto := &publicKeyDTO{}
+	dto := &PublicKeyDTO{}
 	if err = dto.UnmarshalBinary(der); err != nil {
 		return nil, err
 	}

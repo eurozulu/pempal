@@ -13,7 +13,7 @@ import (
 
 const (
 	CommandMake = "make"
-	CommandKeys = "keys"
+	CommandKey  = "key"
 
 	CommandTemplate  = "template"
 	CommandTemplates = "templates"
@@ -26,7 +26,7 @@ const (
 // Commands maps the command name to the Command instance
 var Commands = map[string]Command{
 	CommandMake: &MakeCommand{},
-	CommandKeys: &keysCommand{},
+	CommandKey:  &keyCommand{},
 	CommandType: &TypeCommand{},
 	//CommandFind:     &FindCommand{},
 	//CommandTemplate: &TemplateCommand{},
@@ -36,7 +36,7 @@ var Commands = map[string]Command{
 // CommandAliases maps alternative names for commands, to the actual command name
 var CommandAliases = map[string]string{
 	"mk": CommandMake,
-	"ks": CommandKeys,
+	"k":  CommandKey,
 
 	"f":         CommandFind,
 	"t":         CommandTemplate,

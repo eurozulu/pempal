@@ -145,7 +145,7 @@ func NewResourceDTO(r Resource) (ResourceDTO, error) {
 func NewResourceDTOByType(resourceType ResourceType) (ResourceDTO, error) {
 	switch resourceType {
 	case PublicKey:
-		return &publicKeyDTO{}, nil
+		return &PublicKeyDTO{}, nil
 	case PrivateKey:
 		return &PrivateKeyDTO{}, nil
 	case Certificate:

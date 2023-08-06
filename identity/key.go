@@ -23,6 +23,7 @@ type Key interface {
 	Encrypt(password []byte) (Key, error)
 	Decrypt(password []byte) (Key, error)
 	Location() string
+	PublicKeyAlgorithm() x509.PublicKeyAlgorithm
 }
 
 type key struct {
@@ -32,18 +33,11 @@ type key struct {
 }
 
 func (k key) Identity() Identity {
-	return Identity(k.String())
+	return Identity(k.PublicKeyAsPEM())
 }
 
 func (k key) String() string {
-	if k.prk == nil {
-		return ""
-	}
-	s := string(pem.EncodeToMemory(k.prk))
-	if k.puk != nil {
-		s = strings.Join([]string{s, string(pem.EncodeToMemory(k.puk))}, "")
-	}
-	return s
+	return strings.Join([]string{string(k.PrivateKeyAsPEM()), string(k.PublicKeyAsPEM())}, "")
 }
 
 func (k key) Location() string {
@@ -72,6 +66,27 @@ func (k key) PublicKey() crypto.PublicKey {
 		return nil
 	}
 	return puk
+}
+
+func (k key) PrivateKeyAsPEM() []byte {
+	if k.prk == nil {
+		return nil
+	}
+	return pem.EncodeToMemory(k.prk)
+}
+func (k key) PublicKeyAsPEM() []byte {
+	if k.puk == nil {
+		return nil
+	}
+	return pem.EncodeToMemory(k.puk)
+}
+
+func (k key) PublicKeyAlgorithm() x509.PublicKeyAlgorithm {
+	puk := k.PublicKey()
+	if puk == nil {
+		return x509.UnknownPublicKeyAlgorithm
+	}
+	return utils.PublicKeyAlgorithmFromKey(puk)
 }
 
 func (k key) IsEncrypted() bool {

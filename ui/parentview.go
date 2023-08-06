@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+const (
+	defaultLabelWidth = 20
+	defaultTextWidth  = 25
+)
+
 type ParentView interface {
 	TextView
 	ChildViews() []View
@@ -19,9 +24,10 @@ type MutableParentView interface {
 
 type parentView struct {
 	textView
-	children      []View
-	allowInput    bool
-	selectedindex int
+	children              []View
+	allowInput            bool
+	selectedindex         int
+	LabelWidth, TextWidth int
 }
 
 func (pv parentView) ChildViews() []View {
@@ -95,10 +101,10 @@ func (pv parentView) renderChild(frame ViewFrame, child View, selected bool) {
 		return
 	}
 	if child.Label() != "" {
-		frame.Print(padText(child.Label(), 20))
+		frame.Print(padText(child.Label(), pv.labelWidth()))
 	}
 	frame = frame.WithColour(child.Colours())
-	frame.Print(padText(child.String(), 25))
+	frame.Print(padText(child.String(), pv.textWidth()))
 }
 
 func (pv *parentView) SetSelectedIndex(index int) {
@@ -108,6 +114,7 @@ func (pv *parentView) SetSelectedIndex(index int) {
 	}
 	for {
 		if index < 0 || index >= len(pv.children) {
+			pv.selectedindex = -1
 			return
 		}
 		if hv, ok := pv.children[index].(HiddenView); ok && hv.IsHidden() {
@@ -142,6 +149,20 @@ func (pv *parentView) SetSelectedIndexByText(text string) {
 		}
 	}
 	pv.selectedindex = index
+}
+
+func (pv *parentView) labelWidth() int {
+	if pv.LabelWidth == 0 {
+		return defaultLabelWidth
+	}
+	return pv.LabelWidth
+}
+
+func (pv *parentView) textWidth() int {
+	if pv.TextWidth == 0 {
+		return defaultTextWidth
+	}
+	return pv.TextWidth
 }
 
 func padText(s string, width int) string {

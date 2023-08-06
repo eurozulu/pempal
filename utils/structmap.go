@@ -10,14 +10,22 @@ import (
 var ErrUnknownTag = fmt.Errorf("Unknown tag")
 
 type StructMap interface {
+	GetValue(tag string) (interface{}, error)
 	SetValue(tag string, value interface{}) error
 	SetValueString(tag string, value *string) error
 }
 
 type structMap struct {
-	vp        reflect.Value
 	structVal reflect.Value
 	tagType   string
+}
+
+func (sm structMap) GetValue(tag string) (interface{}, error) {
+	fi := sm.fieldIndexByTag(tag)
+	if fi < 0 {
+		return nil, ErrUnknownTag
+	}
+	return sm.structVal.Field(fi).Interface(), nil
 }
 
 func (sm structMap) SetValue(tag string, value interface{}) error {
@@ -35,7 +43,7 @@ func (sm structMap) SetValueString(tag string, value *string) error {
 func (sm structMap) setValue(field reflect.Value, value interface{}) error {
 	switch field.Kind() {
 	case reflect.Pointer:
-		return sm.setValue(field.Elem(), value)
+		return sm.setPointerValue(field, value)
 	case reflect.String:
 		field.SetString(valueAsString(value))
 	case reflect.Bool:
@@ -48,6 +56,12 @@ func (sm structMap) setValue(field reflect.Value, value interface{}) error {
 		return fmt.Errorf("field %s type %s not supported", field.Type().Name(), field.Type().String())
 	}
 	return nil
+}
+
+func (sm structMap) setPointerValue(field reflect.Value, value interface{}) error {
+	nv := reflect.New(field.Type().Elem())
+	field.Set(nv)
+	return sm.setValue(field.Elem(), value)
 }
 
 func valueAsString(v interface{}) string {
@@ -128,11 +142,13 @@ func (sm structMap) tagContainsKey(tag reflect.StructTag, key string) bool {
 
 func NewStructMap(i interface{}, tagname string) (StructMap, error) {
 	vo := reflect.ValueOf(i)
+	if isNilInterface(vo) || isNilInterface(vo.Elem()) {
+		return nil, fmt.Errorf("structure can not be nil")
+	}
 	if vo.Kind() != reflect.Pointer || vo.Elem().Kind() != reflect.Struct {
 		return nil, fmt.Errorf("Invalid value type (%s)!  Must be a pointer to a structure", vo.Type().String())
 	}
 	return &structMap{
-		vp:        vo,
 		structVal: vo.Elem(),
 		tagType:   tagname,
 	}, nil

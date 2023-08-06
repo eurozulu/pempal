@@ -1,7 +1,6 @@
 package identity
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/eurozulu/pempal/logger"
@@ -25,10 +24,15 @@ type keys struct {
 func (ks keys) AllKeys(ctx context.Context) <-chan Key {
 	ch := make(chan Key)
 	go func() {
+		defer close(ch)
 		for loc := range resourceio.NewResourceScanner(!ks.NonRecursive).Scan(ctx, ks.Keypath...) {
-			k, err := NewKey(loc.Location(), locationKeysAsPem(loc))
+			keyspem := loc.ResourcesAsPem(resources.PrivateKey, resources.PublicKey)
+			if len(keyspem) == 0 {
+				continue
+			}
+			k, err := NewKey(loc.Location(), keyspem)
 			if err != nil {
-				logger.Error("failed to read key at %s  %v", loc.Location(), err)
+				logger.Warning("failed to read key at %s  %v", loc.Location(), err)
 				continue
 			}
 			select {
@@ -86,15 +90,6 @@ func (ks keys) KeysByName(name string) ([]Key, error) {
 		return nil, fmt.Errorf("no identity found with name %s", name)
 	}
 	return found, nil
-}
-
-func locationKeysAsPem(loc resourceio.ResourceLocation) []byte {
-	keyRes := append(loc.Resources(resources.PrivateKey), loc.Resources(resources.PublicKey)...)
-	buf := bytes.NewBuffer(nil)
-	for _, kr := range keyRes {
-		buf.WriteString(kr.String())
-	}
-	return buf.Bytes()
 }
 
 func NewKeys(keypath []string) Keys {

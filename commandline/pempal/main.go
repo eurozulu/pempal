@@ -52,25 +52,26 @@ func main() {
 	}
 	// establish the output stream
 	out := os.Stdout
-	outPath := commonflags.CommonFlags.Output
-	if commonflags.CommonFlags.Output != "" {
-		if utils.FileExists(outPath) && !commonflags.CommonFlags.ForceOut {
-			logger.Error("%s already exists\n", outPath)
-			return
-		}
-		f, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-		if err != nil {
-			logger.Error("failed to open %s  %v\n", outPath, err)
-			return
-		}
-		out = f
-		defer func(out io.WriteCloser) {
-			if err := out.Close(); err != nil {
-				logger.Error("failed to close %s  %v\n", outPath, err)
+	if commonflags.CommonFlags.Output != nil {
+		outPath := *commonflags.CommonFlags.Output
+		if outPath != "" {
+			if utils.FileExists(outPath) && !commonflags.CommonFlags.ForceOut {
+				logger.Error("%s already exists\n", outPath)
+				return
 			}
-		}(f)
+			f, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+			if err != nil {
+				logger.Error("failed to open %s  %v\n", outPath, err)
+				return
+			}
+			out = f
+			defer func(out io.WriteCloser) {
+				if err := out.Close(); err != nil {
+					logger.Error("failed to close %s  %v\n", outPath, err)
+				}
+			}(f)
+		}
 	}
-
 	if err = cmd.Execute(args, out); err != nil {
 		logger.Error("%v\n", err)
 	}

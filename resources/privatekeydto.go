@@ -27,22 +27,21 @@ func (pk PrivateKeyDTO) String() string {
 }
 
 func (pk *PrivateKeyDTO) UnmarshalPEM(data []byte) error {
-	var keyBlk *pem.Block
-	for {
-		blk, rest := pem.Decode(data)
-		if blk == nil {
-			break
-		}
-		if ParsePEMType(blk.Type) == PrivateKey {
-			keyBlk = blk
-			break
-		}
-		data = rest
-	}
-	if keyBlk == nil {
+	blk, _ := pem.Decode(data)
+	if blk == nil {
 		return fmt.Errorf("failed to parse private key from pem")
 	}
-	return pk.UnmarshalBinary(keyBlk.Bytes)
+	if x509.IsEncryptedPEMBlock(blk) {
+		return pk.unmarshalEncryptedPEM(data)
+	}
+	return pk.UnmarshalBinary(blk.Bytes)
+}
+
+func (pk *PrivateKeyDTO) unmarshalEncryptedPEM(data []byte) error {
+	pk.PrivateKey = string(data)
+	pk.PublicKey = ""
+	pk.IsEncrypted = true
+	return nil
 }
 
 func (pk *PrivateKeyDTO) UnmarshalBinary(data []byte) error {

@@ -1,12 +1,14 @@
 package resourceio
 
 import (
+	"bytes"
 	"github.com/eurozulu/pempal/resources"
 )
 
 type ResourceLocation interface {
 	Location() string
 	Resources(resourceType ...resources.ResourceType) []resources.Resource
+	ResourcesAsPem(resourceType ...resources.ResourceType) []byte
 }
 
 type resourceLocation struct {
@@ -16,6 +18,15 @@ type resourceLocation struct {
 
 func (rl resourceLocation) Location() string {
 	return rl.location
+}
+
+func (rl resourceLocation) ResourcesAsPem(resourceType ...resources.ResourceType) []byte {
+	keyRes := rl.Resources(resourceType...)
+	buf := bytes.NewBuffer(nil)
+	for _, kr := range keyRes {
+		buf.WriteString(kr.String())
+	}
+	return buf.Bytes()
 }
 
 func (rl resourceLocation) Resources(resourceType ...resources.ResourceType) []resources.Resource {
