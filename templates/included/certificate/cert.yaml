@@ -1,0 +1,4 @@
+not-before: "now"
+not-after: "1y"
+key-usage:  "KeyUsageDigitalSignature,KeyUsageKeyEncipherment,KeyUsageDataEncipherment,KeyUsageKeyAgreement"
+
