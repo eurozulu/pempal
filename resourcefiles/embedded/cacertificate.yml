@@ -1,9 +1,8 @@
 # extends servercertificate
-subject: "OU=Root CA"
+subject: "OU=Intermediate CA"
 key-usage: Critical | DigitalSignature | CertSign | CRLSign
 extended-keyUsage: clientAuth
 is-ca: true
 basic-constraints-valid: true
-max-path-len: 2
+max-path-len: 1
 max-path-len-zero: false
-self-signed: true

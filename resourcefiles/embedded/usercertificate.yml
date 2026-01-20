@@ -1,4 +1,4 @@
-# extends certificate, defaultorg, defaultkeytype
+# extends certificate, defaultorg, defaultkeyalgorithm
 signature-algorithm: ECDSA-SHA512
 subject: "OU=Pempal User"
 key-usage: KeyUsageDigitalSignature | KeyUsageContentCommitment | KeyUsageKeyEncipherment | KeyUsageDataEncipherment
