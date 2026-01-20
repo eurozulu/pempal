@@ -11,15 +11,16 @@ type KeyUsage x509.KeyUsage
 
 var keyUsageNames = []string{
 	"UnknownKeyUsage",
-	"KeyUsageDigitalSignature",
-	"KeyUsageContentCommitment",
-	"KeyUsageKeyEncipherment",
-	"KeyUsageDataEncipherment",
-	"KeyUsageKeyAgreement",
-	"KeyUsageCertSign",
-	"KeyUsageCRLSign",
-	"KeyUsageEncipherOnly",
-	"KeyUsageDecipherOnly",
+	"DigitalSignature",
+	"ContentCommitment",
+	"KeyEncipherment",
+	"DataEncipherment",
+	"KeyAgreement",
+	"CertSign",
+	"CRLSign",
+	"EncipherOnly",
+	"DecipherOnly",
+	"Critical",
 }
 
 func (k KeyUsage) String() string {

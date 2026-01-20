@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// MakeCommand creates a new resource using the given template names.
+// MakeCommand creates new resources using the given template names.
 // Templates are merged into one ao the resulting template is a base template.
 // The relevant resource for that base template is then generated.
-// @Command(new)
+// @Command(make)
 type MakeCommand struct {
 	// Key flag is optional, when given should be the fingerprint (or unique oartial fingerprint) of the key to use to identify the new object.
 	// Only applies to Certificates and CSRs, public-key property.  Ignored for other resources, (keys and CRLs).
