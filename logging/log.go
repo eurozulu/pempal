@@ -35,7 +35,7 @@ var LogLevelNames []string = []string{
 type LogLevel int
 
 type Logger interface {
-	Log(level LogLevel, tag, msg string, a ...any)
+	Log(level LogLevel, msg string, a ...any)
 	LogLevel() LogLevel
 	SetLogLevel(level LogLevel)
 	SetOutput(out io.Writer)
@@ -46,12 +46,12 @@ type logger struct {
 	out   io.Writer
 }
 
-func (l logger) Log(level LogLevel, tag, msg string, a ...any) {
+func (l logger) Log(level LogLevel, msg string, a ...any) {
 	if level > l.level {
 		return
 	}
 
-	fmt.Fprintf(l.out, "[%s] [%s] [%s] %s\n", time.Now().Format(timeformat), level, tag, fmt.Sprintf(msg, a...))
+	fmt.Fprintf(l.out, "[%s] [%s] %s\n", time.Now().Format(timeformat), level, fmt.Sprintf(msg, a...))
 }
 
 func (l logger) LogLevel() LogLevel {
@@ -73,24 +73,24 @@ func (ll LogLevel) String() string {
 	return LogLevelNames[ll]
 }
 
-func Error(tag, msg string, a ...any) {
-	DefaultLogger.Log(LogError, tag, msg, a...)
+func Error(msg string, a ...any) {
+	DefaultLogger.Log(LogError, msg, a...)
 }
 
-func Warning(tag, msg string, a ...any) {
-	DefaultLogger.Log(LogWarning, tag, msg, a...)
+func Warning(msg string, a ...any) {
+	DefaultLogger.Log(LogWarning, msg, a...)
 }
 
-func Info(tag, msg string, a ...any) {
-	DefaultLogger.Log(LogInfo, tag, msg, a...)
+func Info(msg string, a ...any) {
+	DefaultLogger.Log(LogInfo, msg, a...)
 }
 
-func Debug(tag, msg string, a ...any) {
-	DefaultLogger.Log(LogDebug, tag, msg, a...)
+func Debug(msg string, a ...any) {
+	DefaultLogger.Log(LogDebug, msg, a...)
 }
 
-func Trace(tag, msg string, a ...any) {
-	DefaultLogger.Log(LogTrace, tag, msg, a...)
+func Trace(msg string, a ...any) {
+	DefaultLogger.Log(LogTrace, msg, a...)
 }
 
 func IsLogLevel(level LogLevel) bool {

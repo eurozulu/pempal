@@ -4,12 +4,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"github.com/eurozulu/pempal/logging"
 	"github.com/eurozulu/pempal/model"
+	"gopkg.in/yaml.v2"
 	"math/big"
 	"net"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -18,10 +17,9 @@ type CertificateTemplate struct {
 	SignatureAlgorithm model.SignatureAlgorithm `yaml:"signature-algorithm"`
 
 	PublicKeyAlgorithm model.PublicKeyAlgorithm `yaml:"public-key-algorithm"`
-	PublicKey          model.PublicKeyDTO       `yaml:"public-key"`
-	ID                 model.KeyId              `yaml:"id,omitempty"`
+	PublicKey          *model.PublicKey         `yaml:"public-key"`
 	Version            int                      `yaml:"version,omitempty"`
-	SerialNumber       *big.Int                 `yaml:"serial-number"`
+	SerialNumber       *model.SerialNumber      `yaml:"serial-number"`
 	Issuer             model.DistinguishedName  `yaml:"issuer"`
 	Subject            model.DistinguishedName  `yaml:"subject"`
 	NotBefore          model.TimeDTO            `yaml:"not-before"`
@@ -84,8 +82,8 @@ type CertificateTemplate struct {
 	OCSPServer            []string `yaml:"ocsp-server,omitempty"`
 	IssuingCertificateURL []string `yaml:"issuing-certificate-url,omitempty"`
 
-	// Subject Alternate Name values. (Note that these values may not be valid
-	// if invalid values were contained within a parsed certificate. For
+	// Subject Alternate Name Values. (Note that these Values may not be valid
+	// if invalid Values were contained within a parsed certificate. For
 	// example, an element of DNSNames may not be a valid DNS domain Name.)
 	DNSNames       []string   `yaml:"dns-names,omitempty"`
 	EmailAddresses []string   `yaml:"email-addresses,omitempty"`
@@ -107,101 +105,120 @@ type CertificateTemplate struct {
 	CRLDistributionPoints []string `yaml:"crl-distribution-points,omitempty"`
 }
 
-func (ct CertificateTemplate) ToCertificate() *x509.Certificate {
-	return &x509.Certificate{
-		Signature:                   ct.Signature,
-		SignatureAlgorithm:          x509.SignatureAlgorithm(ct.SignatureAlgorithm),
-		PublicKeyAlgorithm:          x509.PublicKeyAlgorithm(ct.PublicKeyAlgorithm),
-		PublicKey:                   ct.PublicKey.PublicKey,
-		Version:                     ct.Version,
-		SerialNumber:                ct.SerialNumber,
-		Issuer:                      ct.Issuer.ToName(),
-		Subject:                     ct.Subject.ToName(),
-		NotBefore:                   time.Time(ct.NotBefore),
-		NotAfter:                    time.Time(ct.NotAfter),
-		KeyUsage:                    x509.KeyUsage(ct.KeyUsage),
-		Extensions:                  model.ModelToExtensions(ct.Extensions),
-		ExtraExtensions:             ct.ExtraExtensions,
-		UnhandledCriticalExtensions: ct.UnhandledCriticalExtensions,
-		ExtKeyUsage:                 ct.ExtKeyUsage,
-		UnknownExtKeyUsage:          ct.UnknownExtKeyUsage,
-		BasicConstraintsValid:       ct.BasicConstraintsValid,
-		IsCA:                        ct.IsCA,
-		MaxPathLen:                  ct.MaxPathLen,
-		MaxPathLenZero:              ct.MaxPathLenZero,
-		SubjectKeyId:                ct.SubjectKeyId,
-		AuthorityKeyId:              ct.AuthorityKeyId,
-		OCSPServer:                  ct.OCSPServer,
-		IssuingCertificateURL:       ct.IssuingCertificateURL,
-		DNSNames:                    ct.DNSNames,
-		EmailAddresses:              ct.EmailAddresses,
-		IPAddresses:                 ct.IPAddresses,
-		URIs:                        ct.URIs,
-		PermittedURIDomains:         ct.PermittedURIDomains,
-		ExcludedURIDomains:          ct.ExcludedURIDomains,
-		PermittedEmailAddresses:     ct.PermittedEmailAddresses,
-		ExcludedEmailAddresses:      ct.ExcludedEmailAddresses,
-		PermittedDNSDomains:         ct.PermittedDNSDomains,
-		ExcludedDNSDomains:          ct.ExcludedDNSDomains,
-		PermittedIPRanges:           ct.PermittedIPRanges,
-		ExcludedIPRanges:            ct.ExcludedIPRanges,
-		CRLDistributionPoints:       ct.CRLDistributionPoints,
+func (c CertificateTemplate) String() string {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return ""
 	}
+	return string(data)
 }
-
-func (ct CertificateTemplate) Name() string {
-	return strings.ToLower(model.Certificate.String())
-}
-
-func NewCertificateTemplate(cert *x509.Certificate) *CertificateTemplate {
-	ct := CertificateTemplate{}
-	if cert.PublicKey != nil {
-		ct.PublicKey.PublicKey = cert.PublicKey
-		if id, err := model.NewKeyIdFromKey(cert.PublicKey); err != nil {
-			logging.Error("NewCertificateTemplate", "Failed to read ID from public key  %v", err)
-		} else {
-			ct.ID = id
-		}
+func (c *CertificateTemplate) ApplyTo(cert *model.Certificate) {
+	if c.Version > 0 {
+		cert.Version = c.Version
+	}
+	if c.SerialNumber != nil {
+		cert.SerialNumber = (*big.Int)(c.SerialNumber)
 	}
 
-	ct.Signature = cert.Signature
-	ct.SignatureAlgorithm = model.SignatureAlgorithm(cert.SignatureAlgorithm)
-	ct.PublicKeyAlgorithm = model.PublicKeyAlgorithm(cert.PublicKeyAlgorithm)
-	ct.PublicKey.PublicKey = cert.PublicKey
+	if len(c.Signature) > 0 {
+		cert.Signature = c.Signature
+	}
+	if x509.SignatureAlgorithm(c.SignatureAlgorithm) != x509.UnknownSignatureAlgorithm {
+		cert.SignatureAlgorithm = x509.SignatureAlgorithm(c.SignatureAlgorithm)
+	}
+	if c.PublicKey != nil {
+		cert.PublicKey = c.PublicKey.Public()
+		cert.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(model.NewPublicKey(c.PublicKey).PublicKeyAlgorithm())
+	}
+	if x509.PublicKeyAlgorithm(c.PublicKeyAlgorithm) != x509.UnknownPublicKeyAlgorithm {
+		cert.PublicKeyAlgorithm = x509.PublicKeyAlgorithm(c.PublicKeyAlgorithm)
+	}
 
-	ct.Version = cert.Version
-	ct.SerialNumber = cert.SerialNumber
-	ct.Issuer = model.DistinguishedName(cert.Issuer)
-	ct.Subject = model.DistinguishedName(cert.Subject)
-	ct.SelfSigned = ct.Issuer.Equals(ct.Subject)
-	ct.NotBefore = model.TimeDTO(cert.NotBefore)
-	ct.NotAfter = model.TimeDTO(cert.NotAfter)
-	ct.KeyUsage = model.KeyUsage(cert.KeyUsage)
-	ct.Extensions = model.ExtensionsToModel(cert.Extensions)
-	ct.ExtraExtensions = cert.ExtraExtensions
-	ct.UnhandledCriticalExtensions = cert.UnhandledCriticalExtensions
-	ct.ExtKeyUsage = cert.ExtKeyUsage
-	ct.UnknownExtKeyUsage = cert.UnknownExtKeyUsage
-	ct.BasicConstraintsValid = cert.BasicConstraintsValid
-	ct.IsCA = cert.IsCA
-	ct.MaxPathLen = cert.MaxPathLen
-	ct.MaxPathLenZero = cert.MaxPathLenZero
-	ct.SubjectKeyId = cert.SubjectKeyId
-	ct.AuthorityKeyId = cert.AuthorityKeyId
-	ct.OCSPServer = cert.OCSPServer
-	ct.IssuingCertificateURL = cert.IssuingCertificateURL
-	ct.DNSNames = cert.DNSNames
-	ct.EmailAddresses = cert.EmailAddresses
-	ct.IPAddresses = cert.IPAddresses
-	ct.URIs = cert.URIs
-	ct.PermittedURIDomains = cert.PermittedURIDomains
-	ct.ExcludedURIDomains = cert.ExcludedURIDomains
-	ct.PermittedEmailAddresses = cert.PermittedEmailAddresses
-	ct.ExcludedEmailAddresses = cert.ExcludedEmailAddresses
-	ct.PermittedDNSDomains = cert.PermittedDNSDomains
-	ct.ExcludedDNSDomains = cert.ExcludedDNSDomains
-	ct.PermittedIPRanges = cert.PermittedIPRanges
-	ct.ExcludedIPRanges = cert.ExcludedIPRanges
-	ct.CRLDistributionPoints = cert.CRLDistributionPoints
-	return &ct
+	if !c.Subject.IsEmpty() {
+		subject := model.DistinguishedName(cert.Subject)
+		subject.Merge(c.Subject)
+		cert.Subject = pkix.Name(subject)
+	}
+	if !c.Issuer.IsEmpty() {
+		issuer := model.DistinguishedName(cert.Issuer)
+		issuer.Merge(c.Issuer)
+		cert.Issuer = pkix.Name(issuer)
+	}
+	if !time.Time(c.NotBefore).IsZero() {
+		cert.NotBefore = time.Time(c.NotBefore)
+	}
+	if !time.Time(c.NotAfter).IsZero() {
+		cert.NotAfter = time.Time(c.NotAfter)
+	}
+	if c.KeyUsage != 0 {
+		cert.KeyUsage = x509.KeyUsage(c.KeyUsage)
+	}
+	if len(c.Extensions) > 0 {
+		cert.Extensions = model.ModelToExtensions(c.Extensions)
+	}
+	if len(c.ExtraExtensions) > 0 {
+		cert.ExtraExtensions = c.ExtraExtensions
+	}
+	//cert.UnhandledCriticalExtensions = c.UnhandledCriticalExtensions
+	if len(c.ExtKeyUsage) > 0 {
+		cert.ExtKeyUsage = c.ExtKeyUsage
+	}
+	if len(c.UnknownExtKeyUsage) > 0 {
+		cert.UnknownExtKeyUsage = c.UnknownExtKeyUsage
+	}
+	cert.IsCA = c.IsCA
+	cert.BasicConstraintsValid = c.BasicConstraintsValid
+	cert.MaxPathLen = c.MaxPathLen
+	cert.MaxPathLenZero = c.MaxPathLenZero
+	cert.SubjectKeyId = c.SubjectKeyId
+	cert.AuthorityKeyId = c.AuthorityKeyId
+	cert.OCSPServer = c.OCSPServer
+	cert.IssuingCertificateURL = c.IssuingCertificateURL
+	cert.DNSNames = c.DNSNames
+	cert.EmailAddresses = c.EmailAddresses
+	cert.IPAddresses = c.IPAddresses
+	cert.URIs = c.URIs
+	cert.PermittedURIDomains = c.PermittedURIDomains
+	cert.ExcludedURIDomains = c.ExcludedURIDomains
+	cert.PermittedEmailAddresses = c.PermittedEmailAddresses
+	cert.ExcludedEmailAddresses = c.ExcludedEmailAddresses
+	cert.PermittedDNSDomains = c.PermittedDNSDomains
+	cert.ExcludedDNSDomains = c.ExcludedDNSDomains
+	cert.PermittedIPRanges = c.PermittedIPRanges
+	cert.ExcludedIPRanges = c.ExcludedIPRanges
+	cert.CRLDistributionPoints = c.CRLDistributionPoints
+}
+
+func NewCertificateTemplate(cert *model.Certificate) *CertificateTemplate {
+	return &CertificateTemplate{
+		Signature:               cert.Signature,
+		SignatureAlgorithm:      model.SignatureAlgorithm(cert.SignatureAlgorithm),
+		PublicKeyAlgorithm:      model.PublicKeyAlgorithm(cert.PublicKeyAlgorithm),
+		PublicKey:               model.NewPublicKey(cert.PublicKey),
+		Version:                 cert.Version,
+		SerialNumber:            (*model.SerialNumber)(cert.SerialNumber),
+		Issuer:                  model.DistinguishedName(cert.Issuer),
+		Subject:                 model.DistinguishedName(cert.Subject),
+		NotBefore:               model.TimeDTO(cert.NotBefore),
+		NotAfter:                model.TimeDTO(cert.NotAfter),
+		KeyUsage:                model.KeyUsage(cert.KeyUsage),
+		IsCA:                    cert.IsCA,
+		MaxPathLen:              cert.MaxPathLen,
+		MaxPathLenZero:          cert.MaxPathLenZero,
+		SubjectKeyId:            cert.SubjectKeyId,
+		AuthorityKeyId:          cert.AuthorityKeyId,
+		OCSPServer:              cert.OCSPServer,
+		IssuingCertificateURL:   cert.IssuingCertificateURL,
+		DNSNames:                cert.DNSNames,
+		EmailAddresses:          cert.EmailAddresses,
+		IPAddresses:             cert.IPAddresses,
+		URIs:                    cert.URIs,
+		PermittedURIDomains:     cert.PermittedURIDomains,
+		ExcludedURIDomains:      cert.ExcludedURIDomains,
+		PermittedEmailAddresses: cert.PermittedEmailAddresses,
+		ExcludedEmailAddresses:  cert.ExcludedEmailAddresses,
+		PermittedIPRanges:       cert.PermittedIPRanges,
+		ExcludedIPRanges:        cert.ExcludedIPRanges,
+		CRLDistributionPoints:   cert.CRLDistributionPoints,
+	}
 }

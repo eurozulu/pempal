@@ -1,7 +1,6 @@
-.idea/
-tmp/
-
-bin/
+/.idea/
 /bin/
-/testing/
-/test2/
+/testdata/
+/spud
+/pempal
+**/spuds.go

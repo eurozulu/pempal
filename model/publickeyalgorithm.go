@@ -8,7 +8,14 @@ import (
 
 type PublicKeyAlgorithm x509.PublicKeyAlgorithm
 
-var publicKeyAlgoName = []string{
+var supportedAlgos = [...]x509.PublicKeyAlgorithm{
+	x509.UnknownPublicKeyAlgorithm,
+	x509.RSA,
+	x509.DSA,
+	x509.ECDSA,
+	x509.Ed25519,
+}
+var algosName = [...]string{
 	"UnknownPublicKeyAlgorithm",
 	"RSA",
 	"DSA",
@@ -16,27 +23,33 @@ var publicKeyAlgoName = []string{
 	"Ed25519",
 }
 
-func (p PublicKeyAlgorithm) String() string {
-	s, _ := p.MarshalText()
-	return string(s)
-}
-
-func (p PublicKeyAlgorithm) MarshalText() (text []byte, err error) {
-	i := int(p)
-	if i < 0 || i >= len(publicKeyAlgoName) {
-		i = 0
+func (pka PublicKeyAlgorithm) String() string {
+	i := int(pka)
+	if i < 0 || i >= len(algosName) {
+		return ""
 	}
-	return []byte(publicKeyAlgoName[i]), nil
+	return algosName[i]
 }
 
-func (p *PublicKeyAlgorithm) UnmarshalText(text []byte) error {
-	sz := string(text)
-	for i, s := range publicKeyAlgoName {
-		if !strings.EqualFold(s, sz) {
+func (pka PublicKeyAlgorithm) MarshalText() (text []byte, err error) {
+	return []byte(pka.String()), nil
+}
+
+func (pka *PublicKeyAlgorithm) UnmarshalText(text []byte) error {
+	algo, err := ParsePublicKeyAlgorithm(string(text))
+	if err != nil {
+		return err
+	}
+	*pka = algo
+	return nil
+}
+
+func ParsePublicKeyAlgorithm(s string) (PublicKeyAlgorithm, error) {
+	for i, algo := range algosName {
+		if !strings.EqualFold(algo, s) {
 			continue
 		}
-		*p = PublicKeyAlgorithm(i)
-		return nil
+		return PublicKeyAlgorithm(i), nil
 	}
-	return fmt.Errorf("%s is an unknown public key algorithm", sz)
+	return PublicKeyAlgorithm(0), fmt.Errorf("unknown public key algorithm: %q", s)
 }

@@ -1,48 +1,68 @@
 package commands
 
 import (
-	"fmt"
+	"bytes"
 	"github.com/eurozulu/pempal/factories"
 	"github.com/eurozulu/pempal/templates"
-	"github.com/eurozulu/pempal/validation"
-	"io"
+	"github.com/eurozulu/pempal/tools"
+	"strings"
 )
 
+// MakeCommand creates a new resource using the given template names.
+// Templates are merged into one ao the resulting template is a base template.
+// The relevant resource for that base template is then generated.
+// @Command(new)
 type MakeCommand struct {
-	Output io.Writer
+	// Key flag is optional, when given should be the fingerprint (or unique oartial fingerprint) of the key to use to identify the new object.
+	// Only applies to Certificates and CSRs, public-key property.  Ignored for other resources, (keys and CRLs).
+	// When not set, a new key is generated using the 'key' template.
+	// @Flag(key)
+	Key string
+
+	// Persist when set will save the new resource into the PKI repository.
+	// @Flag(persist, p)
+	Persist bool
 }
 
-func (mc MakeCommand) Exec(args ...string) error {
-	tc := &TemplateCommand{}
-	template, err := tc.BuildTemplate(args...)
+// Create generates a new resource witht he resulting template from merging the given named templates
+// requires one or more known template names, which are merged into a single base template.
+// returns either the PEM encoded resource or, when Persist is set, the fingerprint of the new resource
+// @Action
+func (cmd MakeCommand) Create(args ...string) (string, error) {
+	argFlags, argz, err := ArgFlagsToTemplate(args)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if err := validation.Validate(template); err != nil {
-		return err
-	}
-	data, err := mc.Make(template)
+	temps, err := templateRepo.ExpandedByName(argz...)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if mc.Output != nil {
-		// write to given output
-		_, err := mc.Output.Write(data)
-		return err
+	if argFlags.String() != "" {
+		temps = append(temps, argFlags)
 	}
-	// Output is not set, write to default location for resource
-	path, err := factories.SaveResource(data)
+	t, err := templates.MergeTemplates(temps)
 	if err != nil {
-		return err
+		return "", err
 	}
-	fmt.Printf("new %s created at %q", template.Name(), path)
-	return nil
-}
+	resz, err := factories.Make(t)
+	if err != nil {
+		return "", err
+	}
 
-func (mc MakeCommand) Make(template templates.Template) ([]byte, error) {
-	fac, err := factories.FactoryForType(template.Name())
-	if err != nil {
-		return nil, err
+	if cmd.Persist {
+		if err := factories.SaveResource(resz...); err != nil {
+			return "", err
+		}
+		return strings.Join(tools.StringerToString(resz...), "\n"), nil
 	}
-	return fac.Build(template)
+	buf := bytes.NewBuffer(nil)
+	for _, res := range resz {
+		data, err := res.MarshalText()
+		if err != nil {
+			return "", err
+		}
+		buf.Write(data)
+		buf.WriteString("\n")
+	}
+	return buf.String(), nil
 }

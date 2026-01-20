@@ -1,0 +1,3 @@
+# extends cert, defaultorg
+signature-algorithm: ECDSA-SHA512
+key-usage: KeyUsageDigitalSignature | KeyUsageContentCommitment | KeyUsageKeyEncipherment | KeyUsageDataEncipherment | KeyUsageKeyAgreement

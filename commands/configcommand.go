@@ -2,49 +2,42 @@ package commands
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/eurozulu/pempal/config"
-	"github.com/eurozulu/pempal/utils"
+	"github.com/eurozulu/pempal/logging"
 	"gopkg.in/yaml.v2"
-	"io"
-	"os"
 )
 
-type ConfigCommand struct {
-	Output io.Writer
-}
+// ConfigCommand displays the current configuration details
+// @Command(config)
+type ConfigCommand struct{}
 
-func (cmd ConfigCommand) Exec(args ...string) error {
-	if cmd.Output == nil {
-		cmd.Output = os.Stdout
-	}
+// ShowConfig shows the working root path, search path and the various resource related directory paths.
+// Config can be set using a file name '.ppconfig' in the pempal root directory.
+// @Action
+func (c *ConfigCommand) ShowConfig() string {
 	buf := bytes.NewBuffer(nil)
-	cmd.writeConfigFilePaths(buf)
+	buf.WriteString("Pempal Config:\n")
+	buf.WriteString("root path: ")
+	buf.WriteString(config.RootPath())
+	buf.WriteString("\n")
 
-	cfg := config.Config
-	if err := yaml.NewEncoder(buf).Encode(cfg); err != nil {
-		return err
-	}
-	if _, err := buf.WriteTo(cmd.Output); err != nil {
-		return err
-	}
-	return nil
-}
+	buf.WriteString("search path: ")
+	buf.WriteString(config.SearchPath())
+	buf.WriteString("\n")
 
-func (cmd ConfigCommand) writeConfigFilePaths(buf *bytes.Buffer) error {
-	globalPath := config.GlobalFilePath()
-	gfExists := utils.FileExists(globalPath)
-	if gfExists {
-		fmt.Fprintf(cmd.Output, "Global config: %s\n", globalPath)
-	} else {
-		fmt.Fprintf(cmd.Output, "No Global config found in %s\n", globalPath)
+	buf.WriteString("config file: ")
+	cp := config.ConfigPath()
+	if cp == "" {
+		cp = "- no config file in use -"
 	}
-	localPath := config.Config.LocalFilePath()
-	lfExists := utils.FileExists(localPath)
-	if lfExists {
-		fmt.Fprintf(cmd.Output, "Local config: %s\n", localPath)
-	} else {
-		fmt.Fprintf(cmd.Output, "No local config found in %s\n", localPath)
+	buf.WriteString(cp)
+	buf.WriteString("\n")
+
+	data, err := yaml.Marshal(config.DefaultPPConfig)
+	if err != nil {
+		logging.Error("failed to marshal config %v", err)
 	}
-	return nil
+	buf.Write(data)
+	buf.WriteString("\n\n")
+	return buf.String()
 }

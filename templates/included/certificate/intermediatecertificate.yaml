@@ -1,9 +1,0 @@
-issuer: ""
-subject: ""
-not-after: "5y"
-key-usage: "KeyUsageKeyEncipherment,KeyUsageDigitalSignature,KeyUsageCertSign,KeyUsageCRLSign,KeyUsageDataEncipherment,KeyUsageKeyAgreement,KeyUsageCRLSign,KeyUsageCertSign,KeyUsageCRLSign"
-basic-constraints-valid: true
-is-ca: true
-max-path-len: 1
-max-path-len-zero: false
-

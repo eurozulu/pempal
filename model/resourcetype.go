@@ -8,24 +8,16 @@ import (
 type ResourceType int
 
 const (
-	UnknownResourceType ResourceType = iota
-	PublicKey
-	PrivateKey
-	CertificateRequest
-	Certificate
-	RevokationList
+	ResourceTypeUnknown ResourceType = iota
+	ResourceTypePublicKey
+	ResourceTypePrivateKey
+	ResourceTypeCertificateRequest
+	ResourceTypeCertificate
+	ResourceTypeRevokationList
 )
 
 var resourceTypeNames = []string{
-	"UnknownResourceType",
-	"PublicKey",
-	"PrivateKey",
-	"CertificateRequest",
-	"Certificate",
-	"RevokationList",
-}
-var resourceTypePEMNames = []string{
-	"",
+	"UNKNOWN",
 	"PUBLIC KEY",
 	"PRIVATE KEY",
 	"CERTIFICATE REQUEST",
@@ -34,11 +26,15 @@ var resourceTypePEMNames = []string{
 }
 
 var aliases = map[string]string{
-	"puk":  "PublicKey",
-	"prk":  "PrivateKey",
-	"cert": "Certificate",
-	"csr":  "CertificateRequest",
-	"crl":  "RevokationList",
+	"puk":     "PUBLIC KEY",
+	"prk":     "PRIVATE KEY",
+	"key":     "PRIVATE KEY",
+	"cert":    "CERTIFICATE",
+	"cer":     "CERTIFICATE",
+	"csr":     "CERTIFICATE REQUEST",
+	"request": "CERTIFICATE REQUEST",
+	"req":     "CERTIFICATE REQUEST",
+	"crl":     "X509 CRL",
 }
 
 func (rt ResourceType) String() string {
@@ -47,14 +43,6 @@ func (rt ResourceType) String() string {
 		i = 0
 	}
 	return resourceTypeNames[i]
-}
-
-func (rt ResourceType) PEMString() string {
-	i := int(rt)
-	if i < 0 || i >= len(resourceTypePEMNames) {
-		i = 0
-	}
-	return resourceTypePEMNames[i]
 }
 
 func (rt ResourceType) MarshalText() (text []byte, err error) {
@@ -84,27 +72,10 @@ func ContainsResourceType(types []ResourceType, typ ResourceType) bool {
 	return false
 }
 
-func ParseResourceType(s string) (ResourceType, error) {
-	rt := UnknownResourceType
+func ParseResourceType(s string) ResourceType {
+	rt := ResourceTypeUnknown
 	if err := rt.UnmarshalText([]byte(s)); err != nil {
-		return UnknownResourceType, err
+		return ResourceTypeUnknown
 	}
-	return rt, nil
-}
-
-func ParseResourceTypeFromPEMType(pemType string) ResourceType {
-	n := strings.ToUpper(pemType)
-	for i, pn := range resourceTypePEMNames {
-		if strings.Contains(pn, " KEY") {
-			// keys do a contains search
-			if strings.Contains(n, pn) {
-				return ResourceType(i)
-			}
-			continue
-		}
-		if strings.EqualFold(n, pn) {
-			return ResourceType(i)
-		}
-	}
-	return UnknownResourceType
+	return rt
 }

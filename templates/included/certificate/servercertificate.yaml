@@ -1,5 +1,0 @@
-not-before: "now"
-not-after: "1y"
-key-usage:  "KeyUsageDigitalSignature,KeyUsageKeyEncipherment,KeyUsageDataEncipherment,KeyUsageKeyAgreement"
-basic-constraints-valid: true
-is-ca: false

@@ -1,0 +1,9 @@
+# extends certificate, defaultorg
+signature-algorithm: ECDSA-SHA512
+key-usage: KeyUsageDigitalSignature | KeyUsageContentCommitment | KeyUsageKeyEncipherment | KeyUsageDataEncipherment | KeyUsageKeyAgreement
+basic-constraints-valid: true
+is-ca: true
+max-path-len: 2
+max-path-len-zero: false
+subject: "OU=Root CA Certificate"
+issuer:

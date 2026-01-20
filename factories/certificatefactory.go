@@ -1,114 +1,106 @@
 package factories
 
 import (
-	"crypto"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/pem"
+	"errors"
 	"fmt"
-	"github.com/eurozulu/pempal/logging"
+	"github.com/eurozulu/pempal/config"
 	"github.com/eurozulu/pempal/model"
-	"github.com/eurozulu/pempal/resources"
+	"github.com/eurozulu/pempal/repositories"
 	"github.com/eurozulu/pempal/templates"
-	"github.com/eurozulu/pempal/utils"
-	"github.com/eurozulu/pempal/validation"
-	"os"
-	"path/filepath"
-	"strings"
+	"time"
 )
 
-type certificateFactory struct {
-	certrepo resources.Certificates
-	keyrepo  resources.Keys
-}
+type CertificateFactory struct{}
 
-func (cf certificateFactory) Build(template templates.Template) ([]byte, error) {
-	cv := validation.ValidatorForTemplate("certificate")
-	if err := cv.Validate(template); err != nil {
-		return nil, err
-	}
-	t := template.(*templates.CertificateTemplate)
-	certKey := t.PublicKey.PublicKey
-	// issuer key and certificate to sign with
-	issuerCert, err := cf.issuerCertificate(t)
-	if err != nil {
-		return nil, err
-	}
-	issuerKey, err := cf.issuerKey(issuerCert)
-	if err != nil {
-		return nil, err
-	}
-
-	der, err := x509.CreateCertificate(rand.Reader, t.ToCertificate(), issuerCert, certKey, issuerKey)
-	if err != nil {
-		return nil, err
-	}
-	// write result to file
-	data := utils.DERToPem(der, model.Certificate)
-	return data, nil
-}
-
-func (cf certificateFactory) issuerCertificate(template *templates.CertificateTemplate) (*x509.Certificate, error) {
-	if template.SelfSigned {
-		return template.ToCertificate(), nil
-	}
-	certs := cf.certrepo.CertificatesBySubject(template.Issuer.ToName())
-	if len(certs) == 0 {
-		return nil, &validation.ValidationError{
-			PropertyName: "issuer",
-			Message:      fmt.Sprintf("%s not known", template.Issuer.String()),
+func (cf CertificateFactory) Make(ct *templates.CertificateTemplate) ([]model.PemResource, error) {
+	var newKey *model.PrivateKey
+	if ct.PublicKey == nil {
+		prk, err := CreateDefaultKey()
+		if err != nil {
+			return nil, err
 		}
+		newKey = prk
+		ct.PublicKey = newKey.Public()
 	}
-	if len(certs) > 1 {
-		return nil, &validation.ValidationError{
-			PropertyName: "issuer",
-			Message:      fmt.Sprintf("%s is ambiguous. It matches %d certificates", template.Issuer.String(), len(certs)),
-		}
-	}
-	return certs[0], nil
-}
 
-func (cf certificateFactory) issuerKey(issuerCert *x509.Certificate) (crypto.PrivateKey, error) {
-	issuerId, err := model.NewKeyIdFromKey(issuerCert.PublicKey)
+	if err := ValidateCertificateTemplate(ct); err != nil {
+		return nil, err
+	}
+	cert := &model.Certificate{}
+	ct.ApplyTo(cert)
+
+	var issuer *model.Issuer
+	if ct.SelfSigned {
+		// If using an existing key, go find it
+		if newKey == nil {
+			prk, err := repositories.Keys(config.KeyPath()).ByPublicKey(ct.PublicKey)
+			if err != nil {
+				return nil, fmt.Errorf("no private key found for certificate %s. %v", ct.Subject, err)
+			}
+			newKey = prk
+		}
+		issuer = model.NewIssuer(cert, newKey)
+	} else {
+		// Using existing issuer
+		is, err := resolveIssuer(ct.Issuer)
+		if err != nil {
+			return nil, err
+		}
+		issuer = is
+	}
+	der, err := x509.CreateCertificate(
+		rand.Reader,
+		(*x509.Certificate)(cert),
+		(*x509.Certificate)(issuer.Certificate()),
+		ct.PublicKey.Public(),
+		issuer.PrivateKey().Private(),
+	)
 	if err != nil {
 		return nil, err
 	}
-	logging.Debug("CertificateFactory", "issuer %s id %s", issuerCert.Subject, issuerId)
+	c := &model.Certificate{}
+	// marshal DER into pem
+	if err := c.UnmarshalBinary(der); err != nil {
+		return nil, err
+	}
+	result := []model.PemResource{c}
+	if newKey != nil {
+		result = append(result, newKey)
+	}
+	return result, nil
+}
 
-	// locate private key for the given issuerCert
-	prk, err := cf.keyrepo.PrivateKeyFromID(issuerId)
-	if err != nil {
-		return nil, &validation.ValidationError{
-			PropertyName: "issuer",
-			Message:      fmt.Sprintf("could not locate private key for %q. %v", issuerCert.Subject.String(), err.Error()),
+func ValidateCertificateTemplate(ct *templates.CertificateTemplate) error {
+	if ct.Subject.IsEmpty() {
+		return fmt.Errorf("Invalid certificate template. Certificate subject is empty")
+	}
+	if ct.Subject.CommonName == "" {
+		return fmt.Errorf("Invalid certificate template. Certificate subject: common name is empty")
+	}
+	if ct.SelfSigned {
+		if !ct.Issuer.IsEmpty() && !ct.Issuer.Equals(ct.Subject) {
+			return fmt.Errorf("mismatched issuer for self signed certificate. For self-signed, leave issuer blank or set to same as subject.")
 		}
+		ct.Issuer = ct.Subject
 	}
-	return prk, nil
-}
+	if ct.Issuer.IsEmpty() {
+		return fmt.Errorf("Certificate issuer is empty. use self-signed flag if certificate is self signed")
+	}
+	//if ct.SerialNumber == nil {
+	//	return fmt.Errorf("Serial number is missing")
+	//}
+	puk := ct.PublicKey
+	if puk == nil {
+		return fmt.Errorf("Public key is missing")
+	}
+	if puk.PublicKeyAlgorithm() != ct.PublicKeyAlgorithm {
+		ct.PublicKeyAlgorithm = puk.PublicKeyAlgorithm()
+	}
 
-func saveCertificate(path string, pemdata []byte) (string, error) {
-	blk, _ := pem.Decode(pemdata)
-	cert, err := x509.ParseCertificate(blk.Bytes)
-	if err != nil {
-		return "", err
+	if time.Time(ct.NotAfter).Before(time.Time(ct.NotBefore)) {
+		return errors.New("not_after is before not_before")
 	}
-	fn := strings.ReplaceAll(cert.Subject.String(), "/", "_")
-	fn = strings.ReplaceAll(fn, " ", "_")
-	fp := uniqueName(path, fn+".pem")
-	if err := utils.EnsureDirExists(path); err != nil {
-		return "", err
-	}
-	return fp, os.WriteFile(fp, pemdata, 0644)
-}
-
-func uniqueName(path, name string) string {
-	fn := name
-	ext := filepath.Ext(name)
-	name = name[:len(name)-len(ext)]
-	count := 0
-	for utils.FileExists(filepath.Join(path, fn)) {
-		fn = fmt.Sprintf("%s_%04d%s", name, count, ext)
-		count++
-	}
-	return filepath.Join(path, fn)
+	return nil
 }

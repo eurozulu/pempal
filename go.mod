@@ -1,14 +1,13 @@
 module github.com/eurozulu/pempal
 
-go 1.22
+go 1.24.0
+
+toolchain go1.24.2
 
 require (
-	github.com/eurozulu/argflags v0.0.1
-	golang.org/x/crypto v0.31.0
+	github.com/eurozulu/colout v0.0.2
+	github.com/eurozulu/spud v0.6.4
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require (
-	github.com/mattn/go-runewidth v0.0.9 // indirect
-	github.com/nsf/termbox-go v1.1.1 // indirect
-)
+require golang.org/x/text v0.22.0 // indirect

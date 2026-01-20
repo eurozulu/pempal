@@ -3,6 +3,7 @@ package model
 import (
 	"crypto/x509"
 	"fmt"
+	"github.com/eurozulu/pempal/tools"
 	"strings"
 )
 
@@ -45,7 +46,7 @@ func (k KeyUsage) MarshalText() (text []byte, err error) {
 }
 
 func (k *KeyUsage) UnmarshalText(text []byte) error {
-	names := strings.Split(string(text), ",")
+	names := tools.TrimSlice(strings.Split(string(text), "|"))
 	ku := int(*k)
 	for _, name := range names {
 		u, err := ParseKeyUsage(name)
@@ -59,6 +60,17 @@ func (k *KeyUsage) UnmarshalText(text []byte) error {
 }
 
 func ParseKeyUsage(s string) (KeyUsage, error) {
+	if ss := strings.Split(s, ","); len(ss) > 1 {
+		var k KeyUsage
+		for _, name := range ss {
+			ku, err := ParseKeyUsage(name)
+			if err != nil {
+				return 0, err
+			}
+			k |= ku
+		}
+		return k, nil
+	}
 	for i, n := range keyUsageNames {
 		if strings.EqualFold(n, s) {
 			return KeyUsage(i), nil

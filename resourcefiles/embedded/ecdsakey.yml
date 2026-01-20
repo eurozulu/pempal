@@ -1,0 +1,3 @@
+#extends privatekey
+public-key-algorithm: ECDSA
+key-curve: P384

@@ -3,6 +3,8 @@ package model
 import (
 	"crypto/x509/pkix"
 	"fmt"
+	"github.com/eurozulu/pempal/tools"
+
 	"strings"
 )
 
@@ -12,6 +14,41 @@ func (dn DistinguishedName) String() string {
 	return pkix.Name(dn).String()
 }
 
+func (dn DistinguishedName) IsEmpty() bool {
+	return dn.String() == ""
+}
+
+func (dn DistinguishedName) Matches(o DistinguishedName) bool {
+	if o.CommonName != "" && !strings.Contains(dn.CommonName, o.CommonName) {
+		return false
+	}
+	if o.SerialNumber != "" && !strings.Contains(dn.SerialNumber, o.SerialNumber) {
+		return false
+	}
+	if len(o.Country) > 0 && !tools.HasSameElements(dn.Country, o.Country) {
+		return false
+	}
+	if len(o.Organization) > 0 && !tools.HasSameElements(dn.Organization, o.Organization) {
+		return false
+	}
+	if len(o.OrganizationalUnit) > 0 && !tools.HasSameElements(dn.OrganizationalUnit, o.OrganizationalUnit) {
+		return false
+	}
+	if len(o.Locality) > 0 && !tools.HasSameElements(dn.Locality, o.Locality) {
+		return false
+	}
+	if len(o.Province) > 0 && !tools.HasSameElements(dn.Province, o.Province) {
+		return false
+	}
+	if len(o.StreetAddress) > 0 && !tools.HasSameElements(dn.StreetAddress, o.StreetAddress) {
+		return false
+	}
+	if len(o.PostalCode) > 0 && !tools.HasSameElements(dn.PostalCode, o.PostalCode) {
+		return false
+	}
+	return true
+}
+
 func (dn DistinguishedName) Equals(o DistinguishedName) bool {
 	if dn.CommonName != o.CommonName {
 		return false
@@ -19,26 +56,25 @@ func (dn DistinguishedName) Equals(o DistinguishedName) bool {
 	if dn.SerialNumber != o.SerialNumber {
 		return false
 	}
-	if !equalsSlice(dn.Country, o.Country) {
+	if !tools.HasSameElements(dn.Country, o.Country) {
 		return false
 	}
-	if !equalsSlice(dn.Organization, o.Organization) {
+	if !tools.HasSameElements(dn.Organization, o.Organization) {
 		return false
 	}
-
-	if !equalsSlice(dn.OrganizationalUnit, o.OrganizationalUnit) {
+	if !tools.HasSameElements(dn.OrganizationalUnit, o.OrganizationalUnit) {
 		return false
 	}
-	if !equalsSlice(dn.Locality, o.Locality) {
+	if !tools.HasSameElements(dn.Locality, o.Locality) {
 		return false
 	}
-	if !equalsSlice(dn.Province, o.Province) {
+	if !tools.HasSameElements(dn.Province, o.Province) {
 		return false
 	}
-	if !equalsSlice(dn.StreetAddress, o.StreetAddress) {
+	if !tools.HasSameElements(dn.StreetAddress, o.StreetAddress) {
 		return false
 	}
-	if !equalsSlice(dn.PostalCode, o.PostalCode) {
+	if !tools.HasSameElements(dn.PostalCode, o.PostalCode) {
 		return false
 	}
 	//if len(dn.Names) != len(o.Names) {
@@ -58,7 +94,7 @@ func (dn *DistinguishedName) UnmarshalText(text []byte) error {
 	if err != nil {
 		return err
 	}
-	dn.merge(*d)
+	dn.Merge(*d)
 	return nil
 }
 
@@ -68,6 +104,39 @@ func (dn DistinguishedName) MarshalText() (text []byte, err error) {
 
 func (dn DistinguishedName) ToName() pkix.Name {
 	return pkix.Name(dn)
+}
+
+// Merge replaces any field with the given non empty field.
+// If the given Names field is not empty it will be added to this name.
+// For single value fields, the value is replaced. For slices, the slices are merged with the unique values of existing and given.
+func (dn *DistinguishedName) Merge(o DistinguishedName) {
+	if o.SerialNumber != "" {
+		dn.SerialNumber = o.SerialNumber
+	}
+	if o.CommonName != "" {
+		dn.CommonName = o.CommonName
+	}
+	if len(o.Country) > 0 {
+		dn.Country = tools.AppendUnique(dn.Country, o.Country...)
+	}
+	if len(o.Organization) > 0 {
+		dn.Organization = tools.AppendUnique(dn.Organization, o.Organization...)
+	}
+	if len(o.OrganizationalUnit) > 0 {
+		dn.OrganizationalUnit = tools.AppendUnique(dn.OrganizationalUnit, o.OrganizationalUnit...)
+	}
+	if len(o.Locality) > 0 {
+		dn.Locality = tools.AppendUnique(dn.Locality, o.Locality...)
+	}
+	if len(o.Province) > 0 {
+		dn.Province = tools.AppendUnique(dn.Province, o.Province...)
+	}
+	if len(o.StreetAddress) > 0 {
+		dn.StreetAddress = tools.AppendUnique(dn.StreetAddress, o.StreetAddress...)
+	}
+	if len(o.PostalCode) > 0 {
+		dn.PostalCode = tools.AppendUnique(dn.PostalCode, o.PostalCode...)
+	}
 }
 
 func (dn *DistinguishedName) addValue(key string, value ...string) error {
@@ -98,36 +167,6 @@ func (dn *DistinguishedName) addValue(key string, value ...string) error {
 	return nil
 }
 
-func (dn *DistinguishedName) merge(o DistinguishedName) {
-	if o.SerialNumber != "" {
-		dn.SerialNumber = o.SerialNumber
-	}
-	if o.CommonName != "" {
-		dn.CommonName = o.CommonName
-	}
-	if len(o.Country) > 0 {
-		dn.Country = mergeSlice(dn.Country, o.Country)
-	}
-	if len(o.Organization) > 0 {
-		dn.Organization = mergeSlice(dn.Organization, o.Organization)
-	}
-	if len(o.OrganizationalUnit) > 0 {
-		dn.OrganizationalUnit = mergeSlice(dn.OrganizationalUnit, o.OrganizationalUnit)
-	}
-	if len(o.Locality) > 0 {
-		dn.Locality = mergeSlice(dn.Locality, o.Locality)
-	}
-	if len(o.Province) > 0 {
-		dn.Province = mergeSlice(dn.Province, o.Province)
-	}
-	if len(o.StreetAddress) > 0 {
-		dn.StreetAddress = mergeSlice(dn.StreetAddress, o.StreetAddress)
-	}
-	if len(o.PostalCode) > 0 {
-		dn.PostalCode = mergeSlice(dn.PostalCode, o.PostalCode)
-	}
-}
-
 func parseRDNSValueToSlice(value string) []string {
 	var found []string
 	for _, v := range strings.Split(value, "+") {
@@ -140,39 +179,19 @@ func parseRDNSValueToSlice(value string) []string {
 	return found
 }
 
-func equalsSlice(s1, s2 []string) bool {
-	if len(s1) != len(s2) {
-		return false
+// ParseName parses the given name as a DN.  If the given string is not a valid DN,
+// The string is used as the Common Name of a DN.
+func ParseName(name string) (*DistinguishedName, error) {
+	if name == "" {
+		return nil, fmt.Errorf("name cannot be empty")
 	}
-	for _, s := range s1 {
-		if !containsString(s, s2) {
-			return false
-		}
+	if !strings.Contains(name, "=") {
+		name = "CN=" + name
 	}
-	return true
+	return ParseDistinguishedName(name)
 }
 
-func containsString(s string, ss []string) bool {
-	for _, sz := range ss {
-		if sz == s {
-			return true
-		}
-	}
-	return false
-}
-
-func mergeSlice(s1, s2 []string) []string {
-	ss := make([]string, len(s1))
-	copy(ss, s1)
-	for _, sz := range s2 {
-		if containsString(sz, ss) {
-			continue
-		}
-		ss = append(ss, sz)
-	}
-	return ss
-}
-
+// ParseDistinguishedName parses the given atring as a valid DN.
 func ParseDistinguishedName(s string) (*DistinguishedName, error) {
 	dn := &DistinguishedName{}
 	for _, n := range strings.Split(s, ",") {

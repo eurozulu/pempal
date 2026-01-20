@@ -1,1 +1,0 @@
-key-usage: "KeyUsageDigitalSignature,KeyUsageContentCommitment,KeyUsageKeyEncipherment,KeyUsageDataEncipherment,KeyUsageKeyAgreement,KeyUsageCertSign,KeyUsageCRLSign,KeyUsageEncipherOnly,KeyUsageDecipherOnly"
