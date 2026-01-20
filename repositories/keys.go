@@ -81,7 +81,7 @@ func (kz Keys) Find(ctx context.Context, filter keyFilter) <-chan *model.Private
 				}
 				select {
 				case <-ctx.Done():
-
+				case found <- k:
 				}
 			}
 		}

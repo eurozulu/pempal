@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"github.com/eurozulu/pempal/logging"
 	"github.com/eurozulu/pempal/model"
 )
 
@@ -50,15 +51,16 @@ func (u Issuers) Find(ctx context.Context, filter CertificateFilter) <-chan *mod
 			}
 			return filter(certificate)
 		}
-		certs := Certificates(u).Find(ctx, caFilter)
-		for c := range certs {
-			prk, err := keyz.ByPublicKey(model.NewPublicKey(c.PublicKey))
+
+		for certificate := range Certificates(u).Find(ctx, caFilter) {
+			prk, err := keyz.ByPublicKey(model.NewPublicKey(certificate.PublicKey))
 			if err != nil {
+				logging.Debug("failed to lookup key for %s %v", certificate.Subject, err)
 				continue
 			}
 			select {
 			case <-ctx.Done():
-			case ch <- model.NewIssuer(c, prk):
+			case ch <- model.NewIssuer(certificate, prk):
 			}
 		}
 	}()
