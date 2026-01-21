@@ -1,2 +1,2 @@
-# extends certificate,defaultsignaturealgorithm,defaultkeyalgorithm, defaultorg
+# extends default-certificate
 key-usage: DigitalSignature | KeyAgreement

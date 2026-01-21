@@ -36,10 +36,6 @@ func (tz Templates) FindByName(name string) []templates.Template {
 		t, _ := templates.NewBaseTemplate(n)
 		return []templates.Template{t}
 	}
-
-	if !strings.HasPrefix(name, "/") {
-		name = "/" + name
-	}
 	return tz.FindAll(func(file *model.TemplateFile) bool {
 		path := strings.TrimSuffix(file.Path, filepath.Ext(file.Path))
 		return strings.HasSuffix(path, name)

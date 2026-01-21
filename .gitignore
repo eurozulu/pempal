@@ -1,6 +1,7 @@
 /.idea/
 /bin/
 /testdata/
+/testdata*/
 /spud
 /pempal
 **/spuds.go

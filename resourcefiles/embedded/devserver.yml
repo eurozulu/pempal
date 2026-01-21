@@ -1,2 +1,2 @@
-# extends servercertificate,defaultorg
+# extends servercertificate,default-name
 subject: "OU=Development"

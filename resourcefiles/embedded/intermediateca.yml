@@ -1,4 +1,4 @@
-# extends servercertificate
+# extends servercertificate,root-issuer
 subject: "OU=Intermediate CA"
 key-usage: Critical | DigitalSignature | CertSign | CRLSign
 extended-keyUsage: clientAuth
