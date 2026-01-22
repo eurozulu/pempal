@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const DefaultFormat = "list"
+const DefaultFormat = "yaml"
 
 var views = map[string]ResourceFormat{
 	"list": &ListFormat{},
