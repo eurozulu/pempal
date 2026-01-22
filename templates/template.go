@@ -33,18 +33,15 @@ func MergeTemplates(temps []Template) (Template, error) {
 			return nil, err
 		}
 	}
-	data, err := yaml.Marshal(base)
-	if err != nil {
-		return nil, err
-	}
 	if base == nil {
+		data, err := yaml.Marshal(base)
+		if err != nil {
+			return nil, err
+		}
 		return &model.TemplateFile{
 			Path: "",
 			Data: data,
 		}, nil
-	}
-	if err := yaml.Unmarshal(data, base); err != nil {
-		return nil, err
 	}
 	return base, nil
 }

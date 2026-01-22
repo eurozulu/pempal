@@ -35,6 +35,24 @@ func StringsWithPrefix(s []string, prefix string) []string {
 	return found
 }
 
+func CleanQuotes(s string) string {
+	s = strings.TrimLeft(s, "\"'")
+	return strings.TrimRight(s, "\"'")
+}
+
+func SingleQuote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	if s[0] != '\'' {
+		s = string(append([]rune{'\''}, []rune(s)...))
+	}
+	if s[len(s)-1] != '\'' {
+		s = string(append([]rune(s), '\''))
+	}
+	return s
+}
+
 func StringerToString[T fmt.Stringer](s ...T) []string {
 	ss := make([]string, len(s))
 	for i, sz := range s {

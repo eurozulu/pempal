@@ -1,5 +1,4 @@
-# extends default-certificate
-signature-algorithm: ECDSA-SHA512
+# extends default-certificate,default-issuer
 subject: "OU=Pempal User"
-key-usage: KeyUsageDigitalSignature | KeyUsageContentCommitment | KeyUsageKeyEncipherment | KeyUsageDataEncipherment
+key-usage: DigitalSignature | ContentCommitment | KeyEncipherment | DataEncipherment
 email-addresses:

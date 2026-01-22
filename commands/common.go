@@ -7,6 +7,7 @@ import (
 	"github.com/eurozulu/pempal/model"
 	"github.com/eurozulu/pempal/templates"
 	"gopkg.in/yaml.v2"
+	"strconv"
 	"strings"
 )
 
@@ -17,14 +18,13 @@ var Verbose bool
 // @Flag(vv)
 var VeryVerbose bool
 
-func init() {
+func SetLoggingOutput() {
 	if Verbose {
 		logging.DefaultLogger.SetLogLevel(logging.LogInfo)
 	}
 	if VeryVerbose {
 		logging.DefaultLogger.SetLogLevel(logging.LogDebug)
 	}
-
 }
 
 func ArgFlagsToTemplate(args []string) (templates.Template, []string, error) {
@@ -41,12 +41,12 @@ func ArgFlagsToTemplate(args []string) (templates.Template, []string, error) {
 			flags[arg] = true
 			continue
 		}
-		var s string
+		var v interface{}
 		if i+1 < len(args) {
 			i++
-			s = args[i]
+			v = stringToValue(args[i])
 		}
-		flags[arg] = s
+		flags[arg] = v
 	}
 	var data []byte
 	if len(flags) > 0 {
@@ -60,4 +60,17 @@ func ArgFlagsToTemplate(args []string) (templates.Template, []string, error) {
 		Path: "",
 		Data: data,
 	}, argz, nil
+}
+
+func stringToValue(s string) interface{} {
+	if b, err := strconv.ParseBool(s); err == nil {
+		return b
+	}
+	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return i
+	}
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		return f
+	}
+	return s
 }

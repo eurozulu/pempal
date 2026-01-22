@@ -24,8 +24,23 @@ func IsFileExists(path string) bool {
 	return !i.IsDir()
 }
 
+func IsFileExistsFS(fsys fs.FS, path string) bool {
+	i, err := fs.Stat(fsys, path)
+	if err != nil {
+		return false
+	}
+	return !i.IsDir()
+}
+
 func IsDirExists(path string) bool {
 	i, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return i.IsDir()
+}
+func IsDirExistsFS(fsys fs.FS, path string) bool {
+	i, err := fs.Stat(fsys, path)
 	if err != nil {
 		return false
 	}

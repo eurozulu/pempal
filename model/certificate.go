@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ func (c *Certificate) ResourceType() ResourceType {
 }
 
 func (c *Certificate) String() string {
-	return c.Subject.String()
+	return fmt.Sprintf("%s\t%s", c.Fingerprint(), c.Subject.String())
 }
 
 func (c *Certificate) Fingerprint() Fingerprint {

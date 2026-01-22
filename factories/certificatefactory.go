@@ -81,7 +81,7 @@ func ValidateCertificateTemplate(ct *templates.CertificateTemplate) error {
 	}
 	if ct.SelfSigned {
 		if !ct.Issuer.IsEmpty() && !ct.Issuer.Equals(ct.Subject) {
-			return fmt.Errorf("mismatched issuer for self signed certificate. For self-signed, leave issuer blank or set to same as subject.")
+			return fmt.Errorf("mismatched issuer for self signed certificate %q. For self-signed, leave issuer blank or set to same as subject.", ct.Subject)
 		}
 		ct.Issuer = ct.Subject
 	}

@@ -25,7 +25,9 @@ func (s *FilePathScanner) ScanPath(ctx context.Context, fsys fs.FS, path ...stri
 				continue
 			}
 			if err := s.walkPath(ctx, fsys, root, out); err != nil {
-				logging.Error("Failed to walk path %s: %v", root, err)
+				if err != context.Canceled {
+					logging.Error("Failed to walk path %s: %v", root, err)
+				}
 			}
 		}
 	}()

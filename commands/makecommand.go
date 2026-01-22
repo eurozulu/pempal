@@ -2,7 +2,10 @@ package commands
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/eurozulu/pempal/config"
 	"github.com/eurozulu/pempal/factories"
+	"github.com/eurozulu/pempal/repositories"
 	"github.com/eurozulu/pempal/templates"
 	"github.com/eurozulu/pempal/tools"
 	"strings"
@@ -19,14 +22,14 @@ type MakeCommand struct {
 	// @Flag(key)
 	Key string
 
-	// Persist when set will save the new resource into the PKI repository.
-	// @Flag(persist, p)
-	Persist bool
+	// Save when set will save the new resource into the PKI repository.
+	// @Flag(save, s)
+	Save bool
 }
 
 // Create generates a new resource witht he resulting template from merging the given named templates
 // requires one or more known template names, which are merged into a single base template.
-// returns either the PEM encoded resource or, when Persist is set, the fingerprint of the new resource
+// returns either the PEM encoded resource or, when Save is set, the fingerprint of the new resource
 // @Action
 func (cmd MakeCommand) Create(args ...string) (string, error) {
 	argFlags, argz, err := ArgFlagsToTemplate(args)
@@ -37,8 +40,20 @@ func (cmd MakeCommand) Create(args ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	if argFlags.String() != "" {
 		temps = append(temps, argFlags)
+	}
+	if cmd.Key != "" {
+		puk, err := resolveKey(cmd.Key)
+		if err != nil {
+			return "", err
+		}
+		t, _, err := ArgFlagsToTemplate([]string{"-public-key", tools.SingleQuote(string(puk))})
+		if err != nil {
+			return "", err
+		}
+		temps = append(temps, t)
 	}
 	t, err := templates.MergeTemplates(temps)
 	if err != nil {
@@ -49,7 +64,7 @@ func (cmd MakeCommand) Create(args ...string) (string, error) {
 		return "", err
 	}
 
-	if cmd.Persist {
+	if cmd.Save {
 		if err := factories.SaveResource(resz...); err != nil {
 			return "", err
 		}
@@ -65,4 +80,16 @@ func (cmd MakeCommand) Create(args ...string) (string, error) {
 		buf.WriteString("\n")
 	}
 	return buf.String(), nil
+}
+
+func resolveKey(fingerprint string) ([]byte, error) {
+	keyz := repositories.Keys(config.KeyPath()).MatchByAnyFingerPrint(fingerprint)
+	if len(keyz) == 0 {
+		return nil, fmt.Errorf("%q key not found", fingerprint)
+	}
+	if len(keyz) > 1 {
+		fpz := strings.Join(tools.StringerToString(keyz...), ", ")
+		return nil, fmt.Errorf("%q key matches multiple keys: %s", fingerprint, fpz)
+	}
+	return keyz[0].Public().MarshalText()
 }

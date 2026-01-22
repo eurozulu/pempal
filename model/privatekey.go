@@ -32,7 +32,16 @@ func (k PrivateKey) Fingerprint() Fingerprint {
 }
 
 func (k PrivateKey) String() string {
-	return fmt.Sprintf("%s\t%s", k.Fingerprint(), k.PublicKeyAlgorithm())
+	var s string
+	switch x509.PublicKeyAlgorithm(k.PublicKeyAlgorithm()) {
+	case x509.RSA:
+		s = fmt.Sprintf("%s (%d)", k.PublicKeyAlgorithm().String(), k.RSAKeyLength())
+	case x509.ECDSA:
+		s = fmt.Sprintf("%s (%s)", k.PublicKeyAlgorithm().String(), k.ECDSACurve().String())
+	default:
+		s = k.PublicKeyAlgorithm().String()
+	}
+	return fmt.Sprintf("%s\t%s", k.Fingerprint(), s)
 }
 
 func (k PrivateKey) RSAKeyLength() int {

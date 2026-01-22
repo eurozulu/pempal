@@ -5,6 +5,7 @@ import (
 	"github.com/eurozulu/pempal/config"
 	"github.com/eurozulu/pempal/logging"
 	"github.com/eurozulu/pempal/model"
+	"github.com/eurozulu/pempal/repositories"
 	"github.com/eurozulu/pempal/tools"
 	"gopkg.in/yaml.v2"
 	"os"
@@ -46,6 +47,7 @@ func (cmd InitCommand) InitPKI(baseName string, args []string) error {
 // Base name must NOT contain a common-name.
 // @Action(templates,t)
 func (cmd InitCommand) InitTemplates(baseName string) error {
+	// write default-name template
 	name, err := parseBaseName(baseName)
 	if err != nil {
 		return err
@@ -57,24 +59,40 @@ func (cmd InitCommand) InitTemplates(baseName string) error {
 			return err
 		}
 		logging.Info("created Template %s with name %s", defaultNameName, name.String())
-
 	}
+
+	// write rootissuer template
 	if templateExists(rootIssuerName) {
 		logging.Info("Template %s already exists. Skipping.", rootIssuerName)
 	} else {
-		rootDN, _ := model.ParseName(name.String())
-		rootDN.CommonName = "Root CA for " + name.String()
+		subject, err := readTemplateProperty(rootCACert, "subject")
+		if err != nil {
+			return err
+		}
+		rootDN, err := model.ParseDistinguishedName(subject)
+		if err != nil {
+			return err
+		}
+		rootDN.Merge(*name)
 		if err := writeTemplate(rootIssuerName, []byte("issuer: "+rootDN.String())); err != nil {
 			return err
 		}
 		logging.Info("created Template %s with name %s", rootIssuerName, rootDN.String())
 	}
 
+	// write default issuer template
 	if templateExists(defaultIssuerName) {
 		logging.Info("Template %s already exists. Skipping.", defaultIssuerName)
 	} else {
-		issuerDN, _ := model.ParseName(name.String())
-		issuerDN.CommonName = "Intermediate CA for " + name.String()
+		subject, err := readTemplateProperty(interCACert, "subject")
+		if err != nil {
+			return err
+		}
+		issuerDN, err := model.ParseDistinguishedName(subject)
+		if err != nil {
+			return err
+		}
+		issuerDN.Merge(*name)
 		if err := writeTemplate(defaultIssuerName, []byte("issuer: "+issuerDN.String())); err != nil {
 			return err
 		}
@@ -93,28 +111,42 @@ func (cmd InitCommand) InitCertificates() error {
 	if err != nil {
 		return err
 	}
-
-	dn, err := makeCertificate(rootCACert, rootName)
-	if err != nil {
-		return err
+	if certificateExists(rootName) {
+		logging.Info("Certificate %s already exists. Skipping.", rootName)
+	} else {
+		_, err := makeCertificate(rootCACert, rootName)
+		if err != nil {
+			return err
+		}
+		logging.Info("created root CA certificate %s")
 	}
-	logging.Info("created root CA certificate %s", dn)
 
 	issuerName, err := readTemplateProperty(defaultIssuerName, "issuer")
 	if err != nil {
 		return err
 	}
-	dn, err = makeCertificate(interCACert, issuerName)
+	if certificateExists(issuerName) {
+		logging.Info("Certificate %s already exists. Skipping.", issuerName)
+	} else {
+		_, err = makeCertificate(interCACert, issuerName)
+		if err != nil {
+			return err
+		}
+		logging.Info("created Intermediate CA certificate %s", issuerName)
+	}
+	uName, err := model.ParseDistinguishedName("CN=" + os.ExpandEnv("${USER}"))
 	if err != nil {
 		return err
 	}
-	logging.Info("created Intermediate CA certificate %s", dn)
-
-	dn, err = makeCertificate(userName, os.ExpandEnv("${USER}"))
-	if err != nil {
-		return err
+	if certificateExists(uName.String()) {
+		logging.Info("Certificate %s already exists. Skipping.", uName.String())
+	} else {
+		_, err = makeCertificate(userName, uName.String())
+		if err != nil {
+			return err
+		}
+		logging.Info("created user certificate %s", uName.String())
 	}
-	logging.Info("created user certificate %s", dn)
 	return nil
 }
 
@@ -161,14 +193,12 @@ func readTemplateProperty(templateName, propertyName string) (string, error) {
 }
 
 func readTemplate(templateName string) (map[string]string, error) {
-	path := templatePathFromName(templateName)
-	f, err := os.Open(path)
+	t, err := repositories.Templates(config.TemplatePath()).ByName(templateName)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 	m := make(map[string]string)
-	if err = yaml.NewDecoder(f).Decode(&m); err != nil {
+	if err = yaml.Unmarshal([]byte(t[0].String()), &m); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -179,9 +209,24 @@ func templatePathFromName(name string) string {
 	return strings.Join([]string{filename, "yml"}, ".")
 }
 
+func certificateExists(name string) bool {
+	c, err := readCertificate(name)
+	if err != nil {
+		return false
+	}
+	return c != nil
+}
+func readCertificate(name string) (*model.Certificate, error) {
+	dn, err := model.ParseDistinguishedName(name)
+	if err != nil {
+		return nil, err
+	}
+	return repositories.Certificates(config.SearchPath()).ByName(*dn)
+}
+
 func makeCertificate(templateName string, subject string) (string, error) {
 	args := []string{templateName, "-subject", subject}
-	dn, err := MakeCommand{Persist: true}.Create(args...)
+	dn, err := MakeCommand{Save: true}.Create(args...)
 	if err != nil {
 		return "", err
 	}

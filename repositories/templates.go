@@ -24,7 +24,7 @@ func (tz Templates) ByName(name ...string) ([]templates.Template, error) {
 			return nil, fmt.Errorf("template %s not found", n)
 		}
 		if len(temps) > 1 {
-			return nil, fmt.Errorf("template %s matches multiple templates", name)
+			return nil, fmt.Errorf("template %q matches multiple templates", n)
 		}
 		found = append(found, temps...)
 	}
@@ -37,8 +37,8 @@ func (tz Templates) FindByName(name string) []templates.Template {
 		return []templates.Template{t}
 	}
 	return tz.FindAll(func(file *model.TemplateFile) bool {
-		path := strings.TrimSuffix(file.Path, filepath.Ext(file.Path))
-		return strings.HasSuffix(path, name)
+		n := filepath.Base(strings.TrimSuffix(file.Path, filepath.Ext(file.Path)))
+		return strings.EqualFold(n, name)
 	})
 }
 

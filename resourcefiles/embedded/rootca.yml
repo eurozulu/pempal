@@ -1,5 +1,5 @@
 # extends servercertificate,root-issuer
-subject: "OU=Root CA"
+subject: "CN=Root CA certificate,OU=Root CA"
 key-usage: Critical | DigitalSignature | CertSign | CRLSign
 extended-keyUsage: clientAuth
 is-ca: true

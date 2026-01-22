@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	_ "github.com/eurozulu/pempal/commands"
 	"github.com/eurozulu/spud/taglibs/subcommander"
 	"os"
 )

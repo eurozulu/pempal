@@ -1,2 +1,2 @@
-# extends certificate,default-signaturealgorithm,default-keyalgorithm,default-name,default-issuer
+# extends certificate,default-signaturealgorithm,default-keyalgorithm,default-name
 

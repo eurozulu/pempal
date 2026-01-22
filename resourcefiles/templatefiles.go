@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/eurozulu/pempal/logging"
 	"github.com/eurozulu/pempal/model"
+	"github.com/eurozulu/pempal/tools"
 	"io/fs"
 	"os"
-	"strings"
 )
 
 //go:embed embedded/*
@@ -35,58 +35,37 @@ func (fz TemplateFiles) Find(ctx context.Context, filter TemplateFileFilter) <-c
 		// Read embedded templates first and push only after all the files are done.
 		// This eliminates the embedded templates which are being overridden by file templates.
 
-		scanner := &FilePathScanner{Filter: &FileExtensionFilter{Extensions: TemplateFileExtensions}}
-		var embedded []*model.TemplateFile
-		for path := range scanner.ScanPath(ctx, embeddedTemplates, "embedded/") {
-			file, err := readTemplateFile(embeddedTemplates, path)
-			if err != nil {
-				logging.Warning("failed to open template %v", err)
-				continue
-			}
-			if filter != nil && !filter(file) {
-				continue
-			}
-			embedded = append(embedded, file)
-		}
+		fileSys := os.DirFS(string(fz))
+		embedSys, _ := fs.Sub(embeddedTemplates, "embedded")
+		scanPath(ctx, embedSys, ".", fileSys, found, filter)
 
-		tempFS := os.DirFS(string(fz))
-		for path := range scanner.ScanPath(ctx, tempFS, ".") {
-			embedded = removePath(embedded, path)
-			file, err := readTemplateFile(tempFS, path)
-			if err != nil {
-				logging.Warning("failed to open %s  %v", path, err)
-				continue
-			}
-			if filter != nil && !filter(file) {
-				continue
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case found <- file:
-			}
-		}
-		// post any remaining embedded
-		for _, et := range embedded {
-			select {
-			case <-ctx.Done():
-				return
-			case found <- et:
-			}
-		}
+		scanPath(ctx, fileSys, ".", nil, found, filter)
 	}()
 	return found
 }
 
-func removePath(files []*model.TemplateFile, path string) []*model.TemplateFile {
-	var found []*model.TemplateFile
-	for _, f := range files {
-		if strings.EqualFold(f.Path, path) {
+func scanPath(ctx context.Context, fsys fs.FS, root string, maskFS fs.FS, out chan *model.TemplateFile, filter TemplateFileFilter) {
+	scanner := &FilePathScanner{Filter: &FileExtensionFilter{Extensions: TemplateFileExtensions}}
+	hasMask := maskFS != nil
+	for path := range scanner.ScanPath(ctx, fsys, root) {
+		if hasMask && tools.IsFileExistsFS(maskFS, path) {
+			// File exists on the masking fiesystem, ignore this one
 			continue
 		}
-		found = append(found, f)
+		file, err := readTemplateFile(fsys, path)
+		if err != nil {
+			logging.Warning("failed to open template %v", err)
+			continue
+		}
+		if filter != nil && !filter(file) {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case out <- file:
+		}
 	}
-	return found
 }
 
 func readTemplateFile(fsys fs.FS, path string) (*model.TemplateFile, error) {

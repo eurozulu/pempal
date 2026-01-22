@@ -4,6 +4,7 @@ import (
 	"github.com/eurozulu/colout"
 	"github.com/eurozulu/pempal/model"
 	"io"
+	"strings"
 )
 
 type ListFormat struct{}
@@ -12,9 +13,9 @@ var listColumns = buildColumns()
 
 func (l ListFormat) Format(out io.Writer, p *model.PemFile) error {
 	outCols := colout.ColumnWriter{
-		Columns:      listColumns,
-		ColumnSpacer: " ",
-		Out:          out,
+		Columns:         listColumns,
+		ColumnSpacer:    "  ",
+		StringDelimiter: "---",
 	}
 	for _, r := range p.Resources() {
 		cols := []string{
@@ -22,7 +23,7 @@ func (l ListFormat) Format(out io.Writer, p *model.PemFile) error {
 			r.String(),
 			p.Path,
 		}
-		if _, err := outCols.WriteStrings(cols); err != nil {
+		if _, err := outCols.WriteString(strings.Join(cols, "---")); err != nil {
 			return err
 		}
 	}
@@ -34,12 +35,12 @@ func buildColumns() []colout.Column {
 		{
 			Name:      "type",
 			Alignment: colout.Left,
-			Width:     20,
+			Width:     15,
 		},
 		{
 			Name:      "details",
 			Alignment: colout.Left,
-			Width:     60,
+			Width:     90,
 		},
 		{
 			Name:      "path",

@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/eurozulu/pempal/tools"
 	"strings"
 )
 
@@ -74,6 +75,7 @@ func (k *PublicKey) MarshalText() (text []byte, err error) {
 }
 
 func (k *PublicKey) UnmarshalText(text []byte) error {
+	text = []byte(tools.CleanQuotes(string(text)))
 	var der []byte
 	for len(text) > 0 {
 		blk, rest := pem.Decode(text)
